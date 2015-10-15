@@ -1,10 +1,11 @@
-#include <iostream>
+#include <TraDaG/ogrewindow.h>
 
-using namespace std;
+#include <iostream>
 
 int main()
 {
-    cout << "Hello World!" << endl;
+    OgreWindow testWindow;
+    testWindow.initialize();
+
     return 0;
 }
-
