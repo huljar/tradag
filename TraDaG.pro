@@ -16,9 +16,13 @@ SOURCES += main.cpp \
 INCLUDEPATH += /usr/include/OGRE
 LIBS += -lOgreMain -lOgreOverlay -L/usr/lib/i386-linux-gnu/OGRE-1.9.0
 
+# OIS
+INCLUDEPATH += /usr/include/ois
+LIBS += -lOIS
+
 # Bullet
 INCLUDEPATH += /usr/include/bullet
-LIBS += -lBulletSoftBody -lBulletDynamics -lBulletCollision -lLinearMath
+LIBS += -lBulletDynamics -lBulletCollision -lLinearMath #-lBulletSoftBody
 
 # OgreBullet
 LIBS += -lOgreBulletCollisions -lOgreBulletDynamics -L$$PWD/libs/OgreBullet

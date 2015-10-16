@@ -2,12 +2,17 @@
 
 OgreWindow::OgreWindow()
     : mRoot(NULL)
+    , mWindow(NULL)
+    , mSceneMgr(NULL)
+    , mCamera(NULL)
+    , mCameraMan(NULL)
     , mResourcesCfg(Ogre::StringUtil::BLANK)
     , mPluginsCfg(Ogre::StringUtil::BLANK)
 {
 }
 
 OgreWindow::~OgreWindow() {
+    if(mCameraMan) delete mCameraMan;
     delete mRoot;
 }
 
@@ -43,7 +48,7 @@ void OgreWindow::initialize() {
     Ogre::RenderSystem* rs = NULL;
 
     Ogre::StringVector renderOrder;
-#if defined(OS_WIN)
+#if defined(Q_OS_WIN)
     renderOrder.push_back("Direct3D9");
     renderOrder.push_back("Direct3D11");
 #endif
@@ -72,7 +77,7 @@ void OgreWindow::initialize() {
         }
     }
 
-    rs->setConfigOption("Video Mode", "1366 x 768 @ 32-bit colour");
+    rs->setConfigOption("Video Mode", "800 x 600 @ 32-bit colour");
     rs->setConfigOption("Full Screen", "No");
     mRoot->setRenderSystem(rs);
 
@@ -91,6 +96,9 @@ void OgreWindow::initialize() {
     mCamera->setPosition(0, 0, 80);
     mCamera->lookAt(0, 0, -300);
     mCamera->setNearClipDistance(5);
+
+    // Create camera controller
+    mCameraMan = new OgreBites::SdkCameraMan(mCamera);
 
     // Add viewport
     Ogre::Viewport* vp = mWindow->addViewport(mCamera);
@@ -119,4 +127,30 @@ void OgreWindow::createScene() {
 
     Ogre::Light* light = mSceneMgr->createLight("MainLight");
     light->setPosition(20, 80, 50);
+}
+
+bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt)
+{
+    mCameraMan->frameRenderingQueued(evt);
+    return true;
+}
+
+bool OgreWindow::keyPressed(const OIS::KeyEvent &e) {
+    return true;
+}
+
+bool OgreWindow::keyReleased(const OIS::KeyEvent &e) {
+    return true;
+}
+
+bool OgreWindow::mouseMoved(const OIS::MouseEvent &e) {
+    return true;
+}
+
+bool OgreWindow::mousePressed(const OIS::MouseEvent &e) {
+    return true;
+}
+
+bool OgreWindow::mouseReleased(const OIS::MouseEvent &e) {
+    return true;
 }
