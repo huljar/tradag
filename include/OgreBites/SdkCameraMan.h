@@ -50,6 +50,7 @@ namespace OgreBites
         SdkCameraMan(Ogre::Camera* cam)
         : mCamera(0)
         , mTarget(0)
+        , mRotating(false)
         , mOrbiting(false)
         , mZooming(false)
         , mTopSpeed(150)
@@ -197,7 +198,7 @@ namespace OgreBites
                 if (mGoingDown) accel -= mCamera->getUp();
 
                 // if accelerating, try to reach top speed in a certain time
-                Ogre::Real topSpeed = mFastMove ? mTopSpeed * 20 : mTopSpeed;
+                Ogre::Real topSpeed = mFastMove ? mTopSpeed * 10 : mTopSpeed;
                 if (accel.squaredLength() != 0)
                 {
                     accel.normalise();
@@ -294,8 +295,11 @@ namespace OgreBites
             }
             else if (mStyle == CS_FREELOOK)
             {
-                mCamera->yaw(Ogre::Degree(-evt.state.X.rel * 0.15f));
-                mCamera->pitch(Ogre::Degree(-evt.state.Y.rel * 0.15f));
+                if (mRotating)
+                {
+                    mCamera->yaw(Ogre::Degree(-evt.state.X.rel * 0.15f));
+                    mCamera->pitch(Ogre::Degree(-evt.state.Y.rel * 0.15f));
+                }
             }
         }
 
@@ -310,6 +314,10 @@ namespace OgreBites
             {
                 mOrbiting = true;
             }
+            else if (mStyle == CS_FREELOOK)
+            {
+                mRotating = true;
+            }
         }
 #else
         virtual void injectMouseDown(const OIS::MouseEvent& evt, OIS::MouseButtonID id)
@@ -318,6 +326,10 @@ namespace OgreBites
             {
                 if (id == OIS::MB_Left) mOrbiting = true;
                 else if (id == OIS::MB_Right) mZooming = true;
+            }
+            else if (mStyle == CS_FREELOOK)
+            {
+                if (id == OIS::MB_Left) mRotating = true;
             }
         }
 #endif
@@ -333,6 +345,10 @@ namespace OgreBites
             {
                 mOrbiting = false;
             }
+            else if (mStyle == CS_FREELOOK)
+            {
+                mRotating = false;
+            }
         }
 #else
         virtual void injectMouseUp(const OIS::MouseEvent& evt, OIS::MouseButtonID id)
@@ -342,6 +358,10 @@ namespace OgreBites
                 if (id == OIS::MB_Left) mOrbiting = false;
                 else if (id == OIS::MB_Right) mZooming = false;
             }
+            else if(mStyle == CS_FREELOOK)
+            {
+                if (id == OIS::MB_Left) mRotating = false;
+            }
         }
 #endif
 
@@ -350,6 +370,7 @@ namespace OgreBites
         Ogre::Camera* mCamera;
         CameraStyle mStyle;
         Ogre::SceneNode* mTarget;
+        bool mRotating;
         bool mOrbiting;
         bool mZooming;
         Ogre::Real mTopSpeed;
