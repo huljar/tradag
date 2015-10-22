@@ -8,10 +8,12 @@ VPATH += ./src \
 INCLUDEPATH += ./include
 
 SOURCES += main.cpp \
-    ogrewindow.cpp
+    ogrewindow.cpp \
+    rgbdobject.cpp
 
 HEADERS += include/OgreBites/SdkCameraMan.h \
-    ogrewindow.h
+    ogrewindow.h \
+    rgbdobject.h
 
 # OGRE integration
 INCLUDEPATH += /usr/include/OGRE
