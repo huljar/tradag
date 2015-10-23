@@ -8,13 +8,16 @@ OgreWindow::OgreWindow()
     , mCameraMan(NULL)
     , mResourcesCfg(Ogre::StringUtil::BLANK)
     , mPluginsCfg(Ogre::StringUtil::BLANK)
+    , mInputManager(NULL)
+    , mKeyboard(NULL)
+    , mMouse(NULL)
+    , mScene(NULL)
 {
 }
 
 OgreWindow::~OgreWindow() {
     if(mCameraMan) delete mCameraMan;
     Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, this);
-    windowClosed(mWindow);
     delete mRoot;
 }
 
@@ -95,9 +98,9 @@ void OgreWindow::initialize() {
 
     // Create camera
     mCamera = mSceneMgr->createCamera("MainCamera");
-    mCamera->setPosition(0, 0, 80);
-    mCamera->lookAt(0, 0, -300);
-    mCamera->setNearClipDistance(5);
+    mCamera->setPosition(0, 0, 0);
+    mCamera->lookAt(0, 0, -1);
+    mCamera->setNearClipDistance(0.01);
 
     // Create camera controller
     mCameraMan = new OgreBites::SdkCameraMan(mCamera);
@@ -150,8 +153,8 @@ void OgreWindow::initialize() {
     // Add frame listener
     mRoot->addFrameListener(this);
 
-    // Enter rendering loop
-    mRoot->startRendering();
+    // Render an initial frame
+    mRoot->renderOneFrame();
 }
 
 void OgreWindow::createScene() {
@@ -164,6 +167,14 @@ void OgreWindow::createScene() {
 
     Ogre::Light* light = mSceneMgr->createLight("MainLight");
     light->setPosition(20, 80, 50);
+}
+
+void OgreWindow::enterRenderingLoop() {
+    mRoot->startRendering();
+}
+
+void OgreWindow::setScene(RgbdObject* scene) {
+    mScene = scene;
 }
 
 bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt)

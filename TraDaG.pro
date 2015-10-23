@@ -42,8 +42,8 @@ else {
     LIBS += -L$$PWD/libs/OgreBullet/i386
 }
 
-# Boost integration (required by OGRE)
-LIBS += -lboost_system
+# Boost integration
+LIBS += -lboost_system -lboost_program_options
 
 include(deployment.pri)
 qtcAddDeployment()

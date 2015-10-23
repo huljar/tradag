@@ -5,6 +5,8 @@
 #include <OgreBites/SdkCameraMan.h>
 #include <OIS.h>
 
+#include <TraDaG/rgbdobject.h>
+
 class OgreWindow : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
 {
 public:
@@ -13,6 +15,9 @@ public:
 
     virtual void initialize();
     virtual void createScene();
+    virtual void enterRenderingLoop();
+
+    virtual void setScene(RgbdObject* scene);
 
     // FrameListener method
     virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt);
@@ -31,18 +36,25 @@ public:
     virtual bool mouseReleased(const OIS::MouseEvent& e, const OIS::MouseButtonID button);
 
 protected:
+    // OGRE pointers
     Ogre::Root* mRoot;
     Ogre::RenderWindow* mWindow;
     Ogre::SceneManager* mSceneMgr;
     Ogre::Camera* mCamera;
     OgreBites::SdkCameraMan* mCameraMan;
 
+    // Paths of config files
     Ogre::String mResourcesCfg;
     Ogre::String mPluginsCfg;
 
+    // OIS pointers
     OIS::InputManager* mInputManager;
     OIS::Keyboard* mKeyboard;
     OIS::Mouse* mMouse;
+
+    // Scene
+    RgbdObject* mScene;
+
 };
 
 #endif // OGREWINDOW_H
