@@ -12,6 +12,9 @@ OgreWindow::OgreWindow()
     , mKeyboard(NULL)
     , mMouse(NULL)
     , mScene(NULL)
+    , mSceneSceneNode(NULL)
+    , defaultCameraPosition(0, 0, 0)
+    , defaultCameraLookAt(0, 0, -1)
 {
 }
 
@@ -97,13 +100,7 @@ void OgreWindow::initialize() {
     mSceneMgr = mRoot->createSceneManager(Ogre::ST_GENERIC);
 
     // Create camera
-    mCamera = mSceneMgr->createCamera("MainCamera");
-    mCamera->setPosition(0, 0, 0);
-    mCamera->lookAt(0, 0, -1);
-    mCamera->setNearClipDistance(0.01);
-
-    // Create camera controller
-    mCameraMan = new OgreBites::SdkCameraMan(mCamera);
+    createCamera();
 
     // Add viewport
     Ogre::Viewport* vp = mWindow->addViewport(mCamera);
@@ -157,24 +154,45 @@ void OgreWindow::initialize() {
     mRoot->renderOneFrame();
 }
 
-void OgreWindow::createScene() {
-    Ogre::Entity* ogreEntity = mSceneMgr->createEntity("ogrehead.mesh");
+void OgreWindow::createCamera() {
+    mCamera = mSceneMgr->createCamera("MainCamera");
+    mCamera->setPosition(0, 0, 0);
+    mCamera->lookAt(0, 0, -1);
+    mCamera->setNearClipDistance(0.01);
 
-    Ogre::SceneNode* ogreNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    ogreNode->attachObject(ogreEntity);
-
-    mSceneMgr->setAmbientLight(Ogre::ColourValue(.5, .5, .5));
-
-    Ogre::Light* light = mSceneMgr->createLight("MainLight");
-    light->setPosition(20, 80, 50);
+    // Create camera controller
+    mCameraMan = new OgreBites::SdkCameraMan(mCamera);
 }
+
+void OgreWindow::createScene() {
+//    Ogre::Entity* ogreEntity = mSceneMgr->createEntity("ogrehead.mesh");
+
+//    Ogre::SceneNode* ogreNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+//    ogreNode->attachObject(ogreEntity);
+
+//    mSceneMgr->setAmbientLight(Ogre::ColourValue(.5, .5, .5));
+
+//    Ogre::Light* light = mSceneMgr->createLight("MainLight");
+//    light->setPosition(20, 80, 50);
+}
+
 
 void OgreWindow::enterRenderingLoop() {
     mRoot->startRendering();
 }
 
+void OgreWindow::resetCamera() {
+    if(mCamera) {
+        mCamera->setPosition(defaultCameraPosition);
+        mCamera->lookAt(defaultCameraLookAt);
+    }
+}
+
 void OgreWindow::setScene(RgbdObject* scene) {
     mScene = scene;
+    if(mSceneSceneNode == NULL)
+        mSceneSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    mSceneSceneNode->attachObject(mScene);
 }
 
 bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt)
@@ -218,6 +236,8 @@ void OgreWindow::windowClosed(Ogre::RenderWindow* rw) {
 
 bool OgreWindow::keyPressed(const OIS::KeyEvent& e) {
     mCameraMan->injectKeyDown(e);
+    if(e.key == OIS::KC_SPACE)
+        resetCamera();
     return true;
 }
 

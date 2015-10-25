@@ -16,7 +16,7 @@ int main(int argc, char** argv)
             ("rgb-file,c", po::value<std::string>(), "RGB (color) input file")
             ("depth-file,d", po::value<std::string>(), "Depth input file")
             ("label-file,l", po::value<std::string>(), "Label input file")
-            ("verbose,v", "Display result in a window")
+            ("preview,p", "Preview result in a window")
             ("animate,a", "Show the object dropping into the scene")
             ("help", "Display this help")
             ("version", "Display version information");
@@ -55,9 +55,9 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    scene->setCameraParams(
-                Ogre::Vector2(3.2850951551345941e+02, 2.5282555217253503e+02),
-                Ogre::Vector2(5.1930334103339817e+02, 5.1816401430246583e+02));
+    scene->setPrincipalPoint(Ogre::Vector2(3.2850951551345941e+02, 2.5282555217253503e+02));
+    scene->setFocalLength(Ogre::Vector2(5.1930334103339817e+02, 5.1816401430246583e+02));
+
     scene->meshify();
 
     testWindow->setScene(scene);

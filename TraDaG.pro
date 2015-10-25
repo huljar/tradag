@@ -15,7 +15,7 @@ HEADERS += include/OgreBites/SdkCameraMan.h \
     ogrewindow.h \
     rgbdobject.h
 
-# OGRE integration
+# OGRE
 INCLUDEPATH += /usr/include/OGRE
 LIBS += -lOgreMain -lOgreOverlay
 contains(QT_ARCH, x86_64) {
@@ -42,8 +42,11 @@ else {
     LIBS += -L$$PWD/libs/OgreBullet/i386
 }
 
-# Boost integration
+# Boost
 LIBS += -lboost_system -lboost_program_options
+
+# OpenCV
+LIBS += -lopencv_core -lopencv_imgproc -lopencv_highgui
 
 include(deployment.pri)
 qtcAddDeployment()

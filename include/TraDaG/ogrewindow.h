@@ -17,6 +17,8 @@ public:
     virtual void createScene();
     virtual void enterRenderingLoop();
 
+    virtual void resetCamera();
+
     virtual void setScene(RgbdObject* scene);
 
     // FrameListener method
@@ -36,6 +38,8 @@ public:
     virtual bool mouseReleased(const OIS::MouseEvent& e, const OIS::MouseButtonID button);
 
 protected:
+    virtual void createCamera();
+
     // OGRE pointers
     Ogre::Root* mRoot;
     Ogre::RenderWindow* mWindow;
@@ -54,6 +58,11 @@ protected:
 
     // Scene
     RgbdObject* mScene;
+    Ogre::SceneNode* mSceneSceneNode;
+
+    // Camera
+    Ogre::Vector3 defaultCameraPosition;
+    Ogre::Vector3 defaultCameraLookAt;
 
 };
 
