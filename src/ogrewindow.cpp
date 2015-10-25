@@ -217,8 +217,7 @@ void OgreWindow::windowResized(Ogre::RenderWindow* rw) {
     ms.width = width;
     ms.height = height;
 
-    // Update viewport aspect ratio
-
+    // TODO: Update viewport aspect ratio
 }
 
 void OgreWindow::windowClosed(Ogre::RenderWindow* rw) {

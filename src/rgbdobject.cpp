@@ -49,10 +49,9 @@ void RgbdObject::meshify() {
 //    Ogre::TextureUnitState* texUnit = pass->createTextureUnitState(mSceneTexture);
 //    texUnit->setTextureScale(1.0, 1.0);
 
-    //begin(mSceneMaterial, Ogre::RenderOperation::OT_TRIANGLE_LIST);
-    begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
+    begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_TRIANGLE_LIST);
     createVertices();
-    //createIndices();
+    createIndices();
     end();
 }
 
@@ -63,7 +62,6 @@ void RgbdObject::createVertices() {
             //std::cout << "Depth at (" << x << ", " << y << "): " << c << std::endl;
             position(depthTo3D(x, y, mDepthImage.at<uint16_t>(y, x), 0.5));
 
-            // Ogre's y-vector points up, but OpenCV's y-vector points down
             cv::Vec3b pxColor = mRgbImage.at<cv::Vec3b>(y, x);
             // Ogre uses RGB and OpenCV uses BGR, hence the reversed indexing
             colour(((Ogre::Real)pxColor[2]) / 255.0f, ((Ogre::Real)pxColor[1]) / 255.0f, ((Ogre::Real)pxColor[0]) / 255.0f);
@@ -87,6 +85,7 @@ void RgbdObject::createIndices() {
 
 Ogre::Vector3 RgbdObject::depthTo3D(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth, Ogre::Real scale) {
     Ogre::Real retX = (x - mPrincipalPoint.x) * (Ogre::Real)depth * scale / mFocalLength.x;
+    // Ogre's y-vector points up, but OpenCV's y-vector points down (therefore negate result)
     Ogre::Real retY = -((y - mPrincipalPoint.y) * (Ogre::Real)depth * scale / mFocalLength.y);
     Ogre::Real retZ = -((Ogre::Real)depth);
 
