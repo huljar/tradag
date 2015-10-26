@@ -13,18 +13,30 @@ OgreWindow::OgreWindow()
     , mMouse(NULL)
     , mScene(NULL)
     , mSceneSceneNode(NULL)
-    , defaultCameraPosition(0, 0, 0)
-    , defaultCameraLookAt(0, 0, -1)
+    , mDefaultCameraPosition(0, 0, 0)
+    , mDefaultCameraLookAt(0, 0, -1)
+    , mGravity(0, /*-9.81*/-100, 0)
+    , mBounds(Ogre::Vector3(-1000, -1000, -1000), Ogre::Vector3(1000, 1000, 1000))
+    , mWorld(NULL)
+    , mDebugDrawer(NULL)
 {
 }
 
 OgreWindow::~OgreWindow() {
-    if(mCameraMan) delete mCameraMan;
+    for(auto it = mBodies.begin(); it != mBodies.end(); ++it)
+        delete *it;
+    for(auto it = mShapes.begin(); it != mShapes.end(); ++it)
+        delete *it;
+
+    delete mDebugDrawer;
+    delete mWorld;
+
+    delete mCameraMan;
     Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, this);
     delete mRoot;
 }
 
-void OgreWindow::initialize() {
+void OgreWindow::initializeOgre() {
     // Resource and plugins config paths
     mResourcesCfg = "../config/resources.cfg";
     mPluginsCfg = "../config/plugins.cfg";
@@ -85,7 +97,7 @@ void OgreWindow::initialize() {
         }
     }
 
-    rs->setConfigOption("Video Mode", "800 x 600 @ 32-bit colour");
+    rs->setConfigOption("Video Mode", "1024 x 768 @ 32-bit colour");
     rs->setConfigOption("Full Screen", "No");
     mRoot->setRenderSystem(rs);
 
@@ -107,9 +119,6 @@ void OgreWindow::initialize() {
     vp->setBackgroundColour(Ogre::ColourValue(0, 0, 0));
 
     mCamera->setAspectRatio(Ogre::Real(vp->getActualWidth()) / Ogre::Real(vp->getActualHeight()));
-
-    // Set up the scene
-    createScene();
 
     // Initialize OIS
     Ogre::LogManager::getSingletonPtr()->logMessage("*** Initializing OIS ***");
@@ -149,33 +158,69 @@ void OgreWindow::initialize() {
 
     // Add frame listener
     mRoot->addFrameListener(this);
-
-    // Render an initial frame
-    mRoot->renderOneFrame();
 }
 
 void OgreWindow::createCamera() {
     mCamera = mSceneMgr->createCamera("MainCamera");
-    mCamera->setPosition(0, 0, 0);
-    mCamera->lookAt(0, 0, -1);
-    mCamera->setNearClipDistance(0.01);
+    mCamera->setPosition(mDefaultCameraPosition);
+    mCamera->lookAt(mDefaultCameraLookAt);
+    mCamera->setNearClipDistance(2.0);
+    mCamera->setFOVy(Ogre::Degree(55.0));
 
     // Create camera controller
     mCameraMan = new OgreBites::SdkCameraMan(mCamera);
+    mCameraMan->setTopSpeed(300);
 }
 
-void OgreWindow::createScene() {
-//    Ogre::Entity* ogreEntity = mSceneMgr->createEntity("ogrehead.mesh");
+void OgreWindow::initializeBullet() {
+    if(mRoot == NULL) {
+        std::cerr << "ERROR: You need to initialize OGRE before Bullet!" << std::endl;
+        return;
+    }
 
-//    Ogre::SceneNode* ogreNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-//    ogreNode->attachObject(ogreEntity);
+    // Set up Bullet world
+    mWorld = new OgreBulletDynamics::DynamicsWorld(mSceneMgr, mBounds, mGravity);
 
-//    mSceneMgr->setAmbientLight(Ogre::ColourValue(.5, .5, .5));
+    // Set up debug info display tool
+    mDebugDrawer = new OgreBulletCollisions::DebugDrawer();
+    mDebugDrawer->setDrawWireframe(true);
+    mWorld->setDebugDrawer(mDebugDrawer);
+    mWorld->setShowDebugShapes(true);
 
-//    Ogre::Light* light = mSceneMgr->createLight("MainLight");
-//    light->setPosition(20, 80, 50);
+    mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(mDebugDrawer);
+
+    // Create Bullet plane and box (change later to implement plane fitting and real objects)
+    Ogre::Plane plane(Ogre::Vector3::UNIT_Y, 1000);
+    OgreBulletDynamics::RigidBody* planeBody = new OgreBulletDynamics::RigidBody("FloorPlaneBody", mWorld);
+    OgreBulletCollisions::CollisionShape* planeShape = new OgreBulletCollisions::StaticPlaneCollisionShape(plane.normal, plane.d);
+
+    planeBody->setStaticShape(planeShape, 0.1, 0.8);
+
+    mBodies.push_back(planeBody);
+    mShapes.push_back(planeShape);
+
+    Ogre::Entity* boxEntity = mSceneMgr->createEntity("cube.mesh");
+    boxEntity->setCastShadows(true);
+    Ogre::AxisAlignedBox boxBoundingBox = boxEntity->getBoundingBox();
+    Ogre::Vector3 boxSize = boxBoundingBox.getSize();
+    boxSize *= 0.5 * 0.96;
+    boxEntity->setMaterialName("BaseWhiteNoLighting");
+    Ogre::SceneNode* boxNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    boxNode->attachObject(boxEntity);
+
+    OgreBulletDynamics::RigidBody* boxBody = new OgreBulletDynamics::RigidBody("BoxBody", mWorld);
+    OgreBulletCollisions::BoxCollisionShape* boxShape = new OgreBulletCollisions::BoxCollisionShape(boxSize);
+
+    boxBody->setShape(boxNode, boxShape, 0.6f, 0.6f, 1.0f, Ogre::Vector3(-800, 400, -3600));
+    boxBody->setLinearVelocity(0, 100, 0);
+
+    mBodies.push_back(boxBody);
+    mShapes.push_back(boxShape);
 }
 
+void OgreWindow::renderOneFrame() {
+    mRoot->renderOneFrame();
+}
 
 void OgreWindow::enterRenderingLoop() {
     mRoot->startRendering();
@@ -183,8 +228,8 @@ void OgreWindow::enterRenderingLoop() {
 
 void OgreWindow::resetCamera() {
     if(mCamera) {
-        mCamera->setPosition(defaultCameraPosition);
-        mCamera->lookAt(defaultCameraLookAt);
+        mCamera->setPosition(mDefaultCameraPosition);
+        mCamera->lookAt(mDefaultCameraLookAt);
     }
 }
 
@@ -195,8 +240,16 @@ void OgreWindow::setScene(RgbdObject* scene) {
     mSceneSceneNode->attachObject(mScene);
 }
 
-bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt)
-{
+bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
+    if(mWindow->isClosed())
+        return false;
+
+    mWorld->stepSimulation(evt.timeSinceLastFrame);
+
+    return true;
+}
+
+bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt) {
     if(mWindow->isClosed())
         return false;
 

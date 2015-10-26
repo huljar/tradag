@@ -34,6 +34,7 @@ INCLUDEPATH += /usr/include/bullet
 LIBS += -lBulletDynamics -lBulletCollision -lLinearMath# -lBulletSoftBody
 
 # OgreBullet
+INCLUDEPATH += include/OgreBullet/Dynamics include/OgreBullet/Collisions
 LIBS += -lOgreBulletCollisions -lOgreBulletDynamics
 contains(QT_ARCH, x86_64) {
     LIBS += -L$$PWD/libs/OgreBullet/x86_64

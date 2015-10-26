@@ -42,9 +42,10 @@ int main(int argc, char** argv)
     std::string depthFile = vm["depth-file"].as<std::string>();
     std::string labelFile = vm["label-file"].as<std::string>();
 
-    // Init OGRE
-    OgreWindow* testWindow = new OgreWindow();
-    testWindow->initialize();
+    // Init window
+    OgreWindow* previewWindow = new OgreWindow();
+    previewWindow->initializeOgre();
+    previewWindow->initializeBullet();
 
     // Create RGBD object
     RgbdObject* scene = new RgbdObject("sceneObject");
@@ -55,18 +56,19 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    scene->setPrincipalPoint(Ogre::Vector2(3.2850951551345941e+02, 2.5282555217253503e+02));
-    scene->setFocalLength(Ogre::Vector2(5.1930334103339817e+02, 5.1816401430246583e+02));
+    scene->setPrincipalPoint(3.2850951551345941e+02, 2.5282555217253503e+02);
+    scene->setFocalLength(5.1930334103339817e+02, 5.1816401430246583e+02);
+    //scene->setScale(0.7, 0.7);
 
     scene->meshify();
 
-    testWindow->setScene(scene);
+    previewWindow->setScene(scene);
 
-    testWindow->enterRenderingLoop();
+    previewWindow->enterRenderingLoop();
 
     // Clean up
     delete scene;
-    delete testWindow;
+    delete previewWindow;
 
     return 0;
 }

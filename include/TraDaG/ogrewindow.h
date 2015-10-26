@@ -5,7 +5,13 @@
 #include <OgreBites/SdkCameraMan.h>
 #include <OIS.h>
 
+#include <OgreBullet/Dynamics/OgreBulletDynamicsRigidBody.h>
+#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsStaticPlaneShape.h>
+#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsBoxShape.h>
+
 #include <TraDaG/rgbdobject.h>
+
+#include <vector>
 
 class OgreWindow : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
 {
@@ -13,8 +19,10 @@ public:
     OgreWindow();
     virtual ~OgreWindow();
 
-    virtual void initialize();
-    virtual void createScene();
+    virtual void initializeOgre();
+    virtual void initializeBullet();
+
+    virtual void renderOneFrame();
     virtual void enterRenderingLoop();
 
     virtual void resetCamera();
@@ -22,6 +30,7 @@ public:
     virtual void setScene(RgbdObject* scene);
 
     // FrameListener method
+    virtual bool frameStarted(const Ogre::FrameEvent& evt);
     virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt);
 
     // WindowEventListener methods
@@ -61,8 +70,16 @@ protected:
     Ogre::SceneNode* mSceneSceneNode;
 
     // Camera
-    Ogre::Vector3 defaultCameraPosition;
-    Ogre::Vector3 defaultCameraLookAt;
+    Ogre::Vector3 mDefaultCameraPosition;
+    Ogre::Vector3 mDefaultCameraLookAt;
+
+    // Bullet physics
+    Ogre::Vector3 mGravity;
+    Ogre::AxisAlignedBox mBounds;
+    OgreBulletDynamics::DynamicsWorld* mWorld;
+    OgreBulletCollisions::DebugDrawer* mDebugDrawer;
+    std::vector<OgreBulletDynamics::RigidBody*> mBodies;
+    std::vector<OgreBulletCollisions::CollisionShape*> mShapes;
 
 };
 

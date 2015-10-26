@@ -18,9 +18,15 @@ public:
 
     Ogre::Vector2 getPrincipalPoint() const;
     void setPrincipalPoint(const Ogre::Vector2& principalPoint);
+    void setPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY);
 
     Ogre::Vector2 getFocalLength() const;
     void setFocalLength(const Ogre::Vector2& focalLength);
+    void setFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY);
+
+    Ogre::Vector2 getScale() const;
+    void setScale(Ogre::Vector2 scale);
+    void setScale(Ogre::Real scaleX, Ogre::Real scaleY);
 
 protected:
 //    Ogre::Image mRgbImage;
@@ -35,21 +41,22 @@ protected:
 
     Ogre::Vector2 mPrincipalPoint;
     Ogre::Vector2 mFocalLength;
+    Ogre::Vector2 mScale;
 
 private:
     void createVertices();
     void createIndices();
 
-    Ogre::Vector3 depthTo3D(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth, Ogre::Real scale = 1.0);
+    Ogre::Vector3 depthTo3D(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth);
     Ogre::uint32 pixelToIndex(Ogre::int32 x, Ogre::int32 y);
 
     Ogre::String getNextMaterialName(bool save);
     Ogre::String getNextTextureName(bool save);
 
-    static const Ogre::String materialName;
-    static int materialId;
-    static const Ogre::String textureName;
-    static int textureId;
+    const Ogre::String mMaterialName;
+    int mMaterialId;
+    const Ogre::String mTextureName;
+    int mTextureId;
 };
 
 #endif // RGBDOBJECT_H
