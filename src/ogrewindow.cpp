@@ -185,7 +185,7 @@ void OgreWindow::initializeBullet() {
     mDebugDrawer = new OgreBulletCollisions::DebugDrawer();
     mDebugDrawer->setDrawWireframe(true);
     mWorld->setDebugDrawer(mDebugDrawer);
-    mWorld->setShowDebugShapes(true);
+    //mWorld->setShowDebugShapes(true);
 
     mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(mDebugDrawer);
 

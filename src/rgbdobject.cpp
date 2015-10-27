@@ -7,15 +7,15 @@
 
 RgbdObject::RgbdObject(const Ogre::String& name)
     : ManualObject(name)
-    , mPrincipalPoint(320, 240)
-    , mFocalLength(500, 500)
-    , mScale(1.0, 1.0)
+    , mDepthPrincipalPoint(320, 240)
+    , mDepthFocalLength(500, 500)
+    , mRgbPrincipalPoint(320, 240)
+    , mRgbFocalLength(500, 500)
     , mMaterialName("tradagSceneMaterial")
     , mMaterialId(0)
     , mTextureName("tradagSceneTexture")
     , mTextureId(0)
 {
-
 }
 
 bool RgbdObject::loadRgbFromFile(const Ogre::String& rgbFileName) {
@@ -55,22 +55,26 @@ void RgbdObject::meshify() {
 }
 
 void RgbdObject::createVertices() {
-    for(int y = 0; y < mRgbImage.rows; ++y) {
-        for(int x = 0; x < mRgbImage.cols; ++x) {
-            //uint16_t c = mDepthImage.at<uint16_t>(y, x);
-            //std::cout << "Depth at (" << x << ", " << y << "): " << c << std::endl;
-            position(depthTo3D(x, y, mDepthImage.at<uint16_t>(y, x)));
+    for(int y = 0; y < mDepthImage.rows; ++y) {
+        for(int x = 0; x < mDepthImage.cols; ++x) {
+            // Transform depth pixel to world coordinates
+            Ogre::Vector3 worldPoint = depthToWorld(x, y, mDepthImage.at<uint16_t>(y, x));
+            position(worldPoint);
 
-            cv::Vec3b pxColor = mRgbImage.at<cv::Vec3b>(y, x);
+            // Retrieve RGB pixel for this world point
+            Ogre::Vector2 rgbPixel = worldToRgb(worldPoint);
+            cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(rgbPixel.y, rgbPixel.x);
+            //cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(y, x);
+
             // Ogre uses RGB and OpenCV uses BGR, hence the reversed indexing
-            colour(((Ogre::Real)pxColor[2]) / 255.0f, ((Ogre::Real)pxColor[1]) / 255.0f, ((Ogre::Real)pxColor[0]) / 255.0f);
+            colour(((Ogre::Real)rgbColor[2]) / 255.0f, ((Ogre::Real)rgbColor[1]) / 255.0f, ((Ogre::Real)rgbColor[0]) / 255.0f);
         }
     }
 }
 
 void RgbdObject::createIndices() {
-    for(int y = 0; y < mRgbImage.rows - 1; ++y) {
-        for(int x = 0; x < mRgbImage.cols - 1; ++x) {
+    for(int y = 0; y < mDepthImage.rows - 1; ++y) {
+        for(int x = 0; x < mDepthImage.cols - 1; ++x) {
             // Create 2 triangles (= 1 "square") per iteration
             index(pixelToIndex(x, y));
             index(pixelToIndex(x, y + 1));
@@ -83,17 +87,27 @@ void RgbdObject::createIndices() {
     }
 }
 
-Ogre::Vector3 RgbdObject::depthTo3D(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth) {
-    Ogre::Real retX = (x - mPrincipalPoint.x) * (Ogre::Real)depth * mScale.x / mFocalLength.x;
+Ogre::Vector3 RgbdObject::depthToWorld(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth) const {
+    Ogre::Real retX = (x - mDepthPrincipalPoint.x) * (Ogre::Real)depth / mDepthFocalLength.x;
     // Ogre's y-vector points up, but OpenCV's y-vector points down (therefore negate result)
-    Ogre::Real retY = -((y - mPrincipalPoint.y) * (Ogre::Real)depth * mScale.y / mFocalLength.y);
+    Ogre::Real retY = -((y - mDepthPrincipalPoint.y) * (Ogre::Real)depth / mDepthFocalLength.y);
     Ogre::Real retZ = -((Ogre::Real)depth);
 
     return Ogre::Vector3(retX, retY, retZ);
 }
 
-Ogre::uint32 RgbdObject::pixelToIndex(Ogre::int32 x, Ogre::int32 y) {
-    return y * mRgbImage.cols + x;
+Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point) const {
+    Ogre::Vector3 transformed = mDepthToRgbRotation * point + mDepthToRgbTranslation;
+    //Ogre::Vector3 transformed = point;
+
+    int retX = std::round(transformed.x * mRgbFocalLength.x / (-transformed.z) + mRgbPrincipalPoint.x);
+    int retY = std::round((-transformed.y) * mRgbFocalLength.y / (-transformed.z) + mRgbPrincipalPoint.y);
+    //int retX = std::round(transformed.x * mDepthFocalLength.x / (-transformed.z) + mDepthPrincipalPoint.x);
+    //int retY = std::round((-transformed.y) * mDepthFocalLength.y / (-transformed.z) + mDepthPrincipalPoint.y);
+
+    return Ogre::Vector2(
+            std::max(0, std::min(mRgbImage.cols, retX)),
+            std::max(0, std::min(mRgbImage.rows, retY)));
 }
 
 Ogre::String RgbdObject::getNextMaterialName(bool save) {
@@ -106,38 +120,70 @@ Ogre::String RgbdObject::getNextTextureName(bool save) {
     return mTextureName + boost::lexical_cast<Ogre::String>(mTextureId++);
 }
 
-Ogre::Vector2 RgbdObject::getPrincipalPoint() const {
-    return mPrincipalPoint;
+Ogre::Vector2 RgbdObject::getDepthPrincipalPoint() const {
+    return mDepthPrincipalPoint;
 }
 
-void RgbdObject::setPrincipalPoint(const Ogre::Vector2& principalPoint) {
-    mPrincipalPoint = principalPoint;
+void RgbdObject::setDepthPrincipalPoint(const Ogre::Vector2& principalPoint) {
+    mDepthPrincipalPoint = principalPoint;
 }
 
-void RgbdObject::setPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY) {
-    mPrincipalPoint = Ogre::Vector2(principalPointX, principalPointY);
+void RgbdObject::setDepthPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY) {
+    mDepthPrincipalPoint = Ogre::Vector2(principalPointX, principalPointY);
 }
 
-Ogre::Vector2 RgbdObject::getFocalLength() const {
-    return mFocalLength;
+Ogre::Vector2 RgbdObject::getDepthFocalLength() const {
+    return mDepthFocalLength;
 }
 
-void RgbdObject::setFocalLength(const Ogre::Vector2& focalLength) {
-    mFocalLength = focalLength;
+void RgbdObject::setDepthFocalLength(const Ogre::Vector2& focalLength) {
+    mDepthFocalLength = focalLength;
 }
 
-void RgbdObject::setFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY) {
-    mFocalLength = Ogre::Vector2(focalLengthX, focalLengthY);
+void RgbdObject::setDepthFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY) {
+    mDepthFocalLength = Ogre::Vector2(focalLengthX, focalLengthY);
 }
 
-Ogre::Vector2 RgbdObject::getScale() const {
-    return mScale;
+Ogre::Vector2 RgbdObject::getRgbPrincipalPoint() const {
+    return mRgbPrincipalPoint;
 }
 
-void RgbdObject::setScale(Ogre::Vector2 scale) {
-    mScale = scale;
+void RgbdObject::setRgbPrincipalPoint(const Ogre::Vector2& principalPoint) {
+    mRgbPrincipalPoint = principalPoint;
 }
 
-void RgbdObject::setScale(Ogre::Real scaleX, Ogre::Real scaleY) {
-    mScale = Ogre::Vector2(scaleX, scaleY);
+void RgbdObject::setRgbPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY) {
+    mRgbPrincipalPoint = Ogre::Vector2(principalPointX, principalPointY);
+}
+
+Ogre::Vector2 RgbdObject::getRgbFocalLength() const {
+    return mRgbFocalLength;
+}
+
+void RgbdObject::setRgbFocalLength(const Ogre::Vector2& focalLength) {
+    mRgbFocalLength = focalLength;
+}
+
+void RgbdObject::setRgbFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY) {
+    mRgbFocalLength = Ogre::Vector2(focalLengthX, focalLengthY);
+}
+
+Ogre::Matrix3 RgbdObject::getDepthToRgbRotation() const {
+    return mDepthToRgbRotation;
+}
+
+void RgbdObject::setDepthToRgbRotation(const Ogre::Matrix3& rotation) {
+    mDepthToRgbRotation = rotation;
+}
+
+Ogre::Vector3 RgbdObject::getDepthToRgbTranslation() const {
+    return mDepthToRgbTranslation;
+}
+
+void RgbdObject::setDepthToRgbTranslation(const Ogre::Vector3& translation) {
+    mDepthToRgbTranslation = translation;
+}
+
+void RgbdObject::setDepthToRgbTranslation(Ogre::Real translationX, Ogre::Real translationY, Ogre::Real translationZ) {
+    mDepthToRgbTranslation = Ogre::Vector3(translationX, translationY, translationZ);
 }
