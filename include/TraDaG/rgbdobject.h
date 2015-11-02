@@ -62,15 +62,8 @@ private:
 
     Ogre::Vector3 depthToWorld(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth) const;
     Ogre::Vector2 worldToRgb(const Ogre::Vector3& point) const;
+
     inline Ogre::uint32 pixelToIndex(Ogre::int32 x, Ogre::int32 y) const { return y * mRgbImage.cols + x; }
-
-    Ogre::String getNextMaterialName(bool save);
-    Ogre::String getNextTextureName(bool save);
-
-    const Ogre::String mMaterialName;
-    int mMaterialId;
-    const Ogre::String mTextureName;
-    int mTextureId;
 };
 
 #endif // RGBDOBJECT_H

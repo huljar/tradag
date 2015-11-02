@@ -20,7 +20,7 @@ public:
     virtual ~OgreWindow();
 
     virtual void initializeOgre();
-    virtual void initializeBullet();
+    virtual void initializeBullet(const Ogre::Vector3& gravity);
 
     virtual void renderOneFrame();
     virtual void enterRenderingLoop();
@@ -28,6 +28,8 @@ public:
     virtual void resetCamera();
 
     virtual void setScene(RgbdObject* scene);
+
+    Ogre::Vector3 getGravity() const;
 
     // FrameListener method
     virtual bool frameStarted(const Ogre::FrameEvent& evt);

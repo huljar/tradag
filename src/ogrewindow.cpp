@@ -15,7 +15,7 @@ OgreWindow::OgreWindow()
     , mSceneSceneNode(NULL)
     , mDefaultCameraPosition(0, 0, 0)
     , mDefaultCameraLookAt(0, 0, -1)
-    , mGravity(0, /*-9.81*/-100, 0)
+    , mGravity(0, -9.81, 0)
     , mBounds(Ogre::Vector3(-1000, -1000, -1000), Ogre::Vector3(1000, 1000, 1000))
     , mWorld(NULL)
     , mDebugDrawer(NULL)
@@ -172,13 +172,14 @@ void OgreWindow::createCamera() {
     mCameraMan->setTopSpeed(300);
 }
 
-void OgreWindow::initializeBullet() {
+void OgreWindow::initializeBullet(const Ogre::Vector3& gravity) {
     if(mRoot == NULL) {
         std::cerr << "ERROR: You need to initialize OGRE before Bullet!" << std::endl;
         return;
     }
 
     // Set up Bullet world
+    mGravity = gravity;
     mWorld = new OgreBulletDynamics::DynamicsWorld(mSceneMgr, mBounds, mGravity);
 
     // Set up debug info display tool
@@ -247,6 +248,10 @@ bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
     mWorld->stepSimulation(evt.timeSinceLastFrame);
 
     return true;
+}
+
+Ogre::Vector3 OgreWindow::getGravity() const {
+    return mGravity;
 }
 
 bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt) {

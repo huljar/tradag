@@ -11,10 +11,6 @@ RgbdObject::RgbdObject(const Ogre::String& name)
     , mDepthFocalLength(500, 500)
     , mRgbPrincipalPoint(320, 240)
     , mRgbFocalLength(500, 500)
-    , mMaterialName("tradagSceneMaterial")
-    , mMaterialId(0)
-    , mTextureName("tradagSceneTexture")
-    , mTextureId(0)
 {
 }
 
@@ -40,13 +36,6 @@ void RgbdObject::meshify() {
         std::cerr << "ERROR: RGB, depth and label image do not have the same sizes" << std::endl;
         return;
     }
-
-    // Create material with RGB image as texture
-//    Ogre::MaterialPtr mat = Ogre::MaterialManager::getSingleton().create(getNextMaterialName(true), Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME);
-//    Ogre::Pass* pass = mat->getTechnique(0)->getPass(0);
-//    pass->setLightingEnabled(false);
-//    Ogre::TextureUnitState* texUnit = pass->createTextureUnitState(mSceneTexture);
-//    texUnit->setTextureScale(1.0, 1.0);
 
     begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_TRIANGLE_LIST);
     createVertices();
@@ -88,9 +77,9 @@ void RgbdObject::createIndices() {
 }
 
 Ogre::Vector3 RgbdObject::depthToWorld(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth) const {
-    Ogre::Real retX = (x - mDepthPrincipalPoint.x) * (Ogre::Real)depth / mDepthFocalLength.x;
+    Ogre::Real retX = ((Ogre::Real)x - mDepthPrincipalPoint.x) * (Ogre::Real)depth / mDepthFocalLength.x;
     // Ogre's y-vector points up, but OpenCV's y-vector points down (therefore negate result)
-    Ogre::Real retY = -((y - mDepthPrincipalPoint.y) * (Ogre::Real)depth / mDepthFocalLength.y);
+    Ogre::Real retY = -(((Ogre::Real)y - mDepthPrincipalPoint.y) * (Ogre::Real)depth / mDepthFocalLength.y);
     Ogre::Real retZ = -((Ogre::Real)depth);
 
     return Ogre::Vector3(retX, retY, retZ);
@@ -100,24 +89,14 @@ Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point) const {
     Ogre::Vector3 transformed = mDepthToRgbRotation * point + mDepthToRgbTranslation;
     //Ogre::Vector3 transformed = point;
 
-    int retX = std::round(transformed.x * mRgbFocalLength.x / (-transformed.z) + mRgbPrincipalPoint.x);
-    int retY = std::round((-transformed.y) * mRgbFocalLength.y / (-transformed.z) + mRgbPrincipalPoint.y);
-    //int retX = std::round(transformed.x * mDepthFocalLength.x / (-transformed.z) + mDepthPrincipalPoint.x);
-    //int retY = std::round((-transformed.y) * mDepthFocalLength.y / (-transformed.z) + mDepthPrincipalPoint.y);
+    Ogre::Real retX = std::round(transformed.x * mRgbFocalLength.x / (-transformed.z) + mRgbPrincipalPoint.x);
+    Ogre::Real retY = std::round((-transformed.y) * mRgbFocalLength.y / (-transformed.z) + mRgbPrincipalPoint.y);
+    //Ogre::Real retX = std::round(transformed.x * mDepthFocalLength.x / (-transformed.z) + mDepthPrincipalPoint.x);
+    //Ogre::Real retY = std::round((-transformed.y) * mDepthFocalLength.y / (-transformed.z) + mDepthPrincipalPoint.y);
 
     return Ogre::Vector2(
-            std::max(0, std::min(mRgbImage.cols, retX)),
-            std::max(0, std::min(mRgbImage.rows, retY)));
-}
-
-Ogre::String RgbdObject::getNextMaterialName(bool save) {
-    if(save) mSceneMaterial = mMaterialName + boost::lexical_cast<Ogre::String>(mMaterialId);
-    return mMaterialName + boost::lexical_cast<Ogre::String>(mMaterialId++);
-}
-
-Ogre::String RgbdObject::getNextTextureName(bool save) {
-    if(save) mSceneTexture = mTextureName + boost::lexical_cast<Ogre::String>(mTextureId);
-    return mTextureName + boost::lexical_cast<Ogre::String>(mTextureId++);
+            std::max(0.0f, std::min((Ogre::Real)mRgbImage.cols, retX)),
+            std::max(0.0f, std::min((Ogre::Real)mRgbImage.rows, retY)));
 }
 
 Ogre::Vector2 RgbdObject::getDepthPrincipalPoint() const {

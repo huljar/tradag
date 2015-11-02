@@ -45,7 +45,7 @@ int main(int argc, char** argv)
     // Init window
     OgreWindow* previewWindow = new OgreWindow();
     previewWindow->initializeOgre();
-    previewWindow->initializeBullet();
+    previewWindow->initializeBullet(Ogre::Vector3(0, -100, 0));
 
     // Create RGBD object
     RgbdObject* scene = new RgbdObject("sceneObject");
