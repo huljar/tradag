@@ -51,9 +51,9 @@ void RgbdObject::createVertices() {
             position(worldPoint);
 
             // Retrieve RGB pixel for this world point
-            Ogre::Vector2 rgbPixel = worldToRgb(worldPoint);
-            cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(rgbPixel.y, rgbPixel.x);
-            //cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(y, x);
+            //Ogre::Vector2 rgbPixel = worldToRgb(worldPoint);
+            //cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(rgbPixel.y, rgbPixel.x);
+            cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(y, x);
 
             // Ogre uses RGB and OpenCV uses BGR, hence the reversed indexing
             colour(((Ogre::Real)rgbColor[2]) / 255.0f, ((Ogre::Real)rgbColor[1]) / 255.0f, ((Ogre::Real)rgbColor[0]) / 255.0f);
