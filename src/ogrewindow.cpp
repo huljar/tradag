@@ -244,7 +244,7 @@ void OgreWindow::setScene(RgbdObject* scene) {
     mScene = scene;
     if(mSceneSceneNode == NULL)
         mSceneSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    mSceneSceneNode->attachObject(mScene);
+    mScene->attachToSceneNode(mSceneSceneNode);
 }
 
 bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
@@ -343,7 +343,7 @@ bool OgreWindow::mouseReleased(const OIS::MouseEvent& e, const OIS::MouseButtonI
                 Ogre::Plane testPlane(p1, p2, p3);
                 std::cout << "Plane normal: (" << testPlane.normal.x << ", " << testPlane.normal.y << ", " << testPlane.normal.z << ")" << std::endl
                           << "Plane distance: " << testPlane.d << std::endl;
-                Ogre::MeshManager::getSingleton().createPlane("testPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, testPlane, 200, 200);
+                Ogre::MeshManager::getSingleton().createPlane("testPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, testPlane, 2000, 2000);
                 Ogre::Entity* planeEntity = mSceneMgr->createEntity("testPlane");
                 planeEntity->setMaterialName("BaseWhiteNoLighting");
                 mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(planeEntity);
@@ -360,25 +360,38 @@ Ogre::Vector3 OgreWindow::getSceneIntersectionPoint(int mouseX, int mouseY) {
                              (Ogre::Real)mouseX / (Ogre::Real)vp->getActualWidth(),
                              (Ogre::Real)mouseY / (Ogre::Real)vp->getActualHeight());
 
-    std::cout << "Screen coords: (" << (Ogre::Real)mouseX / (Ogre::Real)vp->getActualWidth() << ", " << (Ogre::Real)mouseY / (Ogre::Real)vp->getActualHeight() << ")" << std::endl;
-    Ogre::RaySceneQuery* query = mSceneMgr->createRayQuery(mouseRay);
-    query->setSortByDistance(true);
-
-    Ogre::RaySceneQueryResult& result = query->execute();
-
-    Ogre::Vector3 ret(0, 0, 0);
-    for(Ogre::RaySceneQueryResult::iterator it = result.begin(); it != result.end(); ++it) {
-        if(it->movable)
-            std::cout << "Found movable object: " << it->movable->getName() << std::endl;
-        if(it->movable && it->movable->getName() == mScene->getName()) {
-            ret = mouseRay.getPoint(it->distance);
-            std::cout << "Ray casting successful - found scene object" << std::endl;
-            break;
-        }
+    //std::cout << "Screen coords: (" << (Ogre::Real)mouseX / (Ogre::Real)vp->getActualWidth() << ", " << (Ogre::Real)mouseY / (Ogre::Real)vp->getActualHeight() << ")" << std::endl;
+    OgreBites::OgreRay polygonRayQuery(mSceneMgr);
+    Ogre::Vector3 result;
+    if(polygonRayQuery.RaycastFromPoint(mouseRay.getOrigin(), mouseRay.getDirection(), result)) {
+        std::cout << "Ray casting successful - found scene object" << std::endl;
+        return result;
     }
 
-    mSceneMgr->destroyQuery(query);
-    return ret;
+    return Ogre::Vector3(0, 0, 0);
+
+//    Ogre::RaySceneQuery* query = mSceneMgr->createRayQuery(mouseRay);
+//    query->setSortByDistance(true);
+
+//    Ogre::RaySceneQueryResult& result = query->execute();
+
+//    Ogre::Vector3 ret(0, 0, 0);
+//    for(Ogre::RaySceneQueryResult::iterator it = result.begin(); it != result.end(); ++it) {
+//        if(it->movable)
+//            std::cout << "Found movable object: " << it->movable->getName() << std::endl;
+//        if(it->movable && it->movable->getName() == mScene->getName()) {
+//            ret = mouseRay.getPoint(it->distance);
+//            std::cout << "Ray casting successful - found scene object" << std::endl;
+//            break;
+//        }
+//    }
+
+//    mSceneMgr->destroyQuery(query);
+//    return ret;
+}
+
+Ogre::SceneManager* OgreWindow::getSceneManager() {
+    return mSceneMgr;
 }
 
 Ogre::Vector3 OgreWindow::getGravity() const {

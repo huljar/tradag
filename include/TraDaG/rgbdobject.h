@@ -5,16 +5,22 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-class RgbdObject : public Ogre::ManualObject
+class RgbdObject
 {
 public:
-    RgbdObject(const Ogre::String& name);
+    RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManager);
+    virtual ~RgbdObject();
 
     virtual bool loadRgbFromFile(const Ogre::String& rgbFileName);
     virtual bool loadDepthFromFile(const Ogre::String& depthFileName);
     virtual bool loadLabelsFromFile(const Ogre::String& labelFileName);
 
     virtual void meshify();
+
+    virtual void attachToSceneNode(Ogre::SceneNode* sceneNode);
+    virtual void detachFromSceneNode();
+
+    virtual Ogre::String getName() const;
 
     Ogre::Vector2 getDepthPrincipalPoint() const;
     void setDepthPrincipalPoint(const Ogre::Vector2& principalPoint);
@@ -40,6 +46,10 @@ public:
     void setDepthToRgbTranslation(Ogre::Real translationX, Ogre::Real translationY, Ogre::Real translationZ);
 
 protected:
+    Ogre::SceneManager* mSceneMgr;
+    Ogre::ManualObject* mSceneObject;
+    Ogre::SceneNode* mSceneNode;
+
     cv::Mat mRgbImage;
     cv::Mat mDepthImage;
     cv::Mat mLabelImage;

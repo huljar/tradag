@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     previewWindow->initializeBullet(Ogre::Vector3(0, -100, 0));
 
     // Create RGBD object
-    RgbdObject* scene = new RgbdObject("sceneObject");
+    RgbdObject* scene = new RgbdObject("sceneObject", previewWindow->getSceneManager());
     if(!(scene->loadRgbFromFile(rgbFile)
             && scene->loadDepthFromFile(depthFile)
             && scene->loadLabelsFromFile(labelFile))) {

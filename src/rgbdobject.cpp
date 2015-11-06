@@ -5,13 +5,21 @@
 #include <fstream>
 #include <sstream>
 
-RgbdObject::RgbdObject(const Ogre::String& name)
-    : ManualObject(name)
-    , mDepthPrincipalPoint(320, 240)
+RgbdObject::RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManager)
+    : mDepthPrincipalPoint(320, 240)
     , mDepthFocalLength(500, 500)
     , mRgbPrincipalPoint(320, 240)
     , mRgbFocalLength(500, 500)
+    , mSceneNode(NULL)
 {
+    // TODO: Scene Manager null pointer check
+    mSceneMgr = sceneManager;
+    mSceneObject = sceneManager->createManualObject(name);
+}
+
+RgbdObject::~RgbdObject() {
+    detachFromSceneNode();
+    mSceneMgr->destroyManualObject(mSceneObject);
 }
 
 bool RgbdObject::loadRgbFromFile(const Ogre::String& rgbFileName) {
@@ -37,10 +45,24 @@ void RgbdObject::meshify() {
         return;
     }
 
-    begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_TRIANGLE_LIST);
+    mSceneObject->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_TRIANGLE_LIST);
     createVertices();
     createIndices();
-    end();
+    mSceneObject->end();
+}
+
+void RgbdObject::attachToSceneNode(Ogre::SceneNode* sceneNode) {
+    if(sceneNode != NULL) {
+        mSceneNode = sceneNode;
+        sceneNode->attachObject(mSceneObject);
+    }
+}
+
+void RgbdObject::detachFromSceneNode() {
+    if(mSceneNode != NULL) {
+        mSceneNode->detachObject(mSceneObject);
+        mSceneNode = NULL;
+    }
 }
 
 void RgbdObject::createVertices() {
@@ -48,7 +70,7 @@ void RgbdObject::createVertices() {
         for(int x = 0; x < mDepthImage.cols; ++x) {
             // Transform depth pixel to world coordinates
             Ogre::Vector3 worldPoint = depthToWorld(x, y, mDepthImage.at<uint16_t>(y, x));
-            position(worldPoint);
+            mSceneObject->position(worldPoint);
 
             // Retrieve RGB pixel for this world point
             //Ogre::Vector2 rgbPixel = worldToRgb(worldPoint);
@@ -56,7 +78,7 @@ void RgbdObject::createVertices() {
             cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(y, x);
 
             // Ogre uses RGB and OpenCV uses BGR, hence the reversed indexing
-            colour(((Ogre::Real)rgbColor[2]) / 255.0f, ((Ogre::Real)rgbColor[1]) / 255.0f, ((Ogre::Real)rgbColor[0]) / 255.0f);
+            mSceneObject->colour(((Ogre::Real)rgbColor[2]) / 255.0f, ((Ogre::Real)rgbColor[1]) / 255.0f, ((Ogre::Real)rgbColor[0]) / 255.0f);
         }
     }
 }
@@ -65,13 +87,13 @@ void RgbdObject::createIndices() {
     for(int y = 0; y < mDepthImage.rows - 1; ++y) {
         for(int x = 0; x < mDepthImage.cols - 1; ++x) {
             // Create 2 triangles (= 1 "square") per iteration
-            index(pixelToIndex(x, y));
-            index(pixelToIndex(x, y + 1));
-            index(pixelToIndex(x + 1, y));
+            mSceneObject->index(pixelToIndex(x, y));
+            mSceneObject->index(pixelToIndex(x, y + 1));
+            mSceneObject->index(pixelToIndex(x + 1, y));
 
-            index(pixelToIndex(x + 1, y));
-            index(pixelToIndex(x, y + 1));
-            index(pixelToIndex(x + 1, y + 1));
+            mSceneObject->index(pixelToIndex(x + 1, y));
+            mSceneObject->index(pixelToIndex(x, y + 1));
+            mSceneObject->index(pixelToIndex(x + 1, y + 1));
         }
     }
 }
@@ -97,6 +119,10 @@ Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point) const {
     return Ogre::Vector2(
             std::max(0.0f, std::min((Ogre::Real)mRgbImage.cols, retX)),
             std::max(0.0f, std::min((Ogre::Real)mRgbImage.rows, retY)));
+}
+
+Ogre::String RgbdObject::getName() const {
+    return mSceneObject->getName();
 }
 
 Ogre::Vector2 RgbdObject::getDepthPrincipalPoint() const {

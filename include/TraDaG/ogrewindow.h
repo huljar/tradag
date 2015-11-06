@@ -29,9 +29,11 @@ public:
 
     virtual void setScene(RgbdObject* scene);
 
+    virtual Ogre::SceneManager* getSceneManager();
+
     virtual Ogre::Vector3 getGravity() const;
 
-    // FrameListener method
+    // FrameListener methods
     virtual bool frameStarted(const Ogre::FrameEvent& evt);
     virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt);
 
