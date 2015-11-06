@@ -29,7 +29,7 @@ public:
 
     virtual void setScene(RgbdObject* scene);
 
-    Ogre::Vector3 getGravity() const;
+    virtual Ogre::Vector3 getGravity() const;
 
     // FrameListener method
     virtual bool frameStarted(const Ogre::FrameEvent& evt);
@@ -50,6 +50,8 @@ public:
 
 protected:
     virtual void createCamera();
+
+    virtual Ogre::Vector3 getSceneIntersectionPoint(int mouseX, int mouseY);
 
     // OGRE pointers
     Ogre::Root* mRoot;
@@ -82,6 +84,13 @@ protected:
     OgreBulletCollisions::DebugDrawer* mDebugDrawer;
     std::vector<OgreBulletDynamics::RigidBody*> mBodies;
     std::vector<OgreBulletCollisions::CollisionShape*> mShapes;
+
+    // Mouse click positions
+    int mLastMouseDownPosX;
+    int mLastMouseDownPosY;
+
+    // Plane fitting
+    std::queue<Ogre::Vector3> mPlaneVectors;
 
 };
 

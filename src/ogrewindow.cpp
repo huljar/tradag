@@ -1,5 +1,7 @@
 #include <TraDaG/ogrewindow.h>
 
+#include <OgreBites/OgreRay.h>
+
 OgreWindow::OgreWindow()
     : mRoot(NULL)
     , mWindow(NULL)
@@ -19,6 +21,8 @@ OgreWindow::OgreWindow()
     , mBounds(Ogre::Vector3(-1000, -1000, -1000), Ogre::Vector3(1000, 1000, 1000))
     , mWorld(NULL)
     , mDebugDrawer(NULL)
+    , mLastMouseDownPosX(0)
+    , mLastMouseDownPosY(0)
 {
 }
 
@@ -97,8 +101,9 @@ void OgreWindow::initializeOgre() {
         }
     }
 
-    rs->setConfigOption("Video Mode", "1024 x 768 @ 32-bit colour");
+    rs->setConfigOption("Video Mode", "1024 x 768");
     rs->setConfigOption("Full Screen", "No");
+    rs->setConfigOption("VSync", "Yes");
     mRoot->setRenderSystem(rs);
 
     // Init the render window
@@ -119,6 +124,7 @@ void OgreWindow::initializeOgre() {
     vp->setBackgroundColour(Ogre::ColourValue(0, 0, 0));
 
     mCamera->setAspectRatio(Ogre::Real(vp->getActualWidth()) / Ogre::Real(vp->getActualHeight()));
+    mCamera->setAutoAspectRatio(true);
 
     // Initialize OIS
     Ogre::LogManager::getSingletonPtr()->logMessage("*** Initializing OIS ***");
@@ -250,10 +256,6 @@ bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
     return true;
 }
 
-Ogre::Vector3 OgreWindow::getGravity() const {
-    return mGravity;
-}
-
 bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt) {
     if(mWindow->isClosed())
         return false;
@@ -274,8 +276,6 @@ void OgreWindow::windowResized(Ogre::RenderWindow* rw) {
     const OIS::MouseState& ms = mMouse->getMouseState();
     ms.width = width;
     ms.height = height;
-
-    // TODO: Update viewport aspect ratio
 }
 
 void OgreWindow::windowClosed(Ogre::RenderWindow* rw) {
@@ -310,10 +310,77 @@ bool OgreWindow::mouseMoved(const OIS::MouseEvent& e) {
 
 bool OgreWindow::mousePressed(const OIS::MouseEvent& e, const OIS::MouseButtonID button) {
     mCameraMan->injectMouseDown(e, button);
+
+    // Record position to check if the mouse was moved when it is released
+    mLastMouseDownPosX = e.state.X.abs;
+    mLastMouseDownPosY = e.state.Y.abs;
+
     return true;
 }
 
 bool OgreWindow::mouseReleased(const OIS::MouseEvent& e, const OIS::MouseButtonID button) {
     mCameraMan->injectMouseUp(e, button);
+
+    // If mouse was not moved since last mousePressed, handle the mouse click
+    if(e.state.X.abs == mLastMouseDownPosX && e.state.Y.abs == mLastMouseDownPosY) {
+        // Cast camera ray into the scene
+        Ogre::Vector3 point = getSceneIntersectionPoint(e.state.X.abs, e.state.Y.abs);
+
+        if(point != Ogre::Vector3::ZERO) {
+            // Push the point into the queue that stores the plane support vectors
+            mPlaneVectors.push(point);
+            std::cout << "Point added! Coords: (" << point.x << ", " << point.y << ", " << point.z << ")" << std::endl;
+
+            // If the queue contains more than 3 vectors, remove the oldest one(s)
+            while(mPlaneVectors.size() > 3)
+                mPlaneVectors.pop();
+
+            // Test: draw plane with 3 points
+            if(mPlaneVectors.size() == 3) {
+                Ogre::Vector3 p1 = mPlaneVectors.front(); mPlaneVectors.pop();
+                Ogre::Vector3 p2 = mPlaneVectors.front(); mPlaneVectors.pop();
+                Ogre::Vector3 p3 = mPlaneVectors.front(); mPlaneVectors.pop();
+                Ogre::Plane testPlane(p1, p2, p3);
+                std::cout << "Plane normal: (" << testPlane.normal.x << ", " << testPlane.normal.y << ", " << testPlane.normal.z << ")" << std::endl
+                          << "Plane distance: " << testPlane.d << std::endl;
+                Ogre::MeshManager::getSingleton().createPlane("testPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, testPlane, 200, 200);
+                Ogre::Entity* planeEntity = mSceneMgr->createEntity("testPlane");
+                planeEntity->setMaterialName("BaseWhiteNoLighting");
+                mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(planeEntity);
+            }
+        }
+    }
+
     return true;
+}
+
+Ogre::Vector3 OgreWindow::getSceneIntersectionPoint(int mouseX, int mouseY) {
+    Ogre::Viewport* vp = mCamera->getViewport();
+    Ogre::Ray mouseRay = mCamera->getCameraToViewportRay(
+                             (Ogre::Real)mouseX / (Ogre::Real)vp->getActualWidth(),
+                             (Ogre::Real)mouseY / (Ogre::Real)vp->getActualHeight());
+
+    std::cout << "Screen coords: (" << (Ogre::Real)mouseX / (Ogre::Real)vp->getActualWidth() << ", " << (Ogre::Real)mouseY / (Ogre::Real)vp->getActualHeight() << ")" << std::endl;
+    Ogre::RaySceneQuery* query = mSceneMgr->createRayQuery(mouseRay);
+    query->setSortByDistance(true);
+
+    Ogre::RaySceneQueryResult& result = query->execute();
+
+    Ogre::Vector3 ret(0, 0, 0);
+    for(Ogre::RaySceneQueryResult::iterator it = result.begin(); it != result.end(); ++it) {
+        if(it->movable)
+            std::cout << "Found movable object: " << it->movable->getName() << std::endl;
+        if(it->movable && it->movable->getName() == mScene->getName()) {
+            ret = mouseRay.getPoint(it->distance);
+            std::cout << "Ray casting successful - found scene object" << std::endl;
+            break;
+        }
+    }
+
+    mSceneMgr->destroyQuery(query);
+    return ret;
+}
+
+Ogre::Vector3 OgreWindow::getGravity() const {
+    return mGravity;
 }

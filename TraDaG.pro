@@ -12,6 +12,7 @@ SOURCES += main.cpp \
     rgbdobject.cpp
 
 HEADERS += include/OgreBites/SdkCameraMan.h \
+    include/OgreBites/OgreRay.h \
     ogrewindow.h \
     rgbdobject.h
 
