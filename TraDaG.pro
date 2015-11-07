@@ -9,12 +9,15 @@ INCLUDEPATH += ./include
 
 SOURCES += main.cpp \
     ogrewindow.cpp \
-    rgbdobject.cpp
+    rgbdobject.cpp \
+    tradag.cpp
 
 HEADERS += include/OgreBites/SdkCameraMan.h \
     include/OgreBites/OgreRay.h \
     ogrewindow.h \
-    rgbdobject.h
+    rgbdobject.h \
+    tradag.h \
+    ransac.h
 
 # OGRE
 INCLUDEPATH += /usr/include/OGRE

@@ -18,8 +18,8 @@ int main(int argc, char** argv)
             ("label-file,l", po::value<std::string>(), "Label input file")
             ("preview,p", "Preview result in a window")
             ("animate,a", "Show the object dropping into the scene")
-            ("help", "Display this help")
-            ("version", "Display version information");
+            ("help", "Display this help and exit")
+            ("version", "Display version information and exit");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, argDesc), vm);
