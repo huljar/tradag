@@ -1,67 +1,57 @@
 #include <TraDaG/rgbdobject.h>
 
-#include <boost/lexical_cast.hpp>
+#include <stdexcept>
 
-#include <fstream>
-#include <sstream>
+using namespace TraDaG;
 
-RgbdObject::RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManager)
-    : mDepthPrincipalPoint(320, 240)
-    , mDepthFocalLength(500, 500)
-    , mRgbPrincipalPoint(320, 240)
-    , mRgbFocalLength(500, 500)
-    , mSceneNode(NULL)
+RgbdObject::RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManager,
+                       const cv::Mat& depthImage, const cv::Mat& rgbImage,
+                       const Ogre::Vector2& depthPrincipalPoint, const Ogre::Vector2& depthFocalLength,
+                       const Ogre::Vector2& rgbPrincipalPoint, const Ogre::Vector2& rgbFocalLength,
+                       const Ogre::Matrix3& rotation, const Ogre::Vector3& translation,
+                       MapMode mapMode, bool autoCreateMesh)
+    : mDepthImage(depthImage)
+    , mRgbImage(rgbImage)
+    , mDepthPrincipalPoint(depthPrincipalPoint)
+    , mDepthFocalLength(depthFocalLength)
+    , mRgbPrincipalPoint(rgbPrincipalPoint)
+    , mRgbFocalLength(rgbFocalLength)
+    , mRotation(rotation)
+    , mTranslation(translation)
+    , mMapMode(mapMode)
+    , mMeshUpdated(false)
 {
-    // TODO: Scene Manager null pointer check
+    // Check if Depth and RGB image have the same dimensions
+    if(!(mDepthImage.cols == mRgbImage.cols && mDepthImage.rows == mRgbImage.rows))
+        throw std::runtime_error("Depth and RGB image do not have the same dimensions");
+
+    // Check scene manager for null pointer
+    if(sceneManager == NULL)
+        throw std::runtime_error("Received null pointer as scene manager");
+
     mSceneMgr = sceneManager;
     mSceneObject = sceneManager->createManualObject(name);
+
+    // Create the mesh from the images if requested
+    if(autoCreateMesh)
+        meshify();
 }
 
 RgbdObject::~RgbdObject() {
-    detachFromSceneNode();
+    // If our object was attached to a scene node at some point, it has to be detached before being destroyed
+    mSceneObject->detachFromParent();
+    // Use the scene manager to do the cleanup
     mSceneMgr->destroyManualObject(mSceneObject);
 }
 
-bool RgbdObject::loadRgbFromFile(const Ogre::String& rgbFileName) {
-    mRgbImage = cv::imread(rgbFileName, CV_LOAD_IMAGE_COLOR);
-    return mRgbImage.data;
-}
-
-bool RgbdObject::loadDepthFromFile(const Ogre::String& depthFileName) {
-    mDepthImage = cv::imread(depthFileName, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
-    return mDepthImage.data;
-}
-
-bool RgbdObject::loadLabelsFromFile(const Ogre::String& labelFileName) {
-    mLabelImage = cv::imread(labelFileName, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
-    return mLabelImage.data;
-}
-
 void RgbdObject::meshify() {
-    // Check if all images have the same size
-    if(!(mRgbImage.cols == mDepthImage.cols && mRgbImage.rows == mDepthImage.rows
-            && mRgbImage.cols == mLabelImage.cols && mRgbImage.rows == mLabelImage.rows)) {
-        std::cerr << "ERROR: RGB, depth and label image do not have the same sizes" << std::endl;
-        return;
-    }
+    if(!mMeshUpdated) {
+        mSceneObject->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_TRIANGLE_LIST);
+        createVertices();
+        createIndices();
+        mSceneObject->end();
 
-    mSceneObject->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_TRIANGLE_LIST);
-    createVertices();
-    createIndices();
-    mSceneObject->end();
-}
-
-void RgbdObject::attachToSceneNode(Ogre::SceneNode* sceneNode) {
-    if(sceneNode != NULL) {
-        mSceneNode = sceneNode;
-        sceneNode->attachObject(mSceneObject);
-    }
-}
-
-void RgbdObject::detachFromSceneNode() {
-    if(mSceneNode != NULL) {
-        mSceneNode->detachObject(mSceneObject);
-        mSceneNode = NULL;
+        mMeshUpdated = true;
     }
 }
 
@@ -72,10 +62,19 @@ void RgbdObject::createVertices() {
             Ogre::Vector3 worldPoint = depthToWorld(x, y, mDepthImage.at<uint16_t>(y, x));
             mSceneObject->position(worldPoint);
 
-            // Retrieve RGB pixel for this world point
-            //Ogre::Vector2 rgbPixel = worldToRgb(worldPoint);
-            //cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(rgbPixel.y, rgbPixel.x);
-            cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(y, x);
+            // Retrieve RGB pixel for this world point according to map mode
+            cv::Vec3b rgbColor(255, 255, 255);
+            if(mMapMode == MAPPED_RGB_TO_DEPTH || mMapMode == MAPPED_DEPTH_TO_RGB) {
+                rgbColor = mRgbImage.at<cv::Vec3b>(y, x);
+            }
+            else if(mMapMode == UNMAPPED_RGB_TO_DEPTH) {
+                Ogre::Vector2 rgbPixel = worldToRgb(worldPoint, mRotation, mTranslation);
+                rgbColor = mRgbImage.at<cv::Vec3b>(rgbPixel.y, rgbPixel.x);
+            }
+            else if(mMapMode == UNMAPPED_DEPTH_TO_RGB) {
+                Ogre::Vector2 rgbPixel = worldToRgb(worldPoint, mRotation.Transpose(), -mTranslation); // TODO: check if correct
+                rgbColor = mRgbImage.at<cv::Vec3b>(rgbPixel.y, rgbPixel.x);
+            }
 
             // Ogre uses RGB and OpenCV uses BGR, hence the reversed indexing
             mSceneObject->colour(((Ogre::Real)rgbColor[2]) / 255.0f, ((Ogre::Real)rgbColor[1]) / 255.0f, ((Ogre::Real)rgbColor[0]) / 255.0f);
@@ -107,22 +106,35 @@ Ogre::Vector3 RgbdObject::depthToWorld(Ogre::int32 x, Ogre::int32 y, Ogre::uint1
     return Ogre::Vector3(retX, retY, retZ);
 }
 
-Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point) const {
-    Ogre::Vector3 transformed = mDepthToRgbRotation * point + mDepthToRgbTranslation;
-    //Ogre::Vector3 transformed = point;
+Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const {
+    Ogre::Vector3 transformed = rotation * point + translation;
 
     Ogre::Real retX = std::round(transformed.x * mRgbFocalLength.x / (-transformed.z) + mRgbPrincipalPoint.x);
     Ogre::Real retY = std::round((-transformed.y) * mRgbFocalLength.y / (-transformed.z) + mRgbPrincipalPoint.y);
-    //Ogre::Real retX = std::round(transformed.x * mDepthFocalLength.x / (-transformed.z) + mDepthPrincipalPoint.x);
-    //Ogre::Real retY = std::round((-transformed.y) * mDepthFocalLength.y / (-transformed.z) + mDepthPrincipalPoint.y);
 
     return Ogre::Vector2(
             std::max(0.0f, std::min((Ogre::Real)mRgbImage.cols, retX)),
             std::max(0.0f, std::min((Ogre::Real)mRgbImage.rows, retY)));
 }
 
-Ogre::String RgbdObject::getName() const {
-    return mSceneObject->getName();
+Ogre::ManualObject* RgbdObject::getManualObject() {
+    return mSceneObject;
+}
+
+cv::Mat RgbdObject::getDepthImage() {
+    return mDepthImage;
+}
+
+const cv::Mat RgbdObject::getDepthImage() const {
+    return mDepthImage;
+}
+
+cv::Mat RgbdObject::getRgbImage() {
+    return mRgbImage;
+}
+
+const cv::Mat RgbdObject::getRgbImage() const {
+    return mRgbImage;
 }
 
 Ogre::Vector2 RgbdObject::getDepthPrincipalPoint() const {
@@ -131,10 +143,12 @@ Ogre::Vector2 RgbdObject::getDepthPrincipalPoint() const {
 
 void RgbdObject::setDepthPrincipalPoint(const Ogre::Vector2& principalPoint) {
     mDepthPrincipalPoint = principalPoint;
+    mMeshUpdated = false;
 }
 
 void RgbdObject::setDepthPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY) {
     mDepthPrincipalPoint = Ogre::Vector2(principalPointX, principalPointY);
+    mMeshUpdated = false;
 }
 
 Ogre::Vector2 RgbdObject::getDepthFocalLength() const {
@@ -143,10 +157,12 @@ Ogre::Vector2 RgbdObject::getDepthFocalLength() const {
 
 void RgbdObject::setDepthFocalLength(const Ogre::Vector2& focalLength) {
     mDepthFocalLength = focalLength;
+    mMeshUpdated = false;
 }
 
 void RgbdObject::setDepthFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY) {
     mDepthFocalLength = Ogre::Vector2(focalLengthX, focalLengthY);
+    mMeshUpdated = false;
 }
 
 Ogre::Vector2 RgbdObject::getRgbPrincipalPoint() const {
@@ -155,10 +171,12 @@ Ogre::Vector2 RgbdObject::getRgbPrincipalPoint() const {
 
 void RgbdObject::setRgbPrincipalPoint(const Ogre::Vector2& principalPoint) {
     mRgbPrincipalPoint = principalPoint;
+    mMeshUpdated = false;
 }
 
 void RgbdObject::setRgbPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY) {
     mRgbPrincipalPoint = Ogre::Vector2(principalPointX, principalPointY);
+    mMeshUpdated = false;
 }
 
 Ogre::Vector2 RgbdObject::getRgbFocalLength() const {
@@ -167,28 +185,42 @@ Ogre::Vector2 RgbdObject::getRgbFocalLength() const {
 
 void RgbdObject::setRgbFocalLength(const Ogre::Vector2& focalLength) {
     mRgbFocalLength = focalLength;
+    mMeshUpdated = false;
 }
 
 void RgbdObject::setRgbFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY) {
     mRgbFocalLength = Ogre::Vector2(focalLengthX, focalLengthY);
+    mMeshUpdated = false;
 }
 
-Ogre::Matrix3 RgbdObject::getDepthToRgbRotation() const {
-    return mDepthToRgbRotation;
+Ogre::Matrix3 RgbdObject::getRotation() const {
+    return mRotation;
 }
 
-void RgbdObject::setDepthToRgbRotation(const Ogre::Matrix3& rotation) {
-    mDepthToRgbRotation = rotation;
+void RgbdObject::setRotation(const Ogre::Matrix3& rotation) {
+    mRotation = rotation;
+    mMeshUpdated = false;
 }
 
-Ogre::Vector3 RgbdObject::getDepthToRgbTranslation() const {
-    return mDepthToRgbTranslation;
+Ogre::Vector3 RgbdObject::getTranslation() const {
+    return mTranslation;
 }
 
-void RgbdObject::setDepthToRgbTranslation(const Ogre::Vector3& translation) {
-    mDepthToRgbTranslation = translation;
+void RgbdObject::setTranslation(const Ogre::Vector3& translation) {
+    mTranslation = translation;
+    mMeshUpdated = false;
 }
 
-void RgbdObject::setDepthToRgbTranslation(Ogre::Real translationX, Ogre::Real translationY, Ogre::Real translationZ) {
-    mDepthToRgbTranslation = Ogre::Vector3(translationX, translationY, translationZ);
+void RgbdObject::setTranslation(Ogre::Real translationX, Ogre::Real translationY, Ogre::Real translationZ) {
+    mTranslation = Ogre::Vector3(translationX, translationY, translationZ);
+    mMeshUpdated = false;
+}
+
+TraDaG::MapMode RgbdObject::getMapMode() const {
+    return mMapMode;
+}
+
+void RgbdObject::setMapMode(MapMode mapMode) {
+    mMapMode = mapMode;
+    mMeshUpdated = false;
 }

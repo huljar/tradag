@@ -1,61 +1,72 @@
 #ifndef RGBDOBJECT_H
 #define RGBDOBJECT_H
 
+#include <TraDaG/util.h>
+
 #include <Ogre.h>
+
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-class RgbdObject
+namespace TraDaG {
+    class RgbdObject;
+}
+
+class TraDaG::RgbdObject
 {
 public:
-    RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManager);
+    RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManager,
+               const cv::Mat& depthImage, const cv::Mat& rgbImage,
+               const Ogre::Vector2& depthPrincipalPoint, const Ogre::Vector2& depthFocalLength,
+               const Ogre::Vector2& rgbPrincipalPoint, const Ogre::Vector2& rgbFocalLength,
+               const Ogre::Matrix3& rotation, const Ogre::Vector3& translation,
+               MapMode mapMode, bool autoCreateMesh = true);
     virtual ~RgbdObject();
-
-    virtual bool loadRgbFromFile(const Ogre::String& rgbFileName);
-    virtual bool loadDepthFromFile(const Ogre::String& depthFileName);
-    virtual bool loadLabelsFromFile(const Ogre::String& labelFileName);
 
     virtual void meshify();
 
-    virtual void attachToSceneNode(Ogre::SceneNode* sceneNode);
-    virtual void detachFromSceneNode();
+    virtual Ogre::ManualObject* getManualObject();
 
-    virtual Ogre::String getName() const;
+    virtual cv::Mat getDepthImage();
+    virtual const cv::Mat getDepthImage() const;
 
-    Ogre::Vector2 getDepthPrincipalPoint() const;
-    void setDepthPrincipalPoint(const Ogre::Vector2& principalPoint);
-    void setDepthPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY);
+    virtual cv::Mat getRgbImage();
+    virtual const cv::Mat getRgbImage() const;
 
-    Ogre::Vector2 getDepthFocalLength() const;
-    void setDepthFocalLength(const Ogre::Vector2& focalLength);
-    void setDepthFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY);
+    virtual Ogre::Vector2 getDepthPrincipalPoint() const;
+    virtual void setDepthPrincipalPoint(const Ogre::Vector2& principalPoint);
+    virtual void setDepthPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY);
 
-    Ogre::Vector2 getRgbPrincipalPoint() const;
-    void setRgbPrincipalPoint(const Ogre::Vector2& principalPoint);
-    void setRgbPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY);
+    virtual Ogre::Vector2 getDepthFocalLength() const;
+    virtual void setDepthFocalLength(const Ogre::Vector2& focalLength);
+    virtual void setDepthFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY);
 
-    Ogre::Vector2 getRgbFocalLength() const;
-    void setRgbFocalLength(const Ogre::Vector2& focalLength);
-    void setRgbFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY);
+    virtual Ogre::Vector2 getRgbPrincipalPoint() const;
+    virtual void setRgbPrincipalPoint(const Ogre::Vector2& principalPoint);
+    virtual void setRgbPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY);
 
-    Ogre::Matrix3 getDepthToRgbRotation() const;
-    void setDepthToRgbRotation(const Ogre::Matrix3& rotation);
+    virtual Ogre::Vector2 getRgbFocalLength() const;
+    virtual void setRgbFocalLength(const Ogre::Vector2& focalLength);
+    virtual void setRgbFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY);
 
-    Ogre::Vector3 getDepthToRgbTranslation() const;
-    void setDepthToRgbTranslation(const Ogre::Vector3& translation);
-    void setDepthToRgbTranslation(Ogre::Real translationX, Ogre::Real translationY, Ogre::Real translationZ);
+    virtual Ogre::Matrix3 getRotation() const;
+    virtual void setRotation(const Ogre::Matrix3& rotation);
+
+    virtual Ogre::Vector3 getTranslation() const;
+    virtual void setTranslation(const Ogre::Vector3& translation);
+    virtual void setTranslation(Ogre::Real translationX, Ogre::Real translationY, Ogre::Real translationZ);
+
+    virtual MapMode getMapMode() const;
+    virtual void setMapMode(MapMode mapMode);
 
 protected:
-    Ogre::SceneManager* mSceneMgr;
     Ogre::ManualObject* mSceneObject;
-    Ogre::SceneNode* mSceneNode;
+    bool mMeshUpdated;
 
-    cv::Mat mRgbImage;
+    Ogre::SceneManager* mSceneMgr;
+
     cv::Mat mDepthImage;
-    cv::Mat mLabelImage;
-
-    Ogre::String mSceneMaterial;
-    Ogre::String mSceneTexture;
+    cv::Mat mRgbImage;
 
     Ogre::Vector2 mDepthPrincipalPoint;
     Ogre::Vector2 mDepthFocalLength;
@@ -63,15 +74,17 @@ protected:
     Ogre::Vector2 mRgbPrincipalPoint;
     Ogre::Vector2 mRgbFocalLength;
 
-    Ogre::Matrix3 mDepthToRgbRotation;
-    Ogre::Vector3 mDepthToRgbTranslation;
+    Ogre::Matrix3 mRotation;
+    Ogre::Vector3 mTranslation;
+
+    MapMode mMapMode;
 
 private:
     void createVertices();
     void createIndices();
 
     Ogre::Vector3 depthToWorld(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth) const;
-    Ogre::Vector2 worldToRgb(const Ogre::Vector3& point) const;
+    Ogre::Vector2 worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const;
 
     inline Ogre::uint32 pixelToIndex(Ogre::int32 x, Ogre::int32 y) const { return y * mRgbImage.cols + x; }
 };

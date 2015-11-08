@@ -1,6 +1,8 @@
 #ifndef OGREWINDOW_H
 #define OGREWINDOW_H
 
+#include <TraDaG/rgbdobject.h>
+
 #include <Ogre.h>
 #include <OgreBites/SdkCameraMan.h>
 #include <OIS.h>
@@ -9,18 +11,17 @@
 #include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsStaticPlaneShape.h>
 #include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsBoxShape.h>
 
-#include <TraDaG/rgbdobject.h>
-
 #include <vector>
 
-class OgreWindow : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
+namespace TraDaG {
+    class OgreWindow;
+}
+
+class TraDaG::OgreWindow : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
 {
 public:
     OgreWindow();
     virtual ~OgreWindow();
-
-    virtual void initializeOgre();
-    virtual void initializeBullet(const Ogre::Vector3& gravity);
 
     virtual void renderOneFrame();
     virtual void enterRenderingLoop();
@@ -53,7 +54,7 @@ public:
 protected:
     virtual void createCamera();
 
-    virtual Ogre::Vector3 getSceneIntersectionPoint(int mouseX, int mouseY);
+    virtual bool getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3& result);
 
     // OGRE pointers
     Ogre::Root* mRoot;
@@ -93,6 +94,10 @@ protected:
 
     // Plane fitting
     std::queue<Ogre::Vector3> mPlaneVectors;
+
+private:
+    void initializeOgre();
+    void initializeBullet(const Ogre::Vector3& gravity);
 
 };
 
