@@ -8,8 +8,12 @@
 #include <limits>
 #include <cmath>
 
+namespace TraDaG {
+    template<class P, class M, size_t d> class Ransac;
+}
+
 template<class P, class M, size_t d>
-class Ransac
+class TraDaG::Ransac
 {
 public:
     Ransac(const std::function<M(const std::array<P, d>&)>& modelFunc, const std::function<float(const P&, const M&)>& evalFunc)
@@ -53,11 +57,11 @@ public:
                 // Replace best model with current one
                 bestModel = currentModel;
                 bestModelEval = currentModelEval;
-            }
 
-            // Recompute e and n
-            e = (float)numOutliers / (float)dataPoints.size();
-            n = std::round(std::log(1.0 - p) / std::log(1.0 - std::pow(1 - e, d)));
+                // Recompute e and n
+                e = (float)numOutliers / (float)dataPoints.size();
+                n = std::round(std::log(1.0 - p) / std::log(1.0 - std::pow(1 - e, d)));
+            }
         }
 
         return bestModel;
