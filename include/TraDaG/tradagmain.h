@@ -3,6 +3,7 @@
 
 #include <TraDaG/ogrewindow.h>
 #include <TraDaG/rgbdobject.h>
+#include <TraDaG/imagelabeling.h>
 #include <TraDaG/util.h>
 
 #include <Ogre.h>
@@ -27,9 +28,13 @@ public:
                const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(0, 0), const cv::Vec2f& rgbFocalLength = cv::Vec2f(0, 0),
                const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
-               MapMode mode = MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LABELS_ON_DEPTH_IMAGE);
+               MapMode mapMode = MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LABELS_ON_DEPTH_IMAGE);
 
     ~TradagMain();
+
+    void updateMesh();
+
+    bool dropObjectIntoScene(bool showPreviewWindow = true, bool showPhysicsAnimation = true);
 
     cv::Mat getDepthImage();
     const cv::Mat getDepthImage() const;
@@ -54,6 +59,9 @@ public:
 
     cv::Vec2f getRgbFocalLength() const;
     void setRgbFocalLength(const cv::Vec2f& focalLength);
+
+    MapMode getMapMode() const;
+    void setMapMode(MapMode mode);
 
 //    bool autoGravity() const;
 //    void setAutoGravity(bool autoGravity);
@@ -82,11 +90,7 @@ private:
 
     OgreWindow* mOgreWindow;
     RgbdObject* mRgbdObject;
-
-    bool mPreviewInWindow;
-    bool mShowObjectAnimation;
-
-    const std::string mObjName = "sceneRgbdEntity";
+    ImageLabeling* mImageLabeling;
 
 };
 

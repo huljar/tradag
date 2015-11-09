@@ -8,17 +8,18 @@ TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const
                        const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                        const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
                        const cv::Matx33f& rotation, const cv::Vec3f translation,
-                       MapMode mode, LabelMode labelMode) {
+                       MapMode mapMode, LabelMode labelMode) {
 
     // Perform default initialization
-    init(depthImage, rgbImage, labelImage, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength, rotation, translation, mode, labelMode);
+    init(depthImage, rgbImage, labelImage, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
+         rotation, translation, mapMode, labelMode);
 }
 
 TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath,
                        const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                        const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
                        const cv::Matx33f& rotation, const cv::Vec3f translation,
-                       MapMode mode, LabelMode labelMode) {
+                       MapMode mapMode, LabelMode labelMode) {
 
     // Load images from specified paths
     cv::Mat rgbImage = cv::imread(rgbImagePath, CV_LOAD_IMAGE_COLOR);
@@ -27,20 +28,19 @@ TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgb
 
     // Throw an exception if any of the images was not loaded correctly
     if(!depthImage.data || !rgbImage.data || !labelImage.data)
-        throw std::runtime_error("Unable to load at least one of the following images: \"" + depthImagePath + "\", \"" + rgbImagePath + "\", \"" + labelImagePath + "\"");
+        throw std::runtime_error("Unable to load at least one of the following images: \""
+                                 + depthImagePath + "\", \"" + rgbImagePath + "\", \"" + labelImagePath + "\"");
 
     // Continue with default initialization
-    init(depthImage, rgbImage, labelImage, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength, rotation, translation, mode, labelMode);
+    init(depthImage, rgbImage, labelImage, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
+         rotation, translation, mapMode, labelMode);
 }
 
 void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
                       const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                       const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
                       const cv::Matx33f& rotation, const cv::Vec3f& translation,
-                      MapMode mode, LabelMode labelMode) {
-
-    mPreviewInWindow = false;
-    mShowObjectAnimation = false;
+                      MapMode mapMode, LabelMode labelMode) {
 
     mOgreWindow = new OgreWindow();
 
@@ -50,21 +50,33 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const 
             rotationConverted[i][j] = rotation(i, j);
         }
     }
-    mRgbdObject = new RgbdObject(Ogre::String(mObjName), mOgreWindow->getSceneManager(), depthImage, rgbImage,
+    mRgbdObject = new RgbdObject(Ogre::String(Strings::RgbdObjName), mOgreWindow->getSceneManager(), depthImage, rgbImage,
                                  Ogre::Vector2(depthPrincipalPoint[0], depthPrincipalPoint[1]), Ogre::Vector2(depthFocalLength[0], depthFocalLength[1]),
                                  Ogre::Vector2(rgbPrincipalPoint[0], rgbPrincipalPoint[1]), Ogre::Vector2(rgbFocalLength[0], rgbFocalLength[1]),
-                                 Ogre::Matrix3(rotationConverted), Ogre::Vector3(translation[0], translation[1], translation[2]), mode);
+                                 Ogre::Matrix3(rotationConverted), Ogre::Vector3(translation[0], translation[1], translation[2]), mapMode);
 
-    // TODO: use label data
+    mImageLabeling = new ImageLabeling(labelImage, labelMode);
 
     mOgreWindow->setScene(mRgbdObject);
-
-    mOgreWindow->enterRenderingLoop(); // TODO: do this at another location
 }
 
 TradagMain::~TradagMain() {
+    delete mImageLabeling;
     delete mRgbdObject;
     delete mOgreWindow;
+}
+
+void TradagMain::updateMesh() {
+    mRgbdObject->meshify();
+}
+
+bool TradagMain::dropObjectIntoScene(bool showPreviewWindow, bool showPhysicsAnimation) {
+    if(mOgreWindow->hidden())
+        mOgreWindow->show();
+
+    mOgreWindow->startAnimation();
+
+    return true;
 }
 
 cv::Mat TradagMain::getDepthImage() {
@@ -103,7 +115,7 @@ void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage,
 
     // Delete old scene and create a new one
     delete mRgbdObject;
-    mRgbdObject = new RgbdObject(mObjName, mOgreWindow->getSceneManager(), depthImage, rgbImage, tmpDPP, tmpDFL, tmpRPP, tmpRFL, tmpRot, tmpTrans, tmpMode);
+    mRgbdObject = new RgbdObject(Strings::RgbdObjName, mOgreWindow->getSceneManager(), depthImage, rgbImage, tmpDPP, tmpDFL, tmpRPP, tmpRFL, tmpRot, tmpTrans, tmpMode);
 
     // Notify OgreWindow of the new scene
     mOgreWindow->setScene(mRgbdObject);
@@ -156,4 +168,12 @@ cv::Vec2f TradagMain::getRgbFocalLength() const {
 
 void TradagMain::setRgbFocalLength(const cv::Vec2f& focalLength) {
     mRgbdObject->setRgbFocalLength(focalLength[0], focalLength[1]);
+}
+
+MapMode TradagMain::getMapMode() const {
+    return mRgbdObject->getMapMode();
+}
+
+void TradagMain::setMapMode(MapMode mode) {
+    mRgbdObject->setMapMode(mode);
 }

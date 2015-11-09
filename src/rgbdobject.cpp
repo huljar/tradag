@@ -30,6 +30,8 @@ RgbdObject::RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManage
         throw std::runtime_error("Received null pointer as scene manager");
 
     mSceneMgr = sceneManager;
+
+    // Create the underlying ManualObject that will contain the mesh
     mSceneObject = sceneManager->createManualObject(name);
 
     // Create the mesh from the images if requested
@@ -46,6 +48,7 @@ RgbdObject::~RgbdObject() {
 
 void RgbdObject::meshify() {
     if(!mMeshUpdated) {
+        mSceneObject->clear();
         mSceneObject->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_TRIANGLE_LIST);
         createVertices();
         createIndices();
@@ -216,7 +219,7 @@ void RgbdObject::setTranslation(Ogre::Real translationX, Ogre::Real translationY
     mMeshUpdated = false;
 }
 
-TraDaG::MapMode RgbdObject::getMapMode() const {
+MapMode RgbdObject::getMapMode() const {
     return mMapMode;
 }
 

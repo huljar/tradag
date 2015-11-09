@@ -24,11 +24,15 @@ public:
     virtual ~OgreWindow();
 
     virtual void renderOneFrame();
-    virtual void enterRenderingLoop();
+    virtual void startAnimation();
 
     virtual void resetCamera();
 
     virtual void setScene(RgbdObject* scene);
+
+    virtual bool hidden() const;
+    virtual void show();
+    virtual void hide();
 
     virtual Ogre::SceneManager* getSceneManager();
 
@@ -40,6 +44,7 @@ public:
 
     // WindowEventListener methods
     virtual void windowResized(Ogre::RenderWindow* rw);
+    virtual bool windowClosing(Ogre::RenderWindow* rw);
     virtual void windowClosed(Ogre::RenderWindow* rw);
 
     // KeyListener methods
@@ -63,6 +68,8 @@ protected:
     Ogre::Camera* mCamera;
     OgreBites::SdkCameraMan* mCameraMan;
 
+    bool mHaltRendering;
+
     // Paths of config files
     Ogre::String mResourcesCfg;
     Ogre::String mPluginsCfg;
@@ -71,6 +78,8 @@ protected:
     OIS::InputManager* mInputManager;
     OIS::Keyboard* mKeyboard;
     OIS::Mouse* mMouse;
+
+    bool mOisRunning;
 
     // Scene
     RgbdObject* mScene;
@@ -99,6 +108,8 @@ private:
     void initializeOgre();
     void initializeBullet(const Ogre::Vector3& gravity);
 
+    void initializeOIS();
+    void shutDownOIS();
 };
 
 #endif // OGREWINDOW_H

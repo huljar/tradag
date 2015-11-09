@@ -52,6 +52,7 @@ int main(int argc, char** argv)
 
     // From here, let TradagMain take over
     TradagMain tradag(depthFile, rgbFile, labelFile, depthPrincipalPoint, depthFocalLength);
+    tradag.dropObjectIntoScene();
 
     return 0;
 }

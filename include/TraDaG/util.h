@@ -1,6 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <string>
+
 namespace TraDaG {
 
     typedef enum {
@@ -14,6 +16,11 @@ namespace TraDaG {
         LABELS_ON_DEPTH_IMAGE,
         LABELS_ON_RGB_IMAGE
     } LabelMode;
+
+    namespace Strings {
+        const std::string RgbdObjName = "sceneRgbdEntity";
+        const std::string RenderWindowName = "Training Data Generator Preview Window";
+    }
 
 }
 

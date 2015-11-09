@@ -10,11 +10,13 @@ OgreWindow::OgreWindow()
     , mSceneMgr(NULL)
     , mCamera(NULL)
     , mCameraMan(NULL)
+    , mHaltRendering(false)
     , mResourcesCfg(Ogre::StringUtil::BLANK)
     , mPluginsCfg(Ogre::StringUtil::BLANK)
     , mInputManager(NULL)
     , mKeyboard(NULL)
     , mMouse(NULL)
+    , mOisRunning(false)
     , mScene(NULL)
     , mSceneSceneNode(NULL)
     , mDefaultCameraPosition(0, 0, 0)
@@ -108,10 +110,18 @@ void OgreWindow::initializeOgre() {
     rs->setConfigOption("Video Mode", "1024 x 768");
     rs->setConfigOption("Full Screen", "No");
     rs->setConfigOption("VSync", "Yes");
+
     mRoot->setRenderSystem(rs);
 
-    // Init the render window
-    mWindow = mRoot->initialise(true, "Training Data Generator");
+    // Init the render system
+    mRoot->initialise(false);
+
+    // Create a render window (hidden by default)
+    Ogre::NameValuePairList windowParams;
+    windowParams["vsync"] = "true";
+    windowParams["hidden"] = "true";
+
+    mWindow = mRoot->createRenderWindow(Strings::RenderWindowName, 1024, 768, false, &windowParams);
 
     // Init resources
     Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
@@ -130,44 +140,65 @@ void OgreWindow::initializeOgre() {
     mCamera->setAspectRatio(Ogre::Real(vp->getActualWidth()) / Ogre::Real(vp->getActualHeight()));
     mCamera->setAutoAspectRatio(true);
 
-    // Initialize OIS
-    Ogre::LogManager::getSingletonPtr()->logMessage("*** Initializing OIS ***");
-    OIS::ParamList pl;
-    size_t hWnd = 0;
-    std::ostringstream hWndStr;
-
-    mWindow->getCustomAttribute("WINDOW", &hWnd);
-    hWndStr << hWnd;
-    pl.insert(std::make_pair(std::string("WINDOW"), hWndStr.str()));
-
-    // Enable non-exclusive input so we can still see the mouse and use mouse and keyboard outside of the application
-#if defined(OIS_WIN32_PLATFORM)
-    pl.insert(std::make_pair(std::string("w32_mouse"), std::string("DISCL_FOREGROUND" )));
-    pl.insert(std::make_pair(std::string("w32_mouse"), std::string("DISCL_NONEXCLUSIVE")));
-    pl.insert(std::make_pair(std::string("w32_keyboard"), std::string("DISCL_FOREGROUND")));
-    pl.insert(std::make_pair(std::string("w32_keyboard"), std::string("DISCL_NONEXCLUSIVE")));
-#elif defined(OIS_LINUX_PLATFORM)
-    pl.insert(std::make_pair(std::string("x11_mouse_grab"), std::string("false")));
-    pl.insert(std::make_pair(std::string("x11_mouse_hide"), std::string("false")));
-    pl.insert(std::make_pair(std::string("x11_keyboard_grab"), std::string("false")));
-    pl.insert(std::make_pair(std::string("XAutoRepeatOn"), std::string("true")));
-#endif
-
-    mInputManager = OIS::InputManager::createInputSystem(pl);
-    mKeyboard = static_cast<OIS::Keyboard*>(mInputManager->createInputObject(OIS::OISKeyboard, true));
-    mMouse = static_cast<OIS::Mouse*>(mInputManager->createInputObject(OIS::OISMouse, true));
-
-    windowResized(mWindow);
-
-    // Add OIS callbacks
-    mKeyboard->setEventCallback(this);
-    mMouse->setEventCallback(this);
-
     // Add window event listener
     Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
 
     // Add frame listener
     mRoot->addFrameListener(this);
+}
+
+void OgreWindow::initializeOIS() {
+    if(!mOisRunning) {
+        Ogre::LogManager::getSingletonPtr()->logMessage("*** Initializing OIS ***");
+        OIS::ParamList pl;
+        size_t hWnd = 0;
+        std::ostringstream hWndStr;
+
+        mWindow->getCustomAttribute("WINDOW", &hWnd);
+        hWndStr << hWnd;
+        pl.insert(std::make_pair(std::string("WINDOW"), hWndStr.str()));
+
+        // Enable non-exclusive input so we can still see the mouse and use mouse and keyboard outside of the application
+#if defined(OIS_WIN32_PLATFORM)
+        pl.insert(std::make_pair(std::string("w32_mouse"), std::string("DISCL_FOREGROUND" )));
+        pl.insert(std::make_pair(std::string("w32_mouse"), std::string("DISCL_NONEXCLUSIVE")));
+        pl.insert(std::make_pair(std::string("w32_keyboard"), std::string("DISCL_FOREGROUND")));
+        pl.insert(std::make_pair(std::string("w32_keyboard"), std::string("DISCL_NONEXCLUSIVE")));
+#elif defined(OIS_LINUX_PLATFORM)
+        pl.insert(std::make_pair(std::string("x11_mouse_grab"), std::string("false")));
+        pl.insert(std::make_pair(std::string("x11_mouse_hide"), std::string("false")));
+        pl.insert(std::make_pair(std::string("x11_keyboard_grab"), std::string("false")));
+        pl.insert(std::make_pair(std::string("XAutoRepeatOn"), std::string("true")));
+#endif
+
+        mInputManager = OIS::InputManager::createInputSystem(pl);
+        mKeyboard = static_cast<OIS::Keyboard*>(mInputManager->createInputObject(OIS::OISKeyboard, true));
+        mMouse = static_cast<OIS::Mouse*>(mInputManager->createInputObject(OIS::OISMouse, true));
+
+        // Trigger resize event to update OIS mouse area
+        windowResized(mWindow);
+
+        // Add OIS callbacks
+        mKeyboard->setEventCallback(this);
+        mMouse->setEventCallback(this);
+
+        mOisRunning = true;
+    }
+}
+
+void OgreWindow::shutDownOIS() {
+    if(mOisRunning) {
+        Ogre::LogManager::getSingletonPtr()->logMessage("*** Shutting down OIS ***");
+        if(mInputManager) {
+            mInputManager->destroyInputObject(mMouse);
+            mInputManager->destroyInputObject(mKeyboard);
+
+            OIS::InputManager::destroyInputSystem(mInputManager);
+            mInputManager = NULL;
+        }
+
+        mOisRunning = false;
+    }
 }
 
 void OgreWindow::createCamera() {
@@ -233,7 +264,7 @@ void OgreWindow::renderOneFrame() {
     mRoot->renderOneFrame();
 }
 
-void OgreWindow::enterRenderingLoop() {
+void OgreWindow::startAnimation() {
     mRoot->startRendering();
 }
 
@@ -252,8 +283,10 @@ void OgreWindow::setScene(RgbdObject* scene) {
 }
 
 bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
-    if(mWindow->isClosed())
+    if(mHaltRendering || mWindow->isClosed()) {
+        mHaltRendering = false;
         return false;
+    }
 
     mWorld->stepSimulation(evt.timeSinceLastFrame);
 
@@ -261,11 +294,15 @@ bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
 }
 
 bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt) {
-    if(mWindow->isClosed())
+    if(mHaltRendering || mWindow->isClosed()) {
+        mHaltRendering = false;
         return false;
+    }
 
-    mKeyboard->capture();
-    mMouse->capture();
+    if(mOisRunning) {
+        mKeyboard->capture();
+        mMouse->capture();
+    }
 
     mCameraMan->frameRenderingQueued(evt);
     return true;
@@ -273,25 +310,38 @@ bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt) {
 
 void OgreWindow::windowResized(Ogre::RenderWindow* rw) {
     // Update OIS mouse area
-    unsigned int width, height, depth;
-    int left, top;
-    rw->getMetrics(width, height, depth, left, top);
+    if(mOisRunning) {
+        unsigned int width, height, depth;
+        int left, top;
+        rw->getMetrics(width, height, depth, left, top);
 
-    const OIS::MouseState& ms = mMouse->getMouseState();
-    ms.width = width;
-    ms.height = height;
+        const OIS::MouseState& ms = mMouse->getMouseState();
+        ms.width = width;
+        ms.height = height;
+    }
+}
+
+bool OgreWindow::windowClosing(Ogre::RenderWindow* rw) {
+    if(rw == mWindow) {
+        // Allow the window to be closed if it is hidden
+        if(hidden())
+            return true;
+
+        // If the window is visible, only hide it instead of closing it
+        hide();
+
+        // Trigger halt of rendering cycle
+        mHaltRendering = true;
+
+        return false;
+    }
+
+    return true;
 }
 
 void OgreWindow::windowClosed(Ogre::RenderWindow* rw) {
     if(rw == mWindow) {
-        Ogre::LogManager::getSingletonPtr()->logMessage("*** Shutting down OIS ***");
-        if(mInputManager) {
-            mInputManager->destroyInputObject(mMouse);
-            mInputManager->destroyInputObject(mKeyboard);
-
-            OIS::InputManager::destroyInputSystem(mInputManager);
-            mInputManager = NULL;
-        }
+        shutDownOIS();
     }
 }
 
@@ -393,6 +443,21 @@ bool OgreWindow::getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3
 
 //    mSceneMgr->destroyQuery(query);
 //    return ret;
+}
+
+bool OgreWindow::hidden() const {
+    return mWindow->isHidden();
+}
+
+void OgreWindow::show() {
+    mWindow->setHidden(false);
+    Ogre::WindowEventUtilities::messagePump(); // Necessary so OIS initializes correctly
+    initializeOIS();
+}
+
+void OgreWindow::hide() {
+    shutDownOIS();
+    mWindow->setHidden(true);
 }
 
 Ogre::SceneManager* OgreWindow::getSceneManager() {
