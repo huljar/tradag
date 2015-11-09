@@ -20,13 +20,13 @@ class TraDaG::TradagMain
 public:
     TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
                const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
-               const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(0, 0), const cv::Vec2f& rgbFocalLength = cv::Vec2f(0, 0),
+               const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(320, 240), const cv::Vec2f& rgbFocalLength = cv::Vec2f(500, 500),
                const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
                MapMode mapMode = MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LABELS_ON_DEPTH_IMAGE);
 
     TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath,
                const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
-               const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(0, 0), const cv::Vec2f& rgbFocalLength = cv::Vec2f(0, 0),
+               const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(320, 240), const cv::Vec2f& rgbFocalLength = cv::Vec2f(500, 500),
                const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
                MapMode mapMode = MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LABELS_ON_DEPTH_IMAGE);
 
@@ -34,7 +34,14 @@ public:
 
     void updateMesh();
 
-    bool dropObjectIntoScene(bool showPreviewWindow = true, bool showPhysicsAnimation = true);
+    bool dropObjectIntoScene(const std::string& meshName, unsigned short planeLabelIndex, bool castShadows = true,
+                             bool showPreviewWindow = false, bool showPhysicsAnimation = false,
+                             const Ogre::Vector3& gravity = -700 * Ogre::Vector3::UNIT_Y,
+                             const Automatable<Ogre::Vector3>& initialPosition = Automatable<Ogre::Vector3>(true),
+                             const Automatable<Ogre::Matrix3>& initialRotation = Automatable<Ogre::Matrix3>(true),
+                             const Ogre::Vector3& initialVelocity = Ogre::Vector3::ZERO,
+                             Ogre::Real objectRestitution = 0.4, Ogre::Real objectFriction = 0.6, Ogre::Real objectMass = 1.0,
+                             Ogre::Real planeRestitution = 0.1, Ogre::Real planeFriction = 0.9);
 
     cv::Mat getDepthImage();
     const cv::Mat getDepthImage() const;
@@ -63,23 +70,8 @@ public:
     MapMode getMapMode() const;
     void setMapMode(MapMode mode);
 
-//    bool autoGravity() const;
-//    void setAutoGravity(bool autoGravity);
-
-//    cv::Vec3f getGravityVector() const;
-//    void setGravityVector(const cv::Vec3f gravityVector);
-
-//    cv::Vec3f getInitialVelocity() const;
-//    void setInitialVelocity(const cv::Vec3f& initialVelocity);
-
-//    bool adaptVelocityDirectionToGravity() const;
-//    void setAdaptVelocityDirectionToGravity(bool adaptVelocityDirectionToGravity);
-
-//    bool previewInWindow() const;
-//    void setPreviewInWindow(bool previewInWindow);
-
-//    bool showObjectAnimation() const;
-//    void setShowObjectAnimation(bool showObjectAnimation);
+    LabelMode getLabelMode() const;
+    void setLabelMode(LabelMode mode);
 
 private:
     void init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,

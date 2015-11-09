@@ -1,4 +1,5 @@
 #include <TraDaG/ogrewindow.h>
+#include <TraDaG/util.h>
 
 #include <OgreBites/OgreRay.h>
 
@@ -11,52 +12,34 @@ OgreWindow::OgreWindow()
     , mCamera(NULL)
     , mCameraMan(NULL)
     , mHaltRendering(false)
-    , mResourcesCfg(Ogre::StringUtil::BLANK)
-    , mPluginsCfg(Ogre::StringUtil::BLANK)
     , mInputManager(NULL)
     , mKeyboard(NULL)
     , mMouse(NULL)
-    , mOisRunning(false)
     , mScene(NULL)
     , mSceneSceneNode(NULL)
     , mDefaultCameraPosition(0, 0, 0)
     , mDefaultCameraLookAt(0, 0, -1)
-    , mGravity(0, -9.81, 0)
-    , mBounds(Ogre::Vector3(-1000, -1000, -1000), Ogre::Vector3(1000, 1000, 1000))
     , mWorld(NULL)
-    , mDebugDrawer(NULL)
+    , mBounds(Ogre::Vector3(-10000, -10000, -10000), Ogre::Vector3(10000, 10000, 10000))
     , mLastMouseDownPosX(0)
     , mLastMouseDownPosY(0)
 {
     initializeOgre();
-    initializeBullet(Ogre::Vector3(0, -100, 0));
 }
 
 OgreWindow::~OgreWindow() {
-    for(auto it = mBodies.begin(); it != mBodies.end(); ++it)
-        delete *it;
-    for(auto it = mShapes.begin(); it != mShapes.end(); ++it)
-        delete *it;
-
-    delete mDebugDrawer;
-    delete mWorld;
-
-    delete mCameraMan;
-    Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, this);
-    delete mRoot;
+    shutDownBullet();
+    shutDownOIS();
+    shutDownOgre();
 }
 
 void OgreWindow::initializeOgre() {
-    // Resource and plugins config paths
-    mResourcesCfg = "../config/resources.cfg";
-    mPluginsCfg = "../config/plugins.cfg";
-
     // Create Ogre Root object
-    mRoot = new Ogre::Root(mPluginsCfg);
+    mRoot = new Ogre::Root(Strings::PluginsCfgPath);
 
     // Parse resources config file
     Ogre::ConfigFile cf;
-    cf.load(mResourcesCfg);
+    cf.load(Strings::ResourcesCfgPath);
 
     Ogre::String name, locType;
     Ogre::ConfigFile::SectionIterator secIt = cf.getSectionIterator();
@@ -78,7 +61,7 @@ void OgreWindow::initializeOgre() {
     Ogre::RenderSystem* rs = NULL;
 
     Ogre::StringVector renderOrder;
-#if defined(Q_OS_WIN)
+#if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
     renderOrder.push_back("Direct3D9");
     renderOrder.push_back("Direct3D11");
 #endif
@@ -147,8 +130,14 @@ void OgreWindow::initializeOgre() {
     mRoot->addFrameListener(this);
 }
 
+void OgreWindow::shutDownOgre() {
+    delete mCameraMan;
+    Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, this);
+    delete mRoot;
+}
+
 void OgreWindow::initializeOIS() {
-    if(!mOisRunning) {
+    if(!mInputManager) {
         Ogre::LogManager::getSingletonPtr()->logMessage("*** Initializing OIS ***");
         OIS::ParamList pl;
         size_t hWnd = 0;
@@ -181,24 +170,39 @@ void OgreWindow::initializeOIS() {
         // Add OIS callbacks
         mKeyboard->setEventCallback(this);
         mMouse->setEventCallback(this);
-
-        mOisRunning = true;
     }
 }
 
 void OgreWindow::shutDownOIS() {
-    if(mOisRunning) {
+    if(mInputManager) {
         Ogre::LogManager::getSingletonPtr()->logMessage("*** Shutting down OIS ***");
-        if(mInputManager) {
-            mInputManager->destroyInputObject(mMouse);
-            mInputManager->destroyInputObject(mKeyboard);
 
-            OIS::InputManager::destroyInputSystem(mInputManager);
-            mInputManager = NULL;
-        }
+        mInputManager->destroyInputObject(mMouse);
+        mInputManager->destroyInputObject(mKeyboard);
 
-        mOisRunning = false;
+        OIS::InputManager::destroyInputSystem(mInputManager);
+        mInputManager = NULL;
     }
+}
+
+void OgreWindow::initializeBullet(const Ogre::Vector3& gravity) {
+    if(!mWorld) {
+        // Set up Bullet world
+        mWorld = new OgreBulletDynamics::DynamicsWorld(mSceneMgr, mBounds, gravity);
+    }
+}
+
+void OgreWindow::shutDownBullet() {
+    for(auto it = mRigidBodies.begin(); it != mRigidBodies.end(); ++it)
+        delete *it;
+    for(auto it = mCollisionShapes.begin(); it != mCollisionShapes.end(); ++it)
+        delete *it;
+
+    mRigidBodies.clear();
+    mCollisionShapes.clear();
+
+    delete mWorld;
+    mWorld = NULL;
 }
 
 void OgreWindow::createCamera() {
@@ -213,79 +217,54 @@ void OgreWindow::createCamera() {
     mCameraMan->setTopSpeed(300);
 }
 
-void OgreWindow::initializeBullet(const Ogre::Vector3& gravity) {
-    if(mRoot == NULL) {
-        std::cerr << "ERROR: You need to initialize OGRE before Bullet!" << std::endl;
-        return;
-    }
-
-    // Set up Bullet world
-    mGravity = gravity;
-    mWorld = new OgreBulletDynamics::DynamicsWorld(mSceneMgr, mBounds, mGravity);
-
-    // Set up debug info display tool
-    mDebugDrawer = new OgreBulletCollisions::DebugDrawer();
-    mDebugDrawer->setDrawWireframe(true);
-    mWorld->setDebugDrawer(mDebugDrawer);
-    //mWorld->setShowDebugShapes(true);
-
-    mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(mDebugDrawer);
-
-    // Create Bullet plane and box (change later to implement plane fitting and real objects)
-    Ogre::Plane plane(Ogre::Vector3::UNIT_Y, 1000);
-    OgreBulletDynamics::RigidBody* planeBody = new OgreBulletDynamics::RigidBody("FloorPlaneBody", mWorld);
-    OgreBulletCollisions::CollisionShape* planeShape = new OgreBulletCollisions::StaticPlaneCollisionShape(plane.normal, plane.d);
-
-    planeBody->setStaticShape(planeShape, 0.1, 0.8);
-
-    mBodies.push_back(planeBody);
-    mShapes.push_back(planeShape);
-
-    // Test cube
-    Ogre::Entity* boxEntity = mSceneMgr->createEntity("cube.mesh");
-    boxEntity->setCastShadows(true);
-    Ogre::AxisAlignedBox boxBoundingBox = boxEntity->getBoundingBox();
-    Ogre::Vector3 boxSize = boxBoundingBox.getSize();
-    boxSize *= 0.5 * 0.96;
-    boxEntity->setMaterialName("BaseWhiteNoLighting");
-    Ogre::SceneNode* boxNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    boxNode->attachObject(boxEntity);
-
-    OgreBulletDynamics::RigidBody* boxBody = new OgreBulletDynamics::RigidBody("BoxBody", mWorld);
-    OgreBulletCollisions::BoxCollisionShape* boxShape = new OgreBulletCollisions::BoxCollisionShape(boxSize);
-
-    boxBody->setShape(boxNode, boxShape, 0.6f, 0.6f, 1.0f, Ogre::Vector3(-800, 400, -3600));
-    boxBody->setLinearVelocity(0, 100, 0);
-
-    mBodies.push_back(boxBody);
-    mShapes.push_back(boxShape);
-
-    // Test camera
-    Ogre::Real cameraScale = 1000.0;
-    Ogre::Entity* cameraEntity = mSceneMgr->createEntity("004.mesh");
-    cameraEntity->setCastShadows(true);
-    Ogre::AxisAlignedBox cameraBB = cameraEntity->getBoundingBox();
-    Ogre::Vector3 collisionShapeSize = cameraBB.getHalfSize() * 0.96 * cameraScale;
-    Ogre::SceneNode* cameraNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    cameraNode->scale(cameraScale, cameraScale, cameraScale);
-    cameraNode->attachObject(cameraEntity);
-
-    OgreBulletDynamics::RigidBody* cameraBody = new OgreBulletDynamics::RigidBody("CamBody", mWorld);
-    OgreBulletCollisions::BoxCollisionShape* cameraShape = new OgreBulletCollisions::BoxCollisionShape(collisionShapeSize);
-
-    cameraBody->setShape(cameraNode, cameraShape, 0.6f, 0.6f, 1.0f, Ogre::Vector3(-1000, 400, -3600));
-    cameraBody->setLinearVelocity(0, 100, 0);
-
-    mBodies.push_back(cameraBody);
-    mShapes.push_back(cameraShape);
-}
-
 void OgreWindow::renderOneFrame() {
     mRoot->renderOneFrame();
 }
 
-void OgreWindow::startAnimation() {
-    mRoot->startRendering();
+void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation,
+                                const Ogre::Vector3& initialVelocity,
+                                Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
+                                const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
+                                const Ogre::Vector3& gravity, bool castShadows) {
+
+    // Initialize Bullet physics
+    initializeBullet(gravity);
+
+    // Load object
+    Ogre::Entity* object = mSceneMgr->createEntity(meshName);
+    object->setCastShadows(castShadows); // TODO: when initializing Ogre, set stencil shadow type (and ambient light)
+
+    // Register object with Bullet
+    Ogre::Real objScale = 1000.0; // TODO: find better method; this scaling is required for Hinterstoisser objects
+    Ogre::Vector3 objCollisionSize = object->getBoundingBox().getHalfSize() * objScale * 0.96;
+
+    Ogre::SceneNode* objNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    objNode->scale(objScale, objScale, objScale);
+    objNode->attachObject(object);
+
+    OgreBulletDynamics::RigidBody* objRigidBody = new OgreBulletDynamics::RigidBody(Strings::ObjRigidBodyName, mWorld);
+    OgreBulletCollisions::CollisionShape* objCollisionShape = new OgreBulletCollisions::BoxCollisionShape(objCollisionSize);
+
+    objRigidBody->setShape(objNode, objCollisionShape, objectRestitution, objectFriction, objectMass, initialPosition, Ogre::Quaternion(initialRotation));
+    objRigidBody->setLinearVelocity(initialVelocity);
+
+    // Register plane with Bullet
+    OgreBulletDynamics::RigidBody* planeRigidBody = new OgreBulletDynamics::RigidBody(Strings::PlaneRigidBodyName, mWorld);
+    OgreBulletCollisions::CollisionShape* planeCollisionShape = new OgreBulletCollisions::StaticPlaneCollisionShape(groundPlane.normal, groundPlane.d);
+
+    planeRigidBody->setStaticShape(planeCollisionShape, planeRestitution, planeFriction);
+
+    // Store pointers so they can be cleaned up later
+    mRigidBodies.push_back(objRigidBody);
+    mRigidBodies.push_back(planeRigidBody);
+    mCollisionShapes.push_back(objCollisionShape);
+    mCollisionShapes.push_back(planeCollisionShape);
+
+    // Enter rendering loop
+    mRoot->startRendering(); // this method does not return until rendering is stopped
+
+    // This is executed after rendering was stopped
+    shutDownBullet();
 }
 
 void OgreWindow::resetCamera() {
@@ -319,7 +298,7 @@ bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt) {
         return false;
     }
 
-    if(mOisRunning) {
+    if(mInputManager) {
         mKeyboard->capture();
         mMouse->capture();
     }
@@ -330,7 +309,7 @@ bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt) {
 
 void OgreWindow::windowResized(Ogre::RenderWindow* rw) {
     // Update OIS mouse area
-    if(mOisRunning) {
+    if(mInputManager) {
         unsigned int width, height, depth;
         int left, top;
         rw->getMetrics(width, height, depth, left, top);
@@ -350,19 +329,13 @@ bool OgreWindow::windowClosing(Ogre::RenderWindow* rw) {
         // If the window is visible, only hide it instead of closing it
         hide();
 
-        // Trigger halt of rendering cycle
+        // Halt rendering loop
         mHaltRendering = true;
 
         return false;
     }
 
     return true;
-}
-
-void OgreWindow::windowClosed(Ogre::RenderWindow* rw) {
-    if(rw == mWindow) {
-        shutDownOIS();
-    }
 }
 
 bool OgreWindow::keyPressed(const OIS::KeyEvent& e) {
@@ -482,8 +455,4 @@ void OgreWindow::hide() {
 
 Ogre::SceneManager* OgreWindow::getSceneManager() {
     return mSceneMgr;
-}
-
-Ogre::Vector3 OgreWindow::getGravity() const {
-    return mGravity;
 }

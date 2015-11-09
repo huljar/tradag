@@ -24,7 +24,11 @@ public:
     virtual ~OgreWindow();
 
     virtual void renderOneFrame();
-    virtual void startAnimation();
+    virtual void startAnimation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation,
+                                const Ogre::Vector3& initialVelocity,
+                                Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
+                                const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
+                                const Ogre::Vector3& gravity, bool castShadows);
 
     virtual void resetCamera();
 
@@ -36,8 +40,6 @@ public:
 
     virtual Ogre::SceneManager* getSceneManager();
 
-    virtual Ogre::Vector3 getGravity() const;
-
     // FrameListener methods
     virtual bool frameStarted(const Ogre::FrameEvent& evt);
     virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt);
@@ -45,7 +47,6 @@ public:
     // WindowEventListener methods
     virtual void windowResized(Ogre::RenderWindow* rw);
     virtual bool windowClosing(Ogre::RenderWindow* rw);
-    virtual void windowClosed(Ogre::RenderWindow* rw);
 
     // KeyListener methods
     virtual bool keyPressed(const OIS::KeyEvent& e);
@@ -61,7 +62,7 @@ protected:
 
     virtual bool getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3& result);
 
-    // OGRE pointers
+    // OGRE
     Ogre::Root* mRoot;
     Ogre::RenderWindow* mWindow;
     Ogre::SceneManager* mSceneMgr;
@@ -70,16 +71,10 @@ protected:
 
     bool mHaltRendering;
 
-    // Paths of config files
-    Ogre::String mResourcesCfg;
-    Ogre::String mPluginsCfg;
-
-    // OIS pointers
+    // OIS
     OIS::InputManager* mInputManager;
     OIS::Keyboard* mKeyboard;
     OIS::Mouse* mMouse;
-
-    bool mOisRunning;
 
     // Scene
     RgbdObject* mScene;
@@ -90,12 +85,11 @@ protected:
     Ogre::Vector3 mDefaultCameraLookAt;
 
     // Bullet physics
-    Ogre::Vector3 mGravity;
-    Ogre::AxisAlignedBox mBounds;
     OgreBulletDynamics::DynamicsWorld* mWorld;
-    OgreBulletCollisions::DebugDrawer* mDebugDrawer;
-    std::vector<OgreBulletDynamics::RigidBody*> mBodies;
-    std::vector<OgreBulletCollisions::CollisionShape*> mShapes;
+    Ogre::AxisAlignedBox mBounds;
+
+    std::vector<OgreBulletDynamics::RigidBody*> mRigidBodies;
+    std::vector<OgreBulletCollisions::CollisionShape*> mCollisionShapes;
 
     // Mouse click positions
     int mLastMouseDownPosX;
@@ -106,10 +100,13 @@ protected:
 
 private:
     void initializeOgre();
-    void initializeBullet(const Ogre::Vector3& gravity);
+    void shutDownOgre();
 
     void initializeOIS();
     void shutDownOIS();
+
+    void initializeBullet(const Ogre::Vector3& gravity);
+    void shutDownBullet();
 };
 
 #endif // OGREWINDOW_H

@@ -18,9 +18,26 @@ namespace TraDaG {
     } LabelMode;
 
     namespace Strings {
-        const std::string RgbdObjName = "sceneRgbdEntity";
+        const std::string ResourcesCfgPath = "../config/resources.cfg";
+        const std::string PluginsCfgPath = "../config/plugins.cfg";
+
+        const std::string RgbdSceneName = "sceneRgbdEntity";
+        const std::string ObjRigidBodyName = "objectBody";
+        const std::string PlaneRigidBodyName = "planeBody";
+
         const std::string RenderWindowName = "Training Data Generator Preview Window";
     }
+
+    template<class T>
+    struct Automatable {
+        Automatable(bool automate, const T& specific = T())
+            : automated(automate), manualValue(specific)
+        {
+        }
+
+        const bool automated;
+        const T& manualValue;
+    };
 
 }
 

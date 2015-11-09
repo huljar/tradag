@@ -52,7 +52,7 @@ int main(int argc, char** argv)
 
     // From here, let TradagMain take over
     TradagMain tradag(depthFile, rgbFile, labelFile, depthPrincipalPoint, depthFocalLength);
-    tradag.dropObjectIntoScene();
+    tradag.dropObjectIntoScene("003.mesh", 0, true, true, true);
 
     return 0;
 }

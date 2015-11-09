@@ -36,6 +36,12 @@ TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgb
          rotation, translation, mapMode, labelMode);
 }
 
+TradagMain::~TradagMain() {
+    delete mImageLabeling;
+    delete mRgbdObject;
+    delete mOgreWindow;
+}
+
 void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
                       const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                       const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
@@ -50,7 +56,7 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const 
             rotationConverted[i][j] = rotation(i, j);
         }
     }
-    mRgbdObject = new RgbdObject(Ogre::String(Strings::RgbdObjName), mOgreWindow->getSceneManager(), depthImage, rgbImage,
+    mRgbdObject = new RgbdObject(Ogre::String(Strings::RgbdSceneName), mOgreWindow->getSceneManager(), depthImage, rgbImage,
                                  Ogre::Vector2(depthPrincipalPoint[0], depthPrincipalPoint[1]), Ogre::Vector2(depthFocalLength[0], depthFocalLength[1]),
                                  Ogre::Vector2(rgbPrincipalPoint[0], rgbPrincipalPoint[1]), Ogre::Vector2(rgbFocalLength[0], rgbFocalLength[1]),
                                  Ogre::Matrix3(rotationConverted), Ogre::Vector3(translation[0], translation[1], translation[2]), mapMode);
@@ -60,21 +66,34 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const 
     mOgreWindow->setScene(mRgbdObject);
 }
 
-TradagMain::~TradagMain() {
-    delete mImageLabeling;
-    delete mRgbdObject;
-    delete mOgreWindow;
-}
-
 void TradagMain::updateMesh() {
     mRgbdObject->meshify();
 }
 
-bool TradagMain::dropObjectIntoScene(bool showPreviewWindow, bool showPhysicsAnimation) {
-    if(mOgreWindow->hidden())
+bool TradagMain::dropObjectIntoScene(const std::string& meshName, unsigned short planeLabelIndex, bool castShadows,
+                                     bool showPreviewWindow, bool showPhysicsAnimation,
+                                     const Ogre::Vector3& gravity,
+                                     const Automatable<Ogre::Vector3>& initialPosition, const Automatable<Ogre::Matrix3>& initialRotation,
+                                     const Ogre::Vector3& initialVelocity,
+                                     Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
+                                     Ogre::Real planeRestitution, Ogre::Real planeFriction) {
+
+    // Calculate plane from labels using RANSAC
+    Ogre::Plane groundPlane(Ogre::Vector3::UNIT_Y, 1000); // TODO
+    //Ogre::Plane groundPlane = mImageLabeling->getPlaneFromLabel(planeLabelIndex);
+
+    // Calculate initial position
+    Ogre::Vector3 actualPosition(-800, 400, -3600); // TODO
+
+    // Calculate initial rotation
+    Ogre::Matrix3 actualRotation(Ogre::Matrix3::IDENTITY); // TODO
+
+    if(showPreviewWindow && mOgreWindow->hidden())
         mOgreWindow->show();
 
-    mOgreWindow->startAnimation();
+    // TODO: different behavior if showPhysicsAnimation==false
+    mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, initialVelocity, objectRestitution, objectFriction, objectMass,
+                                groundPlane, planeRestitution, planeFriction, gravity, castShadows);
 
     return true;
 }
@@ -115,7 +134,7 @@ void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage,
 
     // Delete old scene and create a new one
     delete mRgbdObject;
-    mRgbdObject = new RgbdObject(Strings::RgbdObjName, mOgreWindow->getSceneManager(), depthImage, rgbImage, tmpDPP, tmpDFL, tmpRPP, tmpRFL, tmpRot, tmpTrans, tmpMode);
+    mRgbdObject = new RgbdObject(Strings::RgbdSceneName, mOgreWindow->getSceneManager(), depthImage, rgbImage, tmpDPP, tmpDFL, tmpRPP, tmpRFL, tmpRot, tmpTrans, tmpMode);
 
     // Notify OgreWindow of the new scene
     mOgreWindow->setScene(mRgbdObject);
@@ -176,4 +195,12 @@ MapMode TradagMain::getMapMode() const {
 
 void TradagMain::setMapMode(MapMode mode) {
     mRgbdObject->setMapMode(mode);
+}
+
+LabelMode TradagMain::getLabelMode() const {
+    return mImageLabeling->getLabelMode();
+}
+
+void TradagMain::setLabelMode(LabelMode mode) {
+    mImageLabeling->setLabelMode(mode);
 }
