@@ -241,6 +241,7 @@ void OgreWindow::initializeBullet(const Ogre::Vector3& gravity) {
     mBodies.push_back(planeBody);
     mShapes.push_back(planeShape);
 
+    // Test cube
     Ogre::Entity* boxEntity = mSceneMgr->createEntity("cube.mesh");
     boxEntity->setCastShadows(true);
     Ogre::AxisAlignedBox boxBoundingBox = boxEntity->getBoundingBox();
@@ -258,6 +259,25 @@ void OgreWindow::initializeBullet(const Ogre::Vector3& gravity) {
 
     mBodies.push_back(boxBody);
     mShapes.push_back(boxShape);
+
+    // Test camera
+    Ogre::Real cameraScale = 1000.0;
+    Ogre::Entity* cameraEntity = mSceneMgr->createEntity("004.mesh");
+    cameraEntity->setCastShadows(true);
+    Ogre::AxisAlignedBox cameraBB = cameraEntity->getBoundingBox();
+    Ogre::Vector3 collisionShapeSize = cameraBB.getHalfSize() * 0.96 * cameraScale;
+    Ogre::SceneNode* cameraNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    cameraNode->scale(cameraScale, cameraScale, cameraScale);
+    cameraNode->attachObject(cameraEntity);
+
+    OgreBulletDynamics::RigidBody* cameraBody = new OgreBulletDynamics::RigidBody("CamBody", mWorld);
+    OgreBulletCollisions::BoxCollisionShape* cameraShape = new OgreBulletCollisions::BoxCollisionShape(collisionShapeSize);
+
+    cameraBody->setShape(cameraNode, cameraShape, 0.6f, 0.6f, 1.0f, Ogre::Vector3(-1000, 400, -3600));
+    cameraBody->setLinearVelocity(0, 100, 0);
+
+    mBodies.push_back(cameraBody);
+    mShapes.push_back(cameraShape);
 }
 
 void OgreWindow::renderOneFrame() {
