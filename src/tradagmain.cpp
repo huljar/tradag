@@ -8,8 +8,9 @@ TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const
                        const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                        const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
                        const cv::Matx33f& rotation, const cv::Vec3f translation,
-                       MapMode mapMode, LabelMode labelMode) {
-
+                       MapMode mapMode, LabelMode labelMode)
+    : TradagMain()
+{
     // Perform default initialization
     init(depthImage, rgbImage, labelImage, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
          rotation, translation, mapMode, labelMode);
@@ -19,8 +20,9 @@ TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgb
                        const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                        const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
                        const cv::Matx33f& rotation, const cv::Vec3f translation,
-                       MapMode mapMode, LabelMode labelMode) {
-
+                       MapMode mapMode, LabelMode labelMode)
+    : TradagMain()
+{
     // Load images from specified paths
     cv::Mat rgbImage = cv::imread(rgbImagePath, CV_LOAD_IMAGE_COLOR);
     cv::Mat depthImage = cv::imread(depthImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
@@ -34,6 +36,25 @@ TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgb
     // Continue with default initialization
     init(depthImage, rgbImage, labelImage, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
          rotation, translation, mapMode, labelMode);
+}
+
+TradagMain::TradagMain()
+    : mOgreWindow(NULL)
+    , mRgbdObject(NULL)
+    , mImageLabeling(NULL)
+    , mObjectScale(Defaults::ObjectScale)
+    , mObjectMustBeUpright(Defaults::ObjectMustBeUpright)
+    , mObjectCoveredFraction(Defaults::ObjectCoveredFraction)
+    , mObjectCastShadows(Defaults::ObjectCastShadows)
+    , mMaxAttempts(Defaults::MaxAttempts)
+    , mShowPreviewWindow(Defaults::ShowPreviewWindow)
+    , mShowPhysicsAnimation(Defaults::ShowPhysicsAnimation)
+    , mGravity(Defaults::Gravity)
+    , mObjectRestitution(Defaults::ObjectRestitution)
+    , mObjectFriction(Defaults::ObjectFriction)
+    , mPlaneRestitution(Defaults::PlaneRestitution)
+    , mPlaneFriction(Defaults::PlaneFriction)
+{
 }
 
 TradagMain::~TradagMain() {
@@ -71,15 +92,9 @@ void TradagMain::updateMesh() {
     mRgbdObject->meshify();
 }
 
-ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, uint16_t planeLabelIndex,
-                                                 bool objectMustBeUpright, const Auto<float>& coveredFraction,
-                                                 bool castShadows, unsigned int maxAttempts,
-                                                 bool showPreviewWindow, bool showPhysicsAnimation,
-                                                 const Ogre::Vector3& gravity,
-                                                 const Auto<Ogre::Vector3>& initialPosition, const Auto<Ogre::Matrix3>& initialRotation,
-                                                 const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity,
-                                                 Ogre::Real objectRestitution, Ogre::Real objectFriction,
-                                                 Ogre::Real planeRestitution, Ogre::Real planeFriction) {
+ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, uint16_t planeLabelIndex, // TODO: replace index with enum
+                                                 const Auto<cv::Vec3f>& initialPosition, const Auto<cv::Matx33f>& initialRotation,
+                                                 const cv::Vec3f& initialVelocity, const cv::Vec3f& initialTorque) {
 
     // Calculate plane from labels using RANSAC
     Ogre::Plane groundPlane(Ogre::Vector3::UNIT_Y, 1200); // TODO
@@ -91,15 +106,31 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, ui
     // Calculate initial rotation
     Ogre::Matrix3 actualRotation(Ogre::Matrix3::IDENTITY); // TODO
 
-    if(showPreviewWindow && mOgreWindow->hidden())
+    // Calculate/convert additional parameters
+    Ogre::Vector3 linearVelocity(initialVelocity[0], initialVelocity[1], initialVelocity[2]);
+    // If the object shall be upright, ignore any torque passed to the function (anything else wouldn't make sense... right?)
+    Ogre::Vector3 angularVelocity = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3(initialTorque[0], initialTorque[1], initialTorque[2]);
+    // Pass all-zero vector as angular factor to prevent random infinite object spinning (yes, this can happen if you allow yaw rotation)
+    // To emulate yaw rotation, one can pass a random initial rotation around the y-axis to this function
+    Ogre::Vector3 angularFactor = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3::UNIT_SCALE;
+    Ogre::Vector3 gravity(mGravity[0], mGravity[1], mGravity[2]);
+
+    // Display the window if requested
+    if(mShowPreviewWindow && mOgreWindow->hidden())
         mOgreWindow->show();
 
-    // TODO: different behavior if showPhysicsAnimation==false
-    mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, linearVelocity, angularVelocity, objectRestitution,
-                                objectFriction, 1.0, groundPlane, planeRestitution, planeFriction, gravity, castShadows);
+    // Simulate with animation only if needed
+    // TODO: objectCoveredFraction, maxAttempts
+    if(mShowPreviewWindow && mShowPhysicsAnimation) {
+        mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor, mObjectRestitution,
+                                    mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity, mObjectCastShadows);
+    }
+    else {
+        // TODO: simulate without animating
+    }
 
     // TODO: render and return the final image
-    return ObjectDropResult(true, cv::Mat(), 0.0);
+    return ObjectDropResult(SUCCESS, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
 }
 
 cv::Mat TradagMain::getDepthImage() {
@@ -233,4 +264,100 @@ LabelMode TradagMain::getLabelMode() const {
 
 void TradagMain::setLabelMode(LabelMode mode) {
     mImageLabeling->setLabelMode(mode);
+}
+
+float TradagMain::getObjectScale() const {
+    return mObjectScale;
+}
+
+void TradagMain::setObjectScale(float scale) {
+    mObjectScale = scale;
+}
+
+bool TradagMain::objectMustBeUpright() const {
+    return mObjectMustBeUpright;
+}
+
+void TradagMain::setObjectMustBeUpright(bool upright) {
+    mObjectMustBeUpright = upright;
+}
+
+Auto<float> TradagMain::getObjectCoveredFraction() const {
+    return mObjectCoveredFraction;
+}
+
+void TradagMain::setObjectCoveredFraction(const Auto<float>& covered) {
+    mObjectCoveredFraction = covered;
+}
+
+bool TradagMain::objectCastShadows() const {
+    return mObjectCastShadows;
+}
+
+void TradagMain::setObjectCastShadows(bool castShadows) {
+    mObjectCastShadows = castShadows;
+}
+
+unsigned int TradagMain::getMaxAttempts() const {
+    return mMaxAttempts;
+}
+
+void TradagMain::setMaxAttempts(unsigned int maxAttempts) {
+    mMaxAttempts = maxAttempts;
+}
+
+bool TradagMain::showPreviewWindow() const {
+    return mShowPreviewWindow;
+}
+
+void TradagMain::setShowPreviewWindow(bool showWindow) {
+    mShowPreviewWindow = showWindow;
+}
+
+bool TradagMain::showPhysicsAnimation() const {
+    return mShowPhysicsAnimation;
+}
+
+void TradagMain::setShowPhysicsAnimation(bool showAnimation) {
+    mShowPhysicsAnimation = showAnimation;
+}
+
+cv::Vec3f TradagMain::getGravity() const {
+    return mGravity;
+}
+
+void TradagMain::setGravity(const cv::Vec3f& gravity) {
+    mGravity = gravity;
+}
+
+float TradagMain::getObjectRestitution() const {
+    return mObjectRestitution;
+}
+
+void TradagMain::setObjectRestitution(float restitution) {
+    mObjectRestitution = restitution;
+}
+
+float TradagMain::getObjectFriction() const {
+    return mObjectFriction;
+}
+
+void TradagMain::setObjectFriction(float friction) {
+    mObjectFriction = friction;
+}
+
+float TradagMain::getPlaneRestitution() const {
+    return mPlaneRestitution;
+}
+
+void TradagMain::setPlaneRestitution(float restitution) {
+    mPlaneRestitution = restitution;
+}
+
+float TradagMain::getPlaneFriction() const {
+    return mPlaneFriction;
+}
+
+void TradagMain::setPlaneFriction(float friction) {
+    mPlaneFriction = friction;
 }

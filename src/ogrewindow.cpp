@@ -3,6 +3,9 @@
 
 #include <OgreBites/OgreRay.h>
 
+#include <BulletCollision/CollisionShapes/btConvexHullShape.h>
+#include <BulletCollision/CollisionShapes/btShapeHull.h>
+
 using namespace TraDaG;
 
 OgreWindow::OgreWindow()
@@ -16,7 +19,7 @@ OgreWindow::OgreWindow()
     , mKeyboard(NULL)
     , mMouse(NULL)
     , mScene(NULL)
-    , mSceneSceneNode(NULL)
+    , mSceneNode(NULL)
     , mDefaultCameraPosition(0, 0, 0)
     , mDefaultCameraLookAt(0, 0, -1)
     , mWorld(NULL)
@@ -187,6 +190,8 @@ void OgreWindow::shutDownOIS() {
 
 void OgreWindow::initializeBullet(const Ogre::Vector3& gravity) {
     if(!mWorld) {
+        Ogre::LogManager::getSingletonPtr()->logMessage("*** Initializing Bullet ***");
+
         // Set up Bullet world
         mWorld = new OgreBulletDynamics::DynamicsWorld(mSceneMgr, mBounds, gravity);
     }
@@ -201,8 +206,12 @@ void OgreWindow::shutDownBullet() {
     mRigidBodies.clear();
     mCollisionShapes.clear();
 
-    delete mWorld;
-    mWorld = NULL;
+    if(mWorld) {
+        Ogre::LogManager::getSingletonPtr()->logMessage("*** Shutting down Bullet ***");
+
+        delete mWorld;
+        mWorld = NULL;
+    }
 }
 
 void OgreWindow::createCamera() {
@@ -221,8 +230,8 @@ void OgreWindow::renderOneFrame() {
     mRoot->renderOneFrame();
 }
 
-void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation,
-                                const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity,
+void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation, Ogre::Real scale,
+                                const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
                                 Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
                                 const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
                                 const Ogre::Vector3& gravity, bool castShadows) {
@@ -230,24 +239,28 @@ void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector
     // Initialize Bullet physics
     initializeBullet(gravity);
 
+    // Debug
+    OgreBulletCollisions::DebugDrawer dd;
+    dd.setDrawWireframe(true);
+    mWorld->setDebugDrawer(&dd);
+    mWorld->setShowDebugShapes(true);
+
     // Load object
     Ogre::Entity* object = mSceneMgr->createEntity(meshName);
     object->setCastShadows(castShadows); // TODO: when initializing Ogre, set stencil shadow type (and ambient light)
 
-    // Register object with Bullet
-    Ogre::Real objScale = 1000.0; // TODO: find better method; this scaling is required for Hinterstoisser objects
-    Ogre::Vector3 objCollisionSize = object->getBoundingBox().getHalfSize() * objScale * 0.96;
-
+    // Register object with Ogre and Bullet
     Ogre::SceneNode* objNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    objNode->scale(objScale, objScale, objScale);
+    objNode->scale(scale, scale, scale);
     objNode->attachObject(object);
 
     OgreBulletDynamics::RigidBody* objRigidBody = new OgreBulletDynamics::RigidBody(Strings::ObjRigidBodyName, mWorld);
-    OgreBulletCollisions::CollisionShape* objCollisionShape = new OgreBulletCollisions::BoxCollisionShape(objCollisionSize);
+    OgreBulletCollisions::CollisionShape* objCollisionShape = createConvexHull(object);
 
     objRigidBody->setShape(objNode, objCollisionShape, objectRestitution, objectFriction, objectMass, initialPosition, Ogre::Quaternion(initialRotation));
     objRigidBody->setLinearVelocity(linearVelocity);
     objRigidBody->setAngularVelocity(angularVelocity);
+    objRigidBody->getBulletRigidBody()->setAngularFactor(btVector3(angularFactor.x, angularFactor.y, angularFactor.z));
 
     // Register plane with Bullet
     OgreBulletDynamics::RigidBody* planeRigidBody = new OgreBulletDynamics::RigidBody(Strings::PlaneRigidBodyName, mWorld);
@@ -277,9 +290,9 @@ void OgreWindow::resetCamera() {
 
 void OgreWindow::setScene(RgbdObject* scene) {
     mScene = scene;
-    if(mSceneSceneNode == NULL)
-        mSceneSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    mSceneSceneNode->attachObject(mScene->getManualObject());
+    if(mSceneNode == NULL)
+        mSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    mSceneNode->attachObject(mScene->getManualObject());
 }
 
 bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
@@ -288,7 +301,7 @@ bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
         return false;
     }
 
-    mWorld->stepSimulation(evt.timeSinceLastFrame);
+    mWorld->stepSimulation(evt.timeSinceLastFrame, 4);
 
     return true;
 }
@@ -415,28 +428,39 @@ bool OgreWindow::getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3
                              (Ogre::Real)mouseX / (Ogre::Real)vp->getActualWidth(),
                              (Ogre::Real)mouseY / (Ogre::Real)vp->getActualHeight());
 
-    //std::cout << "Screen coords: (" << (Ogre::Real)mouseX / (Ogre::Real)vp->getActualWidth() << ", " << (Ogre::Real)mouseY / (Ogre::Real)vp->getActualHeight() << ")" << std::endl;
     OgreBites::OgreRay polygonRayQuery(mSceneMgr);
     return polygonRayQuery.RaycastFromPoint(mouseRay.getOrigin(), mouseRay.getDirection(), result);
+}
 
-//    Ogre::RaySceneQuery* query = mSceneMgr->createRayQuery(mouseRay);
-//    query->setSortByDistance(true);
+OgreBulletCollisions::CollisionShape* OgreWindow::createConvexHull(Ogre::Entity* object) {
+    size_t vertexCount;
+    Ogre::Vector3* vertices;
+    size_t indexCount;
+    unsigned long* indices;
 
-//    Ogre::RaySceneQueryResult& result = query->execute();
+    OgreBites::OgreRay::GetMeshInformation(object, vertexCount, vertices, indexCount, indices,
+                                           object->getParentNode()->_getDerivedPosition(),
+                                           object->getParentNode()->_getDerivedOrientation(),
+                                           object->getParentNode()->_getDerivedScale());
 
-//    Ogre::Vector3 ret(0, 0, 0);
-//    for(Ogre::RaySceneQueryResult::iterator it = result.begin(); it != result.end(); ++it) {
-//        if(it->movable)
-//            std::cout << "Found movable object: " << it->movable->getName() << std::endl;
-//        if(it->movable && it->movable->getName() == mScene->getName()) {
-//            ret = mouseRay.getPoint(it->distance);
-//            std::cout << "Ray casting successful - found scene object" << std::endl;
-//            break;
-//        }
-//    }
+    btConvexHullShape* bulletShape = new btConvexHullShape((btScalar*)vertices, (int)vertexCount, sizeof(Ogre::Vector3));
 
-//    mSceneMgr->destroyQuery(query);
-//    return ret;
+    // Reduce number of vertices for performance
+    // (see http://www.bulletphysics.org/mediawiki-1.5.8/index.php/BtShapeHull_vertex_reduction_utility)
+    btShapeHull* hull = new btShapeHull(bulletShape);
+    btScalar margin = bulletShape->getMargin();
+    hull->buildHull(margin);
+    btConvexHullShape* simplifiedBulletShape = new btConvexHullShape((const btScalar*)hull->getVertexPointer(), hull->numVertices());
+
+    OgreBulletCollisions::CollisionShape* shape = new OgreBulletCollisions::ConvexHullCollisionShape(simplifiedBulletShape);
+
+    // Clean up
+    delete hull;
+    delete bulletShape;
+    delete[] indices;
+    delete[] vertices;
+
+    return shape;
 }
 
 bool OgreWindow::hidden() const {

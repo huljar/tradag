@@ -49,6 +49,7 @@ RgbdObject::~RgbdObject() {
 void RgbdObject::meshify() {
     if(!mMeshUpdated) {
         mSceneObject->clear();
+
         mSceneObject->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_TRIANGLE_LIST);
         createVertices();
         createIndices();

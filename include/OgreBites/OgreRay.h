@@ -10,7 +10,7 @@
 *
 * 	Ogre::Vector3 result;
 * 	if( ray.RaycastFromPoint(m_camera->getPosition(), Ogre::Vector3 direction = m_camera->getDirection(), result) ){
-*		printf("Your mouse is over the position %f,%f,%f (witch is textured)\n", result.x, result.y, result.z);
+*		printf("Your mouse is over the position %f,%f,%f (which is textured)\n", result.x, result.y, result.z);
 *	}else{
 *		printf("No mouse collision\n Are you looking the sky ?\n");
 * 	}
@@ -33,7 +33,6 @@ namespace OgreBites {
             OgreRay( Ogre::SceneManager* sceneMgr );
             bool RaycastFromPoint( const Ogre::Vector3& point, const Ogre::Vector3& normal, Ogre::Vector3& result );
 
-        private:
             static void GetMeshInformation( const Ogre::MeshPtr mesh, size_t &vertex_count, Ogre::Vector3*& vertices,  size_t& index_count, unsigned long*& indices, const Ogre::Vector3& position, const Ogre::Quaternion& orient, const Ogre::Vector3& scale );
             static void GetMeshInformation( const Ogre::ManualObject* manual, size_t& vertex_count, Ogre::Vector3*& vertices, size_t& index_count, unsigned long*& indices, const Ogre::Vector3& position, const Ogre::Quaternion& orient, const Ogre::Vector3& scale );
             static void GetMeshInformation( const Ogre::Entity* entity, size_t& vertex_count, Ogre::Vector3*& vertices, size_t& index_count, unsigned long*& indices, const Ogre::Vector3& position, const Ogre::Quaternion& orient, const Ogre::Vector3& scale );

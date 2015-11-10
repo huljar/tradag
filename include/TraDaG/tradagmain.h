@@ -30,26 +30,24 @@ public:
                const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
                MapMode mapMode = MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LABELS_ON_DEPTH_IMAGE);
 
+    // no copy
+    TradagMain(const TradagMain&) = delete;
+
+    // no assign
+    TradagMain& operator=(const TradagMain&) = delete;
+
     ~TradagMain();
 
     void updateMesh();
 
-    // TODO: use OpenCV types
-    // TODO: use setters
     // TODO: better labels, automatic label selection
     // TODO: define angle of plane to camera and tolerance (in separate interface)
-    // TODO: define initial position uniformly? at end: check if inliers are within x radius of object, sample again if not
+    // TODO: define initial position uniformly? at end: check if inliers are within x radius of object (center of mass), sample again if not
     ObjectDropResult dropObjectIntoScene(const std::string& meshName, uint16_t planeLabelIndex,
-                                         bool objectMustBeUpright = false, const Auto<float>& coveredFraction = Auto<float>(true),
-                                         bool castShadows = true, unsigned int maxAttempts = 20,
-                                         bool showPreviewWindow = false, bool showPhysicsAnimation = false,
-                                         const Ogre::Vector3& gravity = -981 * Ogre::Vector3::UNIT_Y,
-                                         const Auto<Ogre::Vector3>& initialPosition = Auto<Ogre::Vector3>(true),
-                                         const Auto<Ogre::Matrix3>& initialRotation = Auto<Ogre::Matrix3>(true),
-                                         const Ogre::Vector3& initialVelocity = Ogre::Vector3::ZERO,
-                                         const Ogre::Vector3& angularVelocity = Ogre::Vector3::ZERO,
-                                         Ogre::Real objectRestitution = 0.4, Ogre::Real objectFriction = 0.6,
-                                         Ogre::Real planeRestitution = 0.1, Ogre::Real planeFriction = 0.9);
+                                         const Auto<cv::Vec3f>& initialPosition = Auto<cv::Vec3f>(true),
+                                         const Auto<cv::Matx33f>& initialRotation = Auto<cv::Matx33f>(true),
+                                         const cv::Vec3f& initialVelocity = cv::Vec3f(0, 0, 0),
+                                         const cv::Vec3f& initialTorque = cv::Vec3f(0, 0, 0));
 
     cv::Mat getDepthImage();
     const cv::Mat getDepthImage() const;
@@ -87,6 +85,9 @@ public:
     LabelMode getLabelMode() const;
     void setLabelMode(LabelMode mode);
 
+    float getObjectScale() const;
+    void setObjectScale(float scale);
+
     bool objectMustBeUpright() const;
     void setObjectMustBeUpright(bool upright);
 
@@ -121,6 +122,7 @@ public:
     void setPlaneFriction(float friction);
 
 private:
+    TradagMain();
     void init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
               const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
               const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
@@ -130,6 +132,19 @@ private:
     OgreWindow* mOgreWindow;
     RgbdObject* mRgbdObject;
     ImageLabeling* mImageLabeling;
+
+    float mObjectScale;
+    bool mObjectMustBeUpright;
+    Auto<float> mObjectCoveredFraction;
+    bool mObjectCastShadows;
+    unsigned int mMaxAttempts;
+    bool mShowPreviewWindow;
+    bool mShowPhysicsAnimation;
+    cv::Vec3f mGravity;
+    float mObjectRestitution;
+    float mObjectFriction;
+    float mPlaneRestitution;
+    float mPlaneFriction;
 
 };
 

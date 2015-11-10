@@ -23,26 +23,12 @@ namespace TraDaG {
         SUCCESS
     } Result;
 
-    namespace Strings {
-        const std::string ResourcesCfgPath = "../config/resources.cfg";
-        const std::string PluginsCfgPath = "../config/plugins.cfg";
-
-        const std::string RgbdSceneName = "sceneRgbdEntity";
-        const std::string ObjRigidBodyName = "objectBody";
-        const std::string PlaneRigidBodyName = "planeBody";
-
-        const std::string RenderWindowName = "Training Data Generator Preview Window";
-    }
-
     template<class T>
     struct Auto {
-        Auto(bool automate, const T& specific = T())
-            : automated(automate), manualValue(specific)
-        {
-        }
+        Auto(bool automate, const T& specific = T()) : automated(automate), manualValue(specific) {}
 
-        const bool automated;
-        const T& manualValue;
+        bool automated;
+        T manualValue;
     };
 
     struct ObjectDropResult {
@@ -57,6 +43,32 @@ namespace TraDaG {
         const cv::Matx33f rotation;
         const cv::Vec3f translation;
     };
+
+    namespace Strings {
+        const std::string ResourcesCfgPath = "../config/resources.cfg";
+        const std::string PluginsCfgPath = "../config/plugins.cfg";
+
+        const std::string RgbdSceneName = "sceneRgbdEntity";
+        const std::string ObjRigidBodyName = "objectBody";
+        const std::string PlaneRigidBodyName = "planeBody";
+
+        const std::string RenderWindowName = "Training Data Generator Preview Window";
+    }
+
+    namespace Defaults {
+        const bool ObjectMustBeUpright = false;
+        const Auto<float> ObjectCoveredFraction = Auto<float>(true);
+        const bool ObjectCastShadows = true;
+        const unsigned int MaxAttempts = 20;
+        const bool ShowPreviewWindow = false;
+        const bool ShowPhysicsAnimation = false;
+        const cv::Vec3f Gravity = cv::Vec3f(0, -981, 0);
+        const float ObjectRestitution = 0.4;
+        const float ObjectFriction = 0.7;
+        const float PlaneRestitution = 0.1;
+        const float PlaneFriction = 0.9;
+        const float ObjectScale = 1000.0;
+    }
 
 }
 

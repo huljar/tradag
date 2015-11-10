@@ -54,8 +54,10 @@ int main(int argc, char** argv)
 
     // From here, let TradagMain take over
     TradagMain tradag(depthFile, rgbFile, labelFile, depthPrincipalPoint, depthFocalLength);
-    tradag.dropObjectIntoScene(meshName, 0, false, Auto<float>(true), true, 20, true, true, -981 * Ogre::Vector3::UNIT_Y,
-                               Auto<Ogre::Vector3>(true), Auto<Ogre::Matrix3>(true), Ogre::Vector3(200, 200, 0));
+    tradag.setShowPreviewWindow(true);
+    tradag.setShowPhysicsAnimation(true);
+    tradag.setObjectMustBeUpright(false);
+    tradag.dropObjectIntoScene(meshName, 0, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true), cv::Vec3f(400, 0, 0), cv::Vec3f(10, 10, 10));
 
     return 0;
 }

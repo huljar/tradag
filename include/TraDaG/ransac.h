@@ -22,9 +22,8 @@ public:
     {
     }
 
-    // TODO: return inlier set
-    // TODO: do region growing (8-connected pixel neighborhood) with x random starting pixels, select one of the largest regions
-    std::pair<M, std::vector<P>> operator() (const std::vector<P>& dataPoints) {
+    // TODO: do region growing (4/8-connected pixel neighborhood) with x random starting pixels, select one of the largest regions
+    std::pair<M, std::vector<P*>> operator() (const std::vector<P>& dataPoints) {
         // Initialize random number distribution
         std::uniform_int_distribution<size_t> distribution(0, dataPoints.size() - 1);
 
@@ -33,6 +32,8 @@ public:
 
         M bestModel; // Store best current model here
         float bestModelEval = std::numeric_limits<float>::max(); // Store evaluation result of best current model here
+
+        std::vector<P*> bestModelInliers; // Store inliers of the best current model here
 
         // Perform standard RANSAC with adaptive number of samples
         for(unsigned int i = 0; i < n; ++i) {
@@ -47,11 +48,11 @@ public:
 
             // Evaluate current model
             float currentModelEval = 0;
-            unsigned int numOutliers = 0;
+            std::vector<P*> currentModelInliers;
             for(std::vector<P>::const_iterator it = dataPoints.cbegin(); it != dataPoints.cend(); ++it) {
                 float eval = mEvalFunc(*it, currentModel);
                 currentModelEval += eval;
-                if(eval >= 1.0) ++numOutliers;
+                if(eval < 1.0) currentModelInliers.push_back(&(*it));
             }
 
             // Compare current to best model
@@ -59,14 +60,15 @@ public:
                 // Replace best model with current one
                 bestModel = currentModel;
                 bestModelEval = currentModelEval;
+                bestModelInliers = currentModelInliers;
 
                 // Recompute e and n
-                e = (float)numOutliers / (float)dataPoints.size();
+                e = (float)(dataPoints.size() - currentModelInliers.size()) / (float)dataPoints.size();
                 n = std::round(std::log(1.0 - p) / std::log(1.0 - std::pow(1 - e, d)));
             }
         }
 
-        return bestModel;
+        return std::make_pair(bestModel, bestModelInliers);
     }
 
 protected:

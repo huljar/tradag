@@ -9,7 +9,7 @@
 
 #include <OgreBullet/Dynamics/OgreBulletDynamicsRigidBody.h>
 #include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsStaticPlaneShape.h>
-#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsBoxShape.h>
+#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsConvexHullShape.h>
 
 #include <vector>
 
@@ -24,8 +24,8 @@ public:
     virtual ~OgreWindow();
 
     virtual void renderOneFrame();
-    virtual void startAnimation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation,
-                                const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity,
+    virtual void startAnimation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation, Ogre::Real scale,
+                                const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
                                 Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
                                 const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
                                 const Ogre::Vector3& gravity, bool castShadows);
@@ -62,6 +62,8 @@ protected:
 
     virtual bool getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3& result);
 
+    virtual OgreBulletCollisions::CollisionShape* createConvexHull(Ogre::Entity* object);
+
     // OGRE
     Ogre::Root* mRoot;
     Ogre::RenderWindow* mWindow;
@@ -78,7 +80,7 @@ protected:
 
     // Scene
     RgbdObject* mScene;
-    Ogre::SceneNode* mSceneSceneNode;
+    Ogre::SceneNode* mSceneNode;
 
     // Camera
     Ogre::Vector3 mDefaultCameraPosition;
