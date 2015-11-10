@@ -222,7 +222,7 @@ void OgreWindow::renderOneFrame() {
 }
 
 void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation,
-                                const Ogre::Vector3& initialVelocity,
+                                const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity,
                                 Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
                                 const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
                                 const Ogre::Vector3& gravity, bool castShadows) {
@@ -246,7 +246,8 @@ void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector
     OgreBulletCollisions::CollisionShape* objCollisionShape = new OgreBulletCollisions::BoxCollisionShape(objCollisionSize);
 
     objRigidBody->setShape(objNode, objCollisionShape, objectRestitution, objectFriction, objectMass, initialPosition, Ogre::Quaternion(initialRotation));
-    objRigidBody->setLinearVelocity(initialVelocity);
+    objRigidBody->setLinearVelocity(linearVelocity);
+    objRigidBody->setAngularVelocity(angularVelocity);
 
     // Register plane with Bullet
     OgreBulletDynamics::RigidBody* planeRigidBody = new OgreBulletDynamics::RigidBody(Strings::PlaneRigidBodyName, mWorld);

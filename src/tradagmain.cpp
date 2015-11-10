@@ -77,7 +77,7 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, ui
                                                  bool showPreviewWindow, bool showPhysicsAnimation,
                                                  const Ogre::Vector3& gravity,
                                                  const Auto<Ogre::Vector3>& initialPosition, const Auto<Ogre::Matrix3>& initialRotation,
-                                                 const Ogre::Vector3& initialVelocity,
+                                                 const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity,
                                                  Ogre::Real objectRestitution, Ogre::Real objectFriction,
                                                  Ogre::Real planeRestitution, Ogre::Real planeFriction) {
 
@@ -95,8 +95,8 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, ui
         mOgreWindow->show();
 
     // TODO: different behavior if showPhysicsAnimation==false
-    mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, initialVelocity, objectRestitution, objectFriction, 1.0,
-                                groundPlane, planeRestitution, planeFriction, gravity, castShadows);
+    mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, linearVelocity, angularVelocity, objectRestitution,
+                                objectFriction, 1.0, groundPlane, planeRestitution, planeFriction, gravity, castShadows);
 
     // TODO: render and return the final image
     return ObjectDropResult(true, cv::Mat(), 0.0);

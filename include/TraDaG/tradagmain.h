@@ -35,6 +35,10 @@ public:
     void updateMesh();
 
     // TODO: use OpenCV types
+    // TODO: use setters
+    // TODO: better labels, automatic label selection
+    // TODO: define angle of plane to camera and tolerance (in separate interface)
+    // TODO: define initial position uniformly? at end: check if inliers are within x radius of object, sample again if not
     ObjectDropResult dropObjectIntoScene(const std::string& meshName, uint16_t planeLabelIndex,
                                          bool objectMustBeUpright = false, const Auto<float>& coveredFraction = Auto<float>(true),
                                          bool castShadows = true, unsigned int maxAttempts = 20,
@@ -43,6 +47,7 @@ public:
                                          const Auto<Ogre::Vector3>& initialPosition = Auto<Ogre::Vector3>(true),
                                          const Auto<Ogre::Matrix3>& initialRotation = Auto<Ogre::Matrix3>(true),
                                          const Ogre::Vector3& initialVelocity = Ogre::Vector3::ZERO,
+                                         const Ogre::Vector3& angularVelocity = Ogre::Vector3::ZERO,
                                          Ogre::Real objectRestitution = 0.4, Ogre::Real objectFriction = 0.6,
                                          Ogre::Real planeRestitution = 0.1, Ogre::Real planeFriction = 0.9);
 
@@ -81,6 +86,39 @@ public:
 
     LabelMode getLabelMode() const;
     void setLabelMode(LabelMode mode);
+
+    bool objectMustBeUpright() const;
+    void setObjectMustBeUpright(bool upright);
+
+    Auto<float> getObjectCoveredFraction() const;
+    void setObjectCoveredFraction(const Auto<float>& covered);
+
+    bool objectCastShadows() const;
+    void setObjectCastShadows(bool castShadows);
+
+    unsigned int getMaxAttempts() const;
+    void setMaxAttempts(unsigned int maxAttempts);
+
+    bool showPreviewWindow() const;
+    void setShowPreviewWindow(bool showWindow);
+
+    bool showPhysicsAnimation() const;
+    void setShowPhysicsAnimation(bool showAnimation);
+
+    cv::Vec3f getGravity() const;
+    void setGravity(const cv::Vec3f& gravity);
+
+    float getObjectRestitution() const;
+    void setObjectRestitution(float restitution);
+
+    float getObjectFriction() const;
+    void setObjectFriction(float friction);
+
+    float getPlaneRestitution() const;
+    void setPlaneRestitution(float restitution);
+
+    float getPlaneFriction() const;
+    void setPlaneFriction(float friction);
 
 private:
     void init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,

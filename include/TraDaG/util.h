@@ -19,6 +19,10 @@ namespace TraDaG {
         LABELS_ON_RGB_IMAGE
     } LabelMode;
 
+    typedef enum {
+        SUCCESS
+    } Result;
+
     namespace Strings {
         const std::string ResourcesCfgPath = "../config/resources.cfg";
         const std::string PluginsCfgPath = "../config/plugins.cfg";
@@ -42,14 +46,16 @@ namespace TraDaG {
     };
 
     struct ObjectDropResult {
-        ObjectDropResult(bool successful, const cv::Mat& image, float covered)
-            : success(successful), renderedImage(image), fractionCovered(covered)
+        ObjectDropResult(Result res, const cv::Mat& image, float covered, const cv::Matx33f& rot, const cv::Vec3f& trans)
+            : result(res), renderedImage(image), fractionCovered(covered), rotation(rot), translation(trans)
         {
         }
 
-        const bool success;
+        const Result result;
         const cv::Mat renderedImage;
         const float fractionCovered;
+        const cv::Matx33f rotation;
+        const cv::Vec3f translation;
     };
 
 }

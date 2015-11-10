@@ -22,7 +22,9 @@ public:
     {
     }
 
-    M operator() (const std::vector<P>& dataPoints) {
+    // TODO: return inlier set
+    // TODO: do region growing (8-connected pixel neighborhood) with x random starting pixels, select one of the largest regions
+    std::pair<M, std::vector<P>> operator() (const std::vector<P>& dataPoints) {
         // Initialize random number distribution
         std::uniform_int_distribution<size_t> distribution(0, dataPoints.size() - 1);
 
