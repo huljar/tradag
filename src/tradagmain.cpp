@@ -49,6 +49,7 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const 
                       MapMode mapMode, LabelMode labelMode) {
 
     mOgreWindow = new OgreWindow();
+    // TODO: light position?
 
     Ogre::Real rotationConverted[3][3];
     for(int i = 0; i < 3; ++i) {
@@ -70,20 +71,22 @@ void TradagMain::updateMesh() {
     mRgbdObject->meshify();
 }
 
-bool TradagMain::dropObjectIntoScene(const std::string& meshName, unsigned short planeLabelIndex, bool castShadows,
-                                     bool showPreviewWindow, bool showPhysicsAnimation,
-                                     const Ogre::Vector3& gravity,
-                                     const Automatable<Ogre::Vector3>& initialPosition, const Automatable<Ogre::Matrix3>& initialRotation,
-                                     const Ogre::Vector3& initialVelocity,
-                                     Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
-                                     Ogre::Real planeRestitution, Ogre::Real planeFriction) {
+ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, uint16_t planeLabelIndex,
+                                                 bool objectMustBeUpright, const Auto<float>& coveredFraction,
+                                                 bool castShadows, unsigned int maxAttempts,
+                                                 bool showPreviewWindow, bool showPhysicsAnimation,
+                                                 const Ogre::Vector3& gravity,
+                                                 const Auto<Ogre::Vector3>& initialPosition, const Auto<Ogre::Matrix3>& initialRotation,
+                                                 const Ogre::Vector3& initialVelocity,
+                                                 Ogre::Real objectRestitution, Ogre::Real objectFriction,
+                                                 Ogre::Real planeRestitution, Ogre::Real planeFriction) {
 
     // Calculate plane from labels using RANSAC
-    Ogre::Plane groundPlane(Ogre::Vector3::UNIT_Y, 1000); // TODO
+    Ogre::Plane groundPlane(Ogre::Vector3::UNIT_Y, 1200); // TODO
     //Ogre::Plane groundPlane = mImageLabeling->getPlaneFromLabel(planeLabelIndex);
 
     // Calculate initial position
-    Ogre::Vector3 actualPosition(-800, 400, -3600); // TODO
+    Ogre::Vector3 actualPosition(-1300, 400, -3600); // TODO
 
     // Calculate initial rotation
     Ogre::Matrix3 actualRotation(Ogre::Matrix3::IDENTITY); // TODO
@@ -92,10 +95,11 @@ bool TradagMain::dropObjectIntoScene(const std::string& meshName, unsigned short
         mOgreWindow->show();
 
     // TODO: different behavior if showPhysicsAnimation==false
-    mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, initialVelocity, objectRestitution, objectFriction, objectMass,
+    mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, initialVelocity, objectRestitution, objectFriction, 1.0,
                                 groundPlane, planeRestitution, planeFriction, gravity, castShadows);
 
-    return true;
+    // TODO: render and return the final image
+    return ObjectDropResult(true, cv::Mat(), 0.0);
 }
 
 cv::Mat TradagMain::getDepthImage() {
@@ -187,6 +191,32 @@ cv::Vec2f TradagMain::getRgbFocalLength() const {
 
 void TradagMain::setRgbFocalLength(const cv::Vec2f& focalLength) {
     mRgbdObject->setRgbFocalLength(focalLength[0], focalLength[1]);
+}
+
+cv::Matx33f TradagMain::getRotation() const {
+    Ogre::Matrix3 tmpRot = mRgbdObject->getRotation();
+    return cv::Matx33f(tmpRot[0][0], tmpRot[0][1], tmpRot[0][2],
+                       tmpRot[1][0], tmpRot[1][1], tmpRot[1][2],
+                       tmpRot[2][0], tmpRot[2][1], tmpRot[2][2]);
+}
+
+void TradagMain::setRotation(const cv::Matx33f& rotation) {
+    Ogre::Real rotationConverted[3][3];
+    for(int i = 0; i < 3; ++i) {
+        for(int j = 0; j < 3; ++j) {
+            rotationConverted[i][j] = rotation(i, j);
+        }
+    }
+    mRgbdObject->setRotation(Ogre::Matrix3(rotationConverted));
+}
+
+cv::Vec3f TradagMain::getTranslation() const {
+    Ogre::Vector3 tmpTrans = mRgbdObject->getTranslation();
+    return cv::Vec3f(tmpTrans.x, tmpTrans.y, tmpTrans.z);
+}
+
+void TradagMain::setTranslation(const cv::Vec3f& translation) {
+    mRgbdObject->setTranslation(translation[0], translation[1], translation[2]);
 }
 
 MapMode TradagMain::getMapMode() const {

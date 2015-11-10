@@ -20,8 +20,7 @@ int main(int argc, char** argv)
             ("depth-file,d", po::value<std::string>(), "Depth input file")
             ("rgb-file,c", po::value<std::string>(), "RGB (color) input file")
             ("label-file,l", po::value<std::string>(), "Label input file")
-            ("preview,p", "Preview result in a window")
-            ("animate,a", "Show the object dropping into the scene")
+            ("mesh-name,m", po::value<std::string>(), "Object mesh name")
             ("help", "Display this help and exit")
             ("version", "Display version information and exit");
 
@@ -50,9 +49,13 @@ int main(int argc, char** argv)
     cv::Vec2f depthPrincipalPoint(3.2442516903961865e+02, 2.3584766381177013e+02);
     cv::Vec2f depthFocalLength(5.7616540758591043e+02, 5.7375619782082447e+02);
 
+    // Get mesh name
+    std::string meshName = vm["mesh-name"].as<std::string>();
+
     // From here, let TradagMain take over
     TradagMain tradag(depthFile, rgbFile, labelFile, depthPrincipalPoint, depthFocalLength);
-    tradag.dropObjectIntoScene("003.mesh", 0, true, true, true);
+    tradag.dropObjectIntoScene(meshName, 0, false, Auto<float>(true), true, 20, true, true, -981 * Ogre::Vector3::UNIT_Y,
+                               Auto<Ogre::Vector3>(true), Auto<Ogre::Matrix3>(true), Ogre::Vector3(200, 200, 0));
 
     return 0;
 }

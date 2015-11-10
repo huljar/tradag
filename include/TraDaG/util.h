@@ -1,6 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <opencv2/core/core.hpp>
+
 #include <string>
 
 namespace TraDaG {
@@ -29,14 +31,25 @@ namespace TraDaG {
     }
 
     template<class T>
-    struct Automatable {
-        Automatable(bool automate, const T& specific = T())
+    struct Auto {
+        Auto(bool automate, const T& specific = T())
             : automated(automate), manualValue(specific)
         {
         }
 
         const bool automated;
         const T& manualValue;
+    };
+
+    struct ObjectDropResult {
+        ObjectDropResult(bool successful, const cv::Mat& image, float covered)
+            : success(successful), renderedImage(image), fractionCovered(covered)
+        {
+        }
+
+        const bool success;
+        const cv::Mat renderedImage;
+        const float fractionCovered;
     };
 
 }

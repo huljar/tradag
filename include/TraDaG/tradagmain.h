@@ -34,14 +34,17 @@ public:
 
     void updateMesh();
 
-    bool dropObjectIntoScene(const std::string& meshName, unsigned short planeLabelIndex, bool castShadows = true,
-                             bool showPreviewWindow = false, bool showPhysicsAnimation = false,
-                             const Ogre::Vector3& gravity = -700 * Ogre::Vector3::UNIT_Y,
-                             const Automatable<Ogre::Vector3>& initialPosition = Automatable<Ogre::Vector3>(true),
-                             const Automatable<Ogre::Matrix3>& initialRotation = Automatable<Ogre::Matrix3>(true),
-                             const Ogre::Vector3& initialVelocity = Ogre::Vector3::ZERO,
-                             Ogre::Real objectRestitution = 0.4, Ogre::Real objectFriction = 0.6, Ogre::Real objectMass = 1.0,
-                             Ogre::Real planeRestitution = 0.1, Ogre::Real planeFriction = 0.9);
+    // TODO: use OpenCV types
+    ObjectDropResult dropObjectIntoScene(const std::string& meshName, uint16_t planeLabelIndex,
+                                         bool objectMustBeUpright = false, const Auto<float>& coveredFraction = Auto<float>(true),
+                                         bool castShadows = true, unsigned int maxAttempts = 20,
+                                         bool showPreviewWindow = false, bool showPhysicsAnimation = false,
+                                         const Ogre::Vector3& gravity = -981 * Ogre::Vector3::UNIT_Y,
+                                         const Auto<Ogre::Vector3>& initialPosition = Auto<Ogre::Vector3>(true),
+                                         const Auto<Ogre::Matrix3>& initialRotation = Auto<Ogre::Matrix3>(true),
+                                         const Ogre::Vector3& initialVelocity = Ogre::Vector3::ZERO,
+                                         Ogre::Real objectRestitution = 0.4, Ogre::Real objectFriction = 0.6,
+                                         Ogre::Real planeRestitution = 0.1, Ogre::Real planeFriction = 0.9);
 
     cv::Mat getDepthImage();
     const cv::Mat getDepthImage() const;
@@ -66,6 +69,12 @@ public:
 
     cv::Vec2f getRgbFocalLength() const;
     void setRgbFocalLength(const cv::Vec2f& focalLength);
+
+    cv::Matx33f getRotation() const;
+    void setRotation(const cv::Matx33f& rotation);
+
+    cv::Vec3f getTranslation() const;
+    void setTranslation(const cv::Vec3f& translation);
 
     MapMode getMapMode() const;
     void setMapMode(MapMode mode);
