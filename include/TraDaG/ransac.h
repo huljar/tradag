@@ -22,8 +22,7 @@ public:
     {
     }
 
-    // TODO: do region growing (4/8-connected pixel neighborhood) with x random starting pixels, select one of the largest regions
-    std::pair<M, std::vector<P*>> operator() (const std::vector<P>& dataPoints) {
+    std::pair<M, std::vector<const P*>> operator() (const std::vector<P>& dataPoints) {
         // Initialize random number distribution
         std::uniform_int_distribution<size_t> distribution(0, dataPoints.size() - 1);
 
@@ -33,14 +32,14 @@ public:
         M bestModel; // Store best current model here
         float bestModelEval = std::numeric_limits<float>::max(); // Store evaluation result of best current model here
 
-        std::vector<P*> bestModelInliers; // Store inliers of the best current model here
+        std::vector<const P*> bestModelInliers; // Store inliers of the best current model here
 
         // Perform standard RANSAC with adaptive number of samples
         for(unsigned int i = 0; i < n; ++i) {
             // Sample d points
             std::array<P, d> sample;
             for(size_t j = 0; j < d; ++j) {
-                sample[j] = distribution(mGenerator);
+                sample[j] = dataPoints[distribution(mGenerator)];
             }
 
             // Compute model from sample
@@ -48,8 +47,8 @@ public:
 
             // Evaluate current model
             float currentModelEval = 0;
-            std::vector<P*> currentModelInliers;
-            for(std::vector<P>::const_iterator it = dataPoints.cbegin(); it != dataPoints.cend(); ++it) {
+            std::vector<const P*> currentModelInliers;
+            for(typename std::vector<P>::const_iterator it = dataPoints.cbegin(); it != dataPoints.cend(); ++it) {
                 float eval = mEvalFunc(*it, currentModel);
                 currentModelEval += eval;
                 if(eval < 1.0) currentModelInliers.push_back(&(*it));

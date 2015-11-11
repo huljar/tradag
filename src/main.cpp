@@ -1,6 +1,7 @@
 #include <TraDaG/tradagmain.h>
 #include <TraDaG/ogrewindow.h>
 #include <TraDaG/rgbdobject.h>
+#include <TraDaG/util.h>
 
 #include <opencv2/core/core.hpp>
 
@@ -45,6 +46,9 @@ int main(int argc, char** argv)
     std::string rgbFile = vm["rgb-file"].as<std::string>();
     std::string labelFile = vm["label-file"].as<std::string>();
 
+    // Get label map
+    LabelMap labelMap = Labels::NyuDepthV1;
+
     // Get camera data
     cv::Vec2f depthPrincipalPoint(3.2442516903961865e+02, 2.3584766381177013e+02);
     cv::Vec2f depthFocalLength(5.7616540758591043e+02, 5.7375619782082447e+02);
@@ -53,11 +57,11 @@ int main(int argc, char** argv)
     std::string meshName = vm["mesh-name"].as<std::string>();
 
     // From here, let TradagMain take over
-    TradagMain tradag(depthFile, rgbFile, labelFile, depthPrincipalPoint, depthFocalLength);
+    TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, depthPrincipalPoint, depthFocalLength);
     tradag.setShowPreviewWindow(true);
     tradag.setShowPhysicsAnimation(true);
     tradag.setObjectMustBeUpright(false);
-    tradag.dropObjectIntoScene(meshName, 0, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true), cv::Vec3f(400, 0, 0), cv::Vec3f(10, 10, 10));
+    tradag.dropObjectIntoScene(meshName, "floor", Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true), cv::Vec3f(400, 0, 0), cv::Vec3f(2, 2, 2));
 
     return 0;
 }

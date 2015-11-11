@@ -59,11 +59,34 @@ void RgbdObject::meshify() {
     }
 }
 
+Ogre::Vector3 RgbdObject::depthToWorld(int x, int y, unsigned short depth) const {
+    Ogre::Vector2 principalPoint = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbPrincipalPoint : mDepthPrincipalPoint;
+    Ogre::Vector2 focalLength = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbFocalLength : mDepthFocalLength;
+
+    Ogre::Real retX = ((Ogre::Real)x - principalPoint.x) * (Ogre::Real)depth / focalLength.x;
+    // Ogre's y-vector points up, but OpenCV's y-vector points down (therefore negate result)
+    Ogre::Real retY = -(((Ogre::Real)y - principalPoint.y) * (Ogre::Real)depth / focalLength.y);
+    Ogre::Real retZ = -((Ogre::Real)depth);
+
+    return Ogre::Vector3(retX, retY, retZ);
+}
+
+Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const {
+    Ogre::Vector3 transformed = rotation * point + translation;
+
+    Ogre::Real retX = std::round(transformed.x * mRgbFocalLength.x / (-transformed.z) + mRgbPrincipalPoint.x);
+    Ogre::Real retY = std::round((-transformed.y) * mRgbFocalLength.y / (-transformed.z) + mRgbPrincipalPoint.y);
+
+    return Ogre::Vector2(
+            std::max(0.0f, std::min((Ogre::Real)mRgbImage.cols, retX)),
+            std::max(0.0f, std::min((Ogre::Real)mRgbImage.rows, retY)));
+}
+
 void RgbdObject::createVertices() {
     for(int y = 0; y < mDepthImage.rows; ++y) {
         for(int x = 0; x < mDepthImage.cols; ++x) {
             // Transform depth pixel to world coordinates
-            Ogre::Vector3 worldPoint = depthToWorld(x, y, mDepthImage.at<uint16_t>(y, x));
+            Ogre::Vector3 worldPoint = depthToWorld(x, y, mDepthImage.at<unsigned short>(y, x));
             mSceneObject->position(worldPoint);
 
             // Retrieve RGB pixel for this world point according to map mode
@@ -99,26 +122,6 @@ void RgbdObject::createIndices() {
             mSceneObject->index(pixelToIndex(x + 1, y + 1));
         }
     }
-}
-
-Ogre::Vector3 RgbdObject::depthToWorld(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth) const {
-    Ogre::Real retX = ((Ogre::Real)x - mDepthPrincipalPoint.x) * (Ogre::Real)depth / mDepthFocalLength.x;
-    // Ogre's y-vector points up, but OpenCV's y-vector points down (therefore negate result)
-    Ogre::Real retY = -(((Ogre::Real)y - mDepthPrincipalPoint.y) * (Ogre::Real)depth / mDepthFocalLength.y);
-    Ogre::Real retZ = -((Ogre::Real)depth);
-
-    return Ogre::Vector3(retX, retY, retZ);
-}
-
-Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const {
-    Ogre::Vector3 transformed = rotation * point + translation;
-
-    Ogre::Real retX = std::round(transformed.x * mRgbFocalLength.x / (-transformed.z) + mRgbPrincipalPoint.x);
-    Ogre::Real retY = std::round((-transformed.y) * mRgbFocalLength.y / (-transformed.z) + mRgbPrincipalPoint.y);
-
-    return Ogre::Vector2(
-            std::max(0.0f, std::min((Ogre::Real)mRgbImage.cols, retX)),
-            std::max(0.0f, std::min((Ogre::Real)mRgbImage.rows, retY)));
 }
 
 Ogre::ManualObject* RgbdObject::getManualObject() {

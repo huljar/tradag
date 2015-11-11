@@ -4,7 +4,8 @@
 
 using namespace TraDaG;
 
-TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
+TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage,
+                       const cv::Mat& labelImage, const LabelMap& labelMap,
                        const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                        const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
                        const cv::Matx33f& rotation, const cv::Vec3f translation,
@@ -12,11 +13,12 @@ TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const
     : TradagMain()
 {
     // Perform default initialization
-    init(depthImage, rgbImage, labelImage, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
+    init(depthImage, rgbImage, labelImage, labelMap, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
          rotation, translation, mapMode, labelMode);
 }
 
-TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath,
+TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath,
+                       const std::string& labelImagePath, const LabelMap& labelMap,
                        const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                        const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
                        const cv::Matx33f& rotation, const cv::Vec3f translation,
@@ -34,7 +36,7 @@ TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgb
                                  + depthImagePath + "\", \"" + rgbImagePath + "\", \"" + labelImagePath + "\"");
 
     // Continue with default initialization
-    init(depthImage, rgbImage, labelImage, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
+    init(depthImage, rgbImage, labelImage, labelMap, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
          rotation, translation, mapMode, labelMode);
 }
 
@@ -63,7 +65,8 @@ TradagMain::~TradagMain() {
     delete mOgreWindow;
 }
 
-void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
+void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage,
+                      const cv::Mat& labelImage, const LabelMap& labelMap,
                       const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                       const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
                       const cv::Matx33f& rotation, const cv::Vec3f& translation,
@@ -79,11 +82,14 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const 
         }
     }
     mRgbdObject = new RgbdObject(Ogre::String(Strings::RgbdSceneName), mOgreWindow->getSceneManager(), depthImage, rgbImage,
-                                 Ogre::Vector2(depthPrincipalPoint[0], depthPrincipalPoint[1]), Ogre::Vector2(depthFocalLength[0], depthFocalLength[1]),
-                                 Ogre::Vector2(rgbPrincipalPoint[0], rgbPrincipalPoint[1]), Ogre::Vector2(rgbFocalLength[0], rgbFocalLength[1]),
-                                 Ogre::Matrix3(rotationConverted), Ogre::Vector3(translation[0], translation[1], translation[2]), mapMode);
+                                 Ogre::Vector2(depthPrincipalPoint[0], depthPrincipalPoint[1]),
+                                 Ogre::Vector2(depthFocalLength[0], depthFocalLength[1]),
+                                 Ogre::Vector2(rgbPrincipalPoint[0], rgbPrincipalPoint[1]),
+                                 Ogre::Vector2(rgbFocalLength[0], rgbFocalLength[1]),
+                                 Ogre::Matrix3(rotationConverted), Ogre::Vector3(translation[0], translation[1], translation[2]),
+                                 mapMode);
 
-    mImageLabeling = new ImageLabeling(labelImage, labelMode);
+    mImageLabeling = new ImageLabeling(labelImage, labelMap, labelMode);
 
     mOgreWindow->setScene(mRgbdObject);
 }
@@ -92,13 +98,28 @@ void TradagMain::updateMesh() {
     mRgbdObject->meshify();
 }
 
-ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, uint16_t planeLabelIndex, // TODO: replace index with enum
+ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, const std::string& planeLabel,
                                                  const Auto<cv::Vec3f>& initialPosition, const Auto<cv::Matx33f>& initialRotation,
                                                  const cv::Vec3f& initialVelocity, const cv::Vec3f& initialTorque) {
 
     // Calculate plane from labels using RANSAC
-    Ogre::Plane groundPlane(Ogre::Vector3::UNIT_Y, 1200); // TODO
-    //Ogre::Plane groundPlane = mImageLabeling->getPlaneFromLabel(planeLabelIndex);
+    // TODO: handle non-success
+    PlaneFittingResult planeFit = mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject);
+    Ogre::Plane groundPlane(planeFit.plane.normal, planeFit.plane.d); // If I don't do this, Bullet freaks out
+
+    // TEST: draw the plane
+    if(planeFit.result == SUCCESS_FIT) {
+        std::cout << "Plane data: (" << groundPlane.normal.x << ", " << groundPlane.normal.y << ", " << groundPlane.normal.z
+                  << "), " << groundPlane.d << std::endl;
+        Ogre::MeshManager::getSingleton().createPlane("testPlane2", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, groundPlane, 5000, 5000,
+                                                      1, 1, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
+        Ogre::Entity* planeEntity = mOgreWindow->getSceneManager()->createEntity("testPlane2");
+        planeEntity->setMaterialName("BaseWhiteNoLighting");
+        mOgreWindow->getSceneManager()->getRootSceneNode()->createChildSceneNode()->attachObject(planeEntity);
+    }
+    else {
+        std::cerr << "ERROR: plane fitting error " << planeFit.result << std::endl;
+    }
 
     // Calculate initial position
     Ogre::Vector3 actualPosition(-1300, 400, -3600); // TODO
@@ -108,9 +129,12 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, ui
 
     // Calculate/convert additional parameters
     Ogre::Vector3 linearVelocity(initialVelocity[0], initialVelocity[1], initialVelocity[2]);
+
     // If the object shall be upright, ignore any torque passed to the function (anything else wouldn't make sense... right?)
     Ogre::Vector3 angularVelocity = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3(initialTorque[0], initialTorque[1], initialTorque[2]);
-    // Pass all-zero vector as angular factor to prevent random infinite object spinning (yes, this can happen if you allow yaw rotation)
+
+    // Pass all-zero vector as angular factor to prevent random infinite object spinning
+    // (yes, this can happen if you allow yaw rotation, i.e. if you pass (0, 1, 0))
     // To emulate yaw rotation, one can pass a random initial rotation around the y-axis to this function
     Ogre::Vector3 angularFactor = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3::UNIT_SCALE;
     Ogre::Vector3 gravity(mGravity[0], mGravity[1], mGravity[2]);
@@ -130,7 +154,7 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, ui
     }
 
     // TODO: render and return the final image
-    return ObjectDropResult(SUCCESS, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
+    return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
 }
 
 cv::Mat TradagMain::getDepthImage() {
@@ -157,7 +181,11 @@ const cv::Mat TradagMain::getLabelImage() const {
     return cv::Mat(); // TODO: correct later
 }
 
-void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage) {
+LabelMap TradagMain::getLabelMap() const {
+    return mImageLabeling->getLabelMap();
+}
+
+void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage, const LabelMap& labelMap) {
     // Get old camera parameters
     Ogre::Vector2 tmpDPP = mRgbdObject->getDepthPrincipalPoint();
     Ogre::Vector2 tmpDFL = mRgbdObject->getDepthFocalLength();
@@ -165,23 +193,28 @@ void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage,
     Ogre::Vector2 tmpRFL = mRgbdObject->getRgbFocalLength();
     Ogre::Matrix3 tmpRot = mRgbdObject->getRotation();
     Ogre::Vector3 tmpTrans = mRgbdObject->getTranslation();
-    MapMode tmpMode = mRgbdObject->getMapMode();
+    MapMode tmpMM = mRgbdObject->getMapMode();
+    LabelMode tmpLM = mImageLabeling->getLabelMode();
 
     // Delete old scene and create a new one
     delete mRgbdObject;
-    mRgbdObject = new RgbdObject(Strings::RgbdSceneName, mOgreWindow->getSceneManager(), depthImage, rgbImage, tmpDPP, tmpDFL, tmpRPP, tmpRFL, tmpRot, tmpTrans, tmpMode);
+    mRgbdObject = new RgbdObject(Strings::RgbdSceneName, mOgreWindow->getSceneManager(), depthImage, rgbImage, tmpDPP, tmpDFL, tmpRPP, tmpRFL, tmpRot, tmpTrans, tmpMM);
+
+    // Delete old labeling and create a new one
+    delete mImageLabeling;
+    mImageLabeling = new ImageLabeling(labelImage, labelMap, tmpLM);
 
     // Notify OgreWindow of the new scene
     mOgreWindow->setScene(mRgbdObject);
 }
 
-bool TradagMain::loadNewScene(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath) {
+bool TradagMain::loadNewScene(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath, const LabelMap& labelMap) {
     cv::Mat depthImage = cv::imread(depthImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
     cv::Mat rgbImage = cv::imread(rgbImagePath, CV_LOAD_IMAGE_COLOR);
     cv::Mat labelImage = cv::imread(labelImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
 
     if(depthImage.data && rgbImage.data && labelImage.data) {
-        setNewScene(depthImage, rgbImage, labelImage);
+        setNewScene(depthImage, rgbImage, labelImage, labelMap);
         return true;
     }
 

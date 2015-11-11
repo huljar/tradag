@@ -24,6 +24,9 @@ public:
 
     virtual void meshify();
 
+    Ogre::Vector3 depthToWorld(int x, int y, unsigned short depth) const;
+    Ogre::Vector2 worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const;
+
     virtual Ogre::ManualObject* getManualObject();
 
     virtual cv::Mat getDepthImage();
@@ -82,10 +85,7 @@ private:
     void createVertices();
     void createIndices();
 
-    Ogre::Vector3 depthToWorld(Ogre::int32 x, Ogre::int32 y, Ogre::uint16 depth) const;
-    Ogre::Vector2 worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const;
-
-    inline Ogre::uint32 pixelToIndex(Ogre::int32 x, Ogre::int32 y) const { return y * mRgbImage.cols + x; }
+    inline Ogre::uint32 pixelToIndex(int x, int y) const { return y * mRgbImage.cols + x; }
 };
 
 #endif // RGBDOBJECT_H
