@@ -43,7 +43,6 @@ public:
 
     void updateMesh();
 
-    // TODO: better labels, automatic label selection
     // TODO: define angle of plane to camera and tolerance (in separate interface)
     // TODO: abort if gravity <-> plane normal angle too large?
     // TODO: define initial position uniformly? at end: check if inliers are within x radius of object (center of mass), sample again if not

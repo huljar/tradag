@@ -73,12 +73,6 @@ PlaneFittingResult ImageLabeling::getPlaneForLabel(const std::string& label, con
     Ransac<Ogre::Vector3, Ogre::Plane, 3> ransac(createPlaneFromPoints, pointEvaluation);
     std::pair<Ogre::Plane, std::vector<const Ogre::Vector3*>> result = ransac(points);
 
-    // If the plane does not face the camera, invert its normal
-    if(result.first.normal.dotProduct(Ogre::Vector3::UNIT_Z) < 0) {
-        result.first.normal = -result.first.normal;
-        result.first.d = -result.first.d;
-    }
-
     // TODO: after ransac do region growing (4/8-connected pixel neighborhood) with x random starting pixels, select one of the largest regions
 
     return PlaneFittingResult(SUCCESS_FIT, result.first);

@@ -105,7 +105,16 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     // Calculate plane from labels using RANSAC
     // TODO: handle non-success
     PlaneFittingResult planeFit = mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject);
-    Ogre::Plane groundPlane(planeFit.plane.normal, planeFit.plane.d); // If I don't do this, Bullet freaks out
+
+    // Get gravity vector
+    Ogre::Vector3 gravity(mGravity[0], mGravity[1], mGravity[2]);
+
+    // If the plane does not face upwards (i.e. contrary to the gravity), invert its normal
+    Ogre::Plane groundPlane(planeFit.plane);
+    if(planeFit.plane.normal.dotProduct(gravity) > 0) {
+        groundPlane.normal = -groundPlane.normal;
+        groundPlane.d = -groundPlane.d;
+    }
 
     // TEST: draw the plane
     if(planeFit.result == SUCCESS_FIT) {
@@ -122,7 +131,7 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     }
 
     // Calculate initial position
-    Ogre::Vector3 actualPosition(-1300, 400, -3600); // TODO
+    Ogre::Vector3 actualPosition(-1000, 400, -3600); // TODO
 
     // Calculate initial rotation
     Ogre::Matrix3 actualRotation(Ogre::Matrix3::IDENTITY); // TODO
@@ -137,7 +146,6 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     // (yes, this can happen if you allow yaw rotation, i.e. if you pass (0, 1, 0))
     // To emulate yaw rotation, one can pass a random initial rotation around the y-axis to this function
     Ogre::Vector3 angularFactor = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3::UNIT_SCALE;
-    Ogre::Vector3 gravity(mGravity[0], mGravity[1], mGravity[2]);
 
     // Display the window if requested
     if(mShowPreviewWindow && mOgreWindow->hidden())

@@ -264,7 +264,7 @@ void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector
 
     // Register plane with Bullet
     OgreBulletDynamics::RigidBody* planeRigidBody = new OgreBulletDynamics::RigidBody(Strings::PlaneRigidBodyName, mWorld);
-    OgreBulletCollisions::CollisionShape* planeCollisionShape = new OgreBulletCollisions::StaticPlaneCollisionShape(groundPlane.normal, groundPlane.d);
+    OgreBulletCollisions::CollisionShape* planeCollisionShape = new OgreBulletCollisions::StaticPlaneCollisionShape(groundPlane.normal, -groundPlane.d);
 
     planeRigidBody->setStaticShape(planeCollisionShape, planeRestitution, planeFriction);
 
