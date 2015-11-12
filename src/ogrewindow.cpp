@@ -24,8 +24,6 @@ OgreWindow::OgreWindow()
     , mDefaultCameraLookAt(0, 0, -1)
     , mWorld(NULL)
     , mBounds(Ogre::Vector3(-10000, -10000, -10000), Ogre::Vector3(10000, 10000, 10000))
-    , mLastMouseDownPosX(0)
-    , mLastMouseDownPosY(0)
 {
     initializeOgre();
 }
@@ -218,7 +216,7 @@ void OgreWindow::createCamera() {
     mCamera = mSceneMgr->createCamera("MainCamera");
     mCamera->setPosition(mDefaultCameraPosition);
     mCamera->lookAt(mDefaultCameraLookAt);
-    mCamera->setNearClipDistance(2.0);
+    mCamera->setNearClipDistance(5.0);
     mCamera->setFOVy(Ogre::Degree(55.0));
 
     // Create camera controller
@@ -371,54 +369,11 @@ bool OgreWindow::mouseMoved(const OIS::MouseEvent& e) {
 
 bool OgreWindow::mousePressed(const OIS::MouseEvent& e, const OIS::MouseButtonID button) {
     mCameraMan->injectMouseDown(e, button);
-
-    // Record position to check if the mouse was moved when it is released
-    mLastMouseDownPosX = e.state.X.abs;
-    mLastMouseDownPosY = e.state.Y.abs;
-
     return true;
 }
 
 bool OgreWindow::mouseReleased(const OIS::MouseEvent& e, const OIS::MouseButtonID button) {
     mCameraMan->injectMouseUp(e, button);
-
-    // If mouse was not moved since last mousePressed, handle the mouse click
-    if(e.state.X.abs == mLastMouseDownPosX && e.state.Y.abs == mLastMouseDownPosY) {
-        // Cast camera ray into the scene
-        Ogre::Vector3 point;
-        if(getSceneIntersectionPoint(e.state.X.abs, e.state.Y.abs, point)) {
-            // Push the point into the queue that stores the plane support vectors
-            mPlaneVectors.push(point);
-            std::cout << "Point added! Coords: (" << point.x << ", " << point.y << ", " << point.z << ")" << std::endl;
-
-            // If the queue contains more than 3 vectors, remove the oldest one(s)
-            while(mPlaneVectors.size() > 3)
-                mPlaneVectors.pop();
-
-            // Test: draw plane with 3 points
-            if(mPlaneVectors.size() == 3) {
-                Ogre::Vector3 p1 = mPlaneVectors.front(); mPlaneVectors.pop();
-                Ogre::Vector3 p2 = mPlaneVectors.front(); mPlaneVectors.pop();
-                Ogre::Vector3 p3 = mPlaneVectors.front(); mPlaneVectors.pop();
-                Ogre::Plane testPlane(p1, p2, p3);
-
-                // Adjust plane normal to face the camera if necessary
-                std::cout << "Dot product: " << testPlane.normal.dotProduct(Ogre::Vector3::UNIT_Z) << std::endl;
-                if(testPlane.normal.dotProduct(Ogre::Vector3::UNIT_Z) < 0) {
-                    testPlane.normal = -testPlane.normal;
-                    testPlane.d = -testPlane.d;
-                }
-                std::cout << "Plane normal: (" << testPlane.normal.x << ", " << testPlane.normal.y << ", " << testPlane.normal.z << ")" << std::endl
-                          << "Plane distance: " << testPlane.d << std::endl;
-
-                Ogre::MeshManager::getSingleton().createPlane("testPlane", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, testPlane, 500, 500);
-                Ogre::Entity* planeEntity = mSceneMgr->createEntity("testPlane");
-                planeEntity->setMaterialName("BaseWhiteNoLighting");
-                mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(planeEntity);
-            }
-        }
-    }
-
     return true;
 }
 

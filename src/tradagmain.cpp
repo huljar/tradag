@@ -75,18 +75,12 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage,
     mOgreWindow = new OgreWindow();
     // TODO: light position?
 
-    Ogre::Real rotationConverted[3][3];
-    for(int i = 0; i < 3; ++i) {
-        for(int j = 0; j < 3; ++j) {
-            rotationConverted[i][j] = rotation(i, j);
-        }
-    }
     mRgbdObject = new RgbdObject(Ogre::String(Strings::RgbdSceneName), mOgreWindow->getSceneManager(), depthImage, rgbImage,
                                  Ogre::Vector2(depthPrincipalPoint[0], depthPrincipalPoint[1]),
                                  Ogre::Vector2(depthFocalLength[0], depthFocalLength[1]),
                                  Ogre::Vector2(rgbPrincipalPoint[0], rgbPrincipalPoint[1]),
                                  Ogre::Vector2(rgbFocalLength[0], rgbFocalLength[1]),
-                                 Ogre::Matrix3(rotationConverted), Ogre::Vector3(translation[0], translation[1], translation[2]),
+                                 convertCvMatToOgreMat(rotation), Ogre::Vector3(translation[0], translation[1], translation[2]),
                                  mapMode);
 
     mImageLabeling = new ImageLabeling(labelImage, labelMap, labelMode);
@@ -119,12 +113,12 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     // TEST: draw the plane
     if(planeFit.result == SUCCESS_FIT) {
         std::cout << "Plane data: (" << groundPlane.normal.x << ", " << groundPlane.normal.y << ", " << groundPlane.normal.z
-                  << "), " << groundPlane.d << std::endl;
-        Ogre::MeshManager::getSingleton().createPlane("testPlane2", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, groundPlane, 5000, 5000,
-                                                      1, 1, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
-        Ogre::Entity* planeEntity = mOgreWindow->getSceneManager()->createEntity("testPlane2");
-        planeEntity->setMaterialName("BaseWhiteNoLighting");
-        mOgreWindow->getSceneManager()->getRootSceneNode()->createChildSceneNode()->attachObject(planeEntity);
+                  << "), " << -groundPlane.d << std::endl;
+//        Ogre::MeshManager::getSingleton().createPlane("testPlane2", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, groundPlane, 5000, 5000,
+//                                                      1, 1, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
+//        Ogre::Entity* planeEntity = mOgreWindow->getSceneManager()->createEntity("testPlane2");
+//        planeEntity->setMaterialName("BaseWhiteNoLighting");
+//        mOgreWindow->getSceneManager()->getRootSceneNode()->createChildSceneNode()->attachObject(planeEntity);
     }
     else {
         std::cerr << "ERROR: plane fitting error " << planeFit.result << std::endl;
@@ -134,7 +128,7 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     Ogre::Vector3 actualPosition(-1000, 400, -3600); // TODO
 
     // Calculate initial rotation
-    Ogre::Matrix3 actualRotation(Ogre::Matrix3::IDENTITY); // TODO
+    Ogre::Matrix3 actualRotation = initialRotation.automate ? calcRotation(gravity) : convertCvMatToOgreMat(initialRotation.manualValue);
 
     // Calculate/convert additional parameters
     Ogre::Vector3 linearVelocity(initialVelocity[0], initialVelocity[1], initialVelocity[2]);
@@ -163,6 +157,38 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
 
     // TODO: render and return the final image
     return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
+}
+
+Ogre::Matrix3 TradagMain::calcRotation(const Ogre::Vector3& gravity) const {
+    // Find rotation matrix so the object starts upright
+    // (see https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d)
+    Ogre::Vector3 a = Ogre::Vector3::UNIT_Y;
+    Ogre::Vector3 b = -gravity.normalisedCopy();
+
+    Ogre::Vector3 v = a.crossProduct(b); // axis to rotate around
+    Ogre::Real s = v.length(); // sine of angle
+    Ogre::Real c = a.dotProduct(b); // cosine of angle
+
+    Ogre::Matrix3 v_x(   0, -v.z,  v.y,
+                       v.z,    0, -v.x,
+                      -v.y,  v.x,    0); // cross product matrix of v
+
+    Ogre::Matrix3 rotation = Ogre::Matrix3::IDENTITY
+                             + v_x
+                             + v_x * v_x * ((1 - c) / (s * s));
+
+    // TODO: small randomization?
+    return rotation;
+}
+
+Ogre::Matrix3 TradagMain::convertCvMatToOgreMat(const cv::Matx33f& mat) const {
+    Ogre::Real conv[3][3];
+    for(int i = 0; i < 3; ++i) {
+        for(int j = 0; j < 3; ++j) {
+            conv[i][j] = mat(i, j);
+        }
+    }
+    return Ogre::Matrix3(conv);
 }
 
 cv::Mat TradagMain::getDepthImage() {
@@ -238,6 +264,10 @@ void TradagMain::setDepthPrincipalPoint(const cv::Vec2f& principalPoint) {
     mRgbdObject->setDepthPrincipalPoint(principalPoint[0], principalPoint[1]);
 }
 
+void TradagMain::setDepthPrincipalPoint(float x, float y) {
+    mRgbdObject->setDepthPrincipalPoint(x, y);
+}
+
 cv::Vec2f TradagMain::getDepthFocalLength() const {
     Ogre::Vector2 tmpDFL = mRgbdObject->getDepthFocalLength();
     return cv::Vec2f(tmpDFL.x, tmpDFL.y);
@@ -245,6 +275,10 @@ cv::Vec2f TradagMain::getDepthFocalLength() const {
 
 void TradagMain::setDepthFocalLength(const cv::Vec2f& focalLength) {
     mRgbdObject->setDepthFocalLength(focalLength[0], focalLength[1]);
+}
+
+void TradagMain::setDepthFocalLength(float x, float y) {
+    mRgbdObject->setDepthFocalLength(x, y);
 }
 
 cv::Vec2f TradagMain::getRgbPrincipalPoint() const {
@@ -256,6 +290,10 @@ void TradagMain::setRgbPrincipalPoint(const cv::Vec2f& principalPoint) {
     mRgbdObject->setRgbPrincipalPoint(principalPoint[0], principalPoint[1]);
 }
 
+void TradagMain::setRgbPrincipalPoint(float x, float y) {
+    mRgbdObject->setRgbPrincipalPoint(x, y);
+}
+
 cv::Vec2f TradagMain::getRgbFocalLength() const {
     Ogre::Vector2 tmpRFL = mRgbdObject->getRgbFocalLength();
     return cv::Vec2f(tmpRFL.x, tmpRFL.y);
@@ -263,6 +301,10 @@ cv::Vec2f TradagMain::getRgbFocalLength() const {
 
 void TradagMain::setRgbFocalLength(const cv::Vec2f& focalLength) {
     mRgbdObject->setRgbFocalLength(focalLength[0], focalLength[1]);
+}
+
+void TradagMain::setRgbFocalLength(float x, float y) {
+    mRgbdObject->setRgbFocalLength(x, y);
 }
 
 cv::Matx33f TradagMain::getRotation() const {
@@ -289,6 +331,10 @@ cv::Vec3f TradagMain::getTranslation() const {
 
 void TradagMain::setTranslation(const cv::Vec3f& translation) {
     mRgbdObject->setTranslation(translation[0], translation[1], translation[2]);
+}
+
+void TradagMain::setTranslation(float x, float y, float z) {
+    mRgbdObject->setTranslation(x, y, z);
 }
 
 MapMode TradagMain::getMapMode() const {
@@ -369,6 +415,10 @@ cv::Vec3f TradagMain::getGravity() const {
 
 void TradagMain::setGravity(const cv::Vec3f& gravity) {
     mGravity = gravity;
+}
+
+void TradagMain::setGravity(float x, float y, float z) {
+    mGravity = cv::Vec3f(x, y, z);
 }
 
 float TradagMain::getObjectRestitution() const {

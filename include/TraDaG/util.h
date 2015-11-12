@@ -39,9 +39,9 @@ namespace TraDaG {
 
     template<class T>
     struct Auto {
-        Auto(bool automate, const T& specific = T()) : automated(automate), manualValue(specific) {}
+        Auto(bool automate, const T& manualValue = T()) : automate(automate), manualValue(manualValue) {}
 
-        bool automated;
+        bool automate;
         T manualValue;
     };
 

@@ -43,10 +43,15 @@ public:
 
     void updateMesh();
 
+    // TODO: use Auto for velocity/torque to allow very small randomized values (so results look more diverse)?
+    //       also allow slight randomization in auto rotation?
     // TODO: define angle of plane to camera and tolerance (in separate interface)
-    // TODO: abort if gravity <-> plane normal angle too large?
+    // TODO: abort if gravity <-> plane normal angle too large (otherwise infinite object sliding can happen)
     // TODO: define initial position uniformly? at end: check if inliers are within x radius of object (center of mass), sample again if not
     // TODO: when checking, cast a ray from object center of mass in direction of gravity onto the mesh
+    // TODO: if fractionCovered > 0.9X (define in constants), return failure
+    //       also prevent setting a value which is too large
+    //       check fractionCovered by casting rays from camera onto the bounding box of the mesh with small offsets
     ObjectDropResult dropObjectIntoScene(const std::string& meshName, const std::string& planeLabel,
                                          const Auto<cv::Vec3f>& initialPosition = Auto<cv::Vec3f>(true),
                                          const Auto<cv::Matx33f>& initialRotation = Auto<cv::Matx33f>(true),
@@ -69,21 +74,26 @@ public:
 
     cv::Vec2f getDepthPrincipalPoint() const;
     void setDepthPrincipalPoint(const cv::Vec2f& principalPoint);
+    void setDepthPrincipalPoint(float x, float y);
 
     cv::Vec2f getDepthFocalLength() const;
     void setDepthFocalLength(const cv::Vec2f& focalLength);
+    void setDepthFocalLength(float x, float y);
 
     cv::Vec2f getRgbPrincipalPoint() const;
     void setRgbPrincipalPoint(const cv::Vec2f& principalPoint);
+    void setRgbPrincipalPoint(float x, float y);
 
     cv::Vec2f getRgbFocalLength() const;
     void setRgbFocalLength(const cv::Vec2f& focalLength);
+    void setRgbFocalLength(float x, float y);
 
     cv::Matx33f getRotation() const;
     void setRotation(const cv::Matx33f& rotation);
 
     cv::Vec3f getTranslation() const;
     void setTranslation(const cv::Vec3f& translation);
+    void setTranslation(float x, float y, float z);
 
     MapMode getMapMode() const;
     void setMapMode(MapMode mode);
@@ -114,6 +124,7 @@ public:
 
     cv::Vec3f getGravity() const;
     void setGravity(const cv::Vec3f& gravity);
+    void setGravity(float x, float y, float z);
 
     float getObjectRestitution() const;
     void setObjectRestitution(float restitution);
@@ -135,6 +146,10 @@ private:
               const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
               const cv::Matx33f& rotation, const cv::Vec3f& translation,
               MapMode mode, LabelMode labelMode);
+
+    Ogre::Matrix3 calcRotation(const Ogre::Vector3& gravity) const;
+
+    Ogre::Matrix3 convertCvMatToOgreMat(const cv::Matx33f& mat) const;
 
     OgreWindow* mOgreWindow;
     RgbdObject* mRgbdObject;

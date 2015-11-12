@@ -93,13 +93,6 @@ protected:
     std::vector<OgreBulletDynamics::RigidBody*> mRigidBodies;
     std::vector<OgreBulletCollisions::CollisionShape*> mCollisionShapes;
 
-    // Mouse click positions
-    int mLastMouseDownPosX;
-    int mLastMouseDownPosY;
-
-    // Plane fitting
-    std::queue<Ogre::Vector3> mPlaneVectors;
-
 private:
     void initializeOgre();
     void shutDownOgre();

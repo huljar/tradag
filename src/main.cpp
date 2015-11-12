@@ -60,8 +60,9 @@ int main(int argc, char** argv)
     TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, depthPrincipalPoint, depthFocalLength);
     tradag.setShowPreviewWindow(true);
     tradag.setShowPhysicsAnimation(true);
-    tradag.setObjectMustBeUpright(false);
-    tradag.dropObjectIntoScene(meshName, "floor", Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true), cv::Vec3f(400, 0, 0), cv::Vec3f(2, 2, 2));
+    tradag.setObjectMustBeUpright(true);
+    tradag.setGravity(-400, -900, -300);
+    tradag.dropObjectIntoScene(meshName, "floor", Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(false, cv::Matx33f::eye()), cv::Vec3f(500, 0, 200), cv::Vec3f(0, 0, 0));
 
     return 0;
 }
