@@ -78,9 +78,9 @@ void OgreWindow::initializeOgre() {
                 break;
             }
         }
-        if (rs != NULL) break;
+        if (rs) break;
     }
-    if (rs == NULL)
+    if (!rs)
     {
         if (!mRoot->restoreConfig())
         {
@@ -238,10 +238,10 @@ void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector
     initializeBullet(gravity);
 
     // Debug
-    OgreBulletCollisions::DebugDrawer dd;
-    dd.setDrawWireframe(true);
-    mWorld->setDebugDrawer(&dd);
-    mWorld->setShowDebugShapes(true);
+//    OgreBulletCollisions::DebugDrawer dd;
+//    dd.setDrawWireframe(true);
+//    mWorld->setDebugDrawer(&dd);
+//    mWorld->setShowDebugShapes(true);
 
     // Load object
     Ogre::Entity* object = mSceneMgr->createEntity(meshName);
@@ -288,7 +288,7 @@ void OgreWindow::resetCamera() {
 
 void OgreWindow::setScene(RgbdObject* scene) {
     mScene = scene;
-    if(mSceneNode == NULL)
+    if(!mSceneNode)
         mSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     mSceneNode->attachObject(mScene->getManualObject());
 }

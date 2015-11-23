@@ -39,20 +39,25 @@ namespace TraDaG {
 
     template<class T>
     struct Auto {
-        Auto(bool automate, const T& manualValue = T()) : automate(automate), manualValue(manualValue) {}
+        Auto(bool automate, const T& manualValue = T())
+            : automate(automate), manualValue(manualValue)
+        {
+        }
 
         bool automate;
         T manualValue;
     };
 
     struct PlaneFittingResult {
-        PlaneFittingResult(PlaneFittingResultStatus res, const Ogre::Plane& planeFound = Ogre::Plane())
-            : result(res), plane(planeFound)
+        PlaneFittingResult(PlaneFittingResultStatus res, const Ogre::Plane& planeFound = Ogre::Plane(),
+                           const std::vector<Ogre::Vector3>& inlierSet = std::vector<Ogre::Vector3>())
+            : result(res), plane(planeFound), inliers(inlierSet)
         {
         }
 
         const PlaneFittingResultStatus result;
         const Ogre::Plane plane;
+        const std::vector<Ogre::Vector3> inliers;
     };
 
     struct ObjectDropResult {
@@ -86,6 +91,7 @@ namespace TraDaG {
         const unsigned int MaxAttempts = 20;
         const bool ShowPreviewWindow = false;
         const bool ShowPhysicsAnimation = false;
+        const bool MarkInlierSet = false;
         const cv::Vec3f Gravity = cv::Vec3f(0, -9810, 0);
         const float ObjectRestitution = 0.4;
         const float ObjectFriction = 0.7;
@@ -95,7 +101,8 @@ namespace TraDaG {
     }
 
     namespace Constants {
-        const float RansacConfidenceInterval = 400.0;
+        const float ObjectDropDistance = 700.0;
+        const float RansacConfidenceInterval = 15.0;
     }
 
     namespace Labels {

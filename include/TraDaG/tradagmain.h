@@ -11,6 +11,10 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include <chrono>
+#include <random>
+#include <vector>
+
 namespace TraDaG {
     class TradagMain;
 }
@@ -43,8 +47,7 @@ public:
 
     void updateMesh();
 
-    // TODO: use Auto for velocity/torque to allow very small randomized values (so results look more diverse)?
-    //       also allow slight randomization in auto rotation?
+    // TODO: use uniform distribution over inlier set to drop object
     // TODO: define angle of plane to camera and tolerance (in separate interface)
     // TODO: abort if gravity <-> plane normal angle too large (otherwise infinite object sliding can happen)
     // TODO: define initial position uniformly? at end: check if inliers are within x radius of object (center of mass), sample again if not
@@ -122,6 +125,9 @@ public:
     bool showPhysicsAnimation() const;
     void setShowPhysicsAnimation(bool showAnimation);
 
+    bool debugMarkInlierSet() const;
+    void setDebugMarkInlierSet(bool mark);
+
     cv::Vec3f getGravity() const;
     void setGravity(const cv::Vec3f& gravity);
     void setGravity(float x, float y, float z);
@@ -147,6 +153,7 @@ private:
               const cv::Matx33f& rotation, const cv::Vec3f& translation,
               MapMode mode, LabelMode labelMode);
 
+    Ogre::Vector3 calcPosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
     Ogre::Matrix3 calcRotation(const Ogre::Vector3& gravity) const;
 
     Ogre::Matrix3 convertCvMatToOgreMat(const cv::Matx33f& mat) const;
@@ -162,11 +169,14 @@ private:
     unsigned int mMaxAttempts;
     bool mShowPreviewWindow;
     bool mShowPhysicsAnimation;
+    bool mMarkInlierSet;
     cv::Vec3f mGravity;
     float mObjectRestitution;
     float mObjectFriction;
     float mPlaneRestitution;
     float mPlaneFriction;
+
+    std::default_random_engine mRandomEngine;
 
 };
 

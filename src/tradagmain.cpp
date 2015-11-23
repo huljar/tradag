@@ -51,11 +51,13 @@ TradagMain::TradagMain()
     , mMaxAttempts(Defaults::MaxAttempts)
     , mShowPreviewWindow(Defaults::ShowPreviewWindow)
     , mShowPhysicsAnimation(Defaults::ShowPhysicsAnimation)
+    , mMarkInlierSet(Defaults::MarkInlierSet)
     , mGravity(Defaults::Gravity)
     , mObjectRestitution(Defaults::ObjectRestitution)
     , mObjectFriction(Defaults::ObjectFriction)
     , mPlaneRestitution(Defaults::PlaneRestitution)
     , mPlaneFriction(Defaults::PlaneFriction)
+    , mRandomEngine(std::chrono::system_clock::now().time_since_epoch().count())
 {
 }
 
@@ -100,63 +102,75 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     // TODO: handle non-success
     PlaneFittingResult planeFit = mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject);
 
-    // Get gravity vector
-    Ogre::Vector3 gravity(mGravity[0], mGravity[1], mGravity[2]);
-
-    // If the plane does not face upwards (i.e. contrary to the gravity), invert its normal
-    Ogre::Plane groundPlane(planeFit.plane);
-    if(planeFit.plane.normal.dotProduct(gravity) > 0) {
-        groundPlane.normal = -groundPlane.normal;
-        groundPlane.d = -groundPlane.d;
-    }
-
-    // TEST: draw the plane
     if(planeFit.result == SUCCESS_FIT) {
-        std::cout << "Plane data: (" << groundPlane.normal.x << ", " << groundPlane.normal.y << ", " << groundPlane.normal.z
-                  << "), " << -groundPlane.d << std::endl;
-//        Ogre::MeshManager::getSingleton().createPlane("testPlane2", Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME, groundPlane, 5000, 5000,
-//                                                      1, 1, true, 1, 1, 1, Ogre::Vector3::UNIT_Z);
-//        Ogre::Entity* planeEntity = mOgreWindow->getSceneManager()->createEntity("testPlane2");
-//        planeEntity->setMaterialName("BaseWhiteNoLighting");
-//        mOgreWindow->getSceneManager()->getRootSceneNode()->createChildSceneNode()->attachObject(planeEntity);
+        // Get gravity vector
+        Ogre::Vector3 gravity(mGravity[0], mGravity[1], mGravity[2]);
+
+        // If the plane does not face upwards (i.e. contrary to the gravity), invert its normal
+        Ogre::Plane groundPlane(planeFit.plane);
+        if(planeFit.plane.normal.dotProduct(gravity) > 0) {
+            groundPlane.normal = -groundPlane.normal;
+            groundPlane.d = -groundPlane.d;
+        }
+
+        // Mark the plane inlier set if requested
+        if(mMarkInlierSet) {
+            Ogre::ManualObject* test = mOgreWindow->getSceneManager()->createManualObject();
+            test->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
+            for(auto it = planeFit.inliers.cbegin(); it != planeFit.inliers.cend(); ++it) {
+                test->position(*it);
+            }
+            test->end();
+            mOgreWindow->getSceneManager()->getRootSceneNode()->createChildSceneNode()->attachObject(test);
+        }
+
+        // Calculate initial position
+        Ogre::Vector3 actualPosition = initialPosition.automate
+                                       ? calcPosition(planeFit.inliers, gravity)
+                                       : Ogre::Vector3(initialPosition.manualValue[0], initialPosition.manualValue[1], initialPosition.manualValue[2]);
+
+        // Calculate initial rotation
+        Ogre::Matrix3 actualRotation = initialRotation.automate
+                                       ? calcRotation(gravity)
+                                       : convertCvMatToOgreMat(initialRotation.manualValue);
+
+        // Calculate/convert additional parameters
+        Ogre::Vector3 linearVelocity(initialVelocity[0], initialVelocity[1], initialVelocity[2]);
+
+        // If the object shall be upright, ignore any torque passed to the function (anything else wouldn't make sense... right?)
+        Ogre::Vector3 angularVelocity = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3(initialTorque[0], initialTorque[1], initialTorque[2]);
+
+        // Pass all-zero vector as angular factor to prevent random infinite object spinning
+        // (yes, this can happen if you allow yaw rotation, i.e. if you pass (0, 1, 0))
+        // To emulate yaw rotation, one can pass a random initial rotation around the y-axis to this function
+        Ogre::Vector3 angularFactor = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3::UNIT_SCALE;
+
+        // Display the window if requested
+        if(mShowPreviewWindow && mOgreWindow->hidden())
+            mOgreWindow->show();
+
+        // Simulate with animation only if needed
+        // TODO: objectCoveredFraction, maxAttempts
+        if(mShowPreviewWindow && mShowPhysicsAnimation) {
+            mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor, mObjectRestitution,
+                                        mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity, mObjectCastShadows);
+        }
+        else {
+            // TODO: simulate without animating
+        }
+
+        // TODO: render and return the final image
+        return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
     }
-    else {
-        std::cerr << "ERROR: plane fitting error " << planeFit.result << std::endl;
-    }
 
-    // Calculate initial position
-    Ogre::Vector3 actualPosition(-1000, 400, -3600); // TODO
+    return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0)); // TODO
+}
 
-    // Calculate initial rotation
-    Ogre::Matrix3 actualRotation = initialRotation.automate ? calcRotation(gravity) : convertCvMatToOgreMat(initialRotation.manualValue);
+Ogre::Vector3 TradagMain::calcPosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
+    std::uniform_int_distribution<size_t> distribution(0, inliers.size() - 1);
+    Ogre::Vector3 point = inliers[distribution(mRandomEngine)];
 
-    // Calculate/convert additional parameters
-    Ogre::Vector3 linearVelocity(initialVelocity[0], initialVelocity[1], initialVelocity[2]);
-
-    // If the object shall be upright, ignore any torque passed to the function (anything else wouldn't make sense... right?)
-    Ogre::Vector3 angularVelocity = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3(initialTorque[0], initialTorque[1], initialTorque[2]);
-
-    // Pass all-zero vector as angular factor to prevent random infinite object spinning
-    // (yes, this can happen if you allow yaw rotation, i.e. if you pass (0, 1, 0))
-    // To emulate yaw rotation, one can pass a random initial rotation around the y-axis to this function
-    Ogre::Vector3 angularFactor = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3::UNIT_SCALE;
-
-    // Display the window if requested
-    if(mShowPreviewWindow && mOgreWindow->hidden())
-        mOgreWindow->show();
-
-    // Simulate with animation only if needed
-    // TODO: objectCoveredFraction, maxAttempts
-    if(mShowPreviewWindow && mShowPhysicsAnimation) {
-        mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor, mObjectRestitution,
-                                    mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity, mObjectCastShadows);
-    }
-    else {
-        // TODO: simulate without animating
-    }
-
-    // TODO: render and return the final image
-    return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
+    return point - Constants::ObjectDropDistance * gravity.normalisedCopy();
 }
 
 Ogre::Matrix3 TradagMain::calcRotation(const Ogre::Vector3& gravity) const {
@@ -169,6 +183,10 @@ Ogre::Matrix3 TradagMain::calcRotation(const Ogre::Vector3& gravity) const {
     Ogre::Real s = v.length(); // sine of angle
     Ogre::Real c = a.dotProduct(b); // cosine of angle
 
+    // Check if rotation is identity (otherwise division by zero can happen if s=0)
+    if(v == Ogre::Vector3::ZERO || s == 0)
+        return Ogre::Matrix3::IDENTITY;
+
     Ogre::Matrix3 v_x(   0, -v.z,  v.y,
                        v.z,    0, -v.x,
                       -v.y,  v.x,    0); // cross product matrix of v
@@ -177,7 +195,6 @@ Ogre::Matrix3 TradagMain::calcRotation(const Ogre::Vector3& gravity) const {
                              + v_x
                              + v_x * v_x * ((1 - c) / (s * s));
 
-    // TODO: small randomization?
     return rotation;
 }
 
@@ -407,6 +424,14 @@ bool TradagMain::showPhysicsAnimation() const {
 
 void TradagMain::setShowPhysicsAnimation(bool showAnimation) {
     mShowPhysicsAnimation = showAnimation;
+}
+
+bool TradagMain::debugMarkInlierSet() const {
+    return mMarkInlierSet;
+}
+
+void TradagMain::setDebugMarkInlierSet(bool mark) {
+    mMarkInlierSet = mark;
 }
 
 cv::Vec3f TradagMain::getGravity() const {

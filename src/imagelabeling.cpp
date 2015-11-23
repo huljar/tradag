@@ -1,6 +1,7 @@
 #include <TraDaG/imagelabeling.h>
 #include <TraDaG/ransac.h>
 
+#include <chrono>
 #include <random>
 
 using namespace TraDaG;
@@ -54,12 +55,13 @@ PlaneFittingResult ImageLabeling::getPlaneForLabel(const std::string& label, con
 
     // Select a random valid label
     // TODO: random?
-    std::default_random_engine generator;
+    std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
     std::uniform_int_distribution<size_t> distribution(0, actualLabels.size() - 1);
 
     unsigned short actualLabel = actualLabels[distribution(generator)];
 
     // Gather vertices underneath the label
+    // TODO: consider labels defined on rgb image (unmapped)
     std::vector<Ogre::Vector3> points;
     for(int y = 0; y < mLabelImage.rows; ++y) {
         for(int x = 0; x < mLabelImage.cols; ++x) {
@@ -71,11 +73,16 @@ PlaneFittingResult ImageLabeling::getPlaneForLabel(const std::string& label, con
 
     // Perform RANSAC with the points
     Ransac<Ogre::Vector3, Ogre::Plane, 3> ransac(createPlaneFromPoints, pointEvaluation);
-    std::pair<Ogre::Plane, std::vector<const Ogre::Vector3*>> result = ransac(points);
+    Ransac<Ogre::Vector3, Ogre::Plane, 3>::result_type result = ransac(points);
 
     // TODO: after ransac do region growing (4/8-connected pixel neighborhood) with x random starting pixels, select one of the largest regions
+    std::vector<Ogre::Vector3> inliers;
+    for(Ransac<Ogre::Vector3, Ogre::Plane, 3>::result_type::second_type::const_iterator it = result.second.cbegin(); it != result.second.cend(); ++it) {
+        inliers.push_back(**it);
+    }
+    //std::vector<Ogre::Vector3> inliers(points);
 
-    return PlaneFittingResult(SUCCESS_FIT, result.first);
+    return PlaneFittingResult(SUCCESS_FIT, result.first, inliers);
 }
 
 cv::Mat ImageLabeling::getLabelImage() {
@@ -103,11 +110,19 @@ void ImageLabeling::setLabelMode(LabelMode mode) {
 }
 
 Ogre::Plane ImageLabeling::createPlaneFromPoints(const std::array<Ogre::Vector3, 3>& points) {
-    return Ogre::Plane(points[0], points[1], points[2]);
+    Ogre::Plane ret(points[0], points[1], points[2]);
+    ret.normalise(); // required so the getDistance member function returns the correct distance
+    return ret;
 }
 
 float ImageLabeling::pointEvaluation(const Ogre::Vector3& point, const Ogre::Plane& plane) {
-    if(plane.getDistance(point) < Constants::RansacConfidenceInterval)
+    // Check for invalid plane first (this can occur, probably when the RANSAC sampled points
+    // lie on a line and no unique plane can be created)
+    if(plane.normal == Ogre::Vector3::ZERO)
+        return 1.0; // treat every point as outlier so this model will be discarded
+
+    // Ogre::Plane::getDistance returns positive/negative values depending on which side of the plane the point lies
+    if(std::abs(plane.getDistance(point)) < Constants::RansacConfidenceInterval)
         return 0.0;
 
     return 1.0;

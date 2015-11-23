@@ -26,7 +26,7 @@ RgbdObject::RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManage
         throw std::runtime_error("Depth and RGB image do not have the same dimensions");
 
     // Check scene manager for null pointer
-    if(sceneManager == NULL)
+    if(!sceneManager)
         throw std::runtime_error("Received null pointer as scene manager");
 
     mSceneMgr = sceneManager;

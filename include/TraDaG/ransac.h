@@ -1,6 +1,7 @@
 #ifndef RANSAC_H
 #define RANSAC_H
 
+#include <chrono>
 #include <functional>
 #include <vector>
 #include <array>
@@ -16,13 +17,16 @@ template<class P, class M, size_t d>
 class TraDaG::Ransac
 {
 public:
+    typedef std::pair<M, std::vector<const P*>> result_type;
+
     Ransac(const std::function<M(const std::array<P, d>&)>& modelFunc, const std::function<float(const P&, const M&)>& evalFunc)
         : mModelFunc(modelFunc)
         , mEvalFunc(evalFunc)
+        , mGenerator(std::chrono::system_clock::now().time_since_epoch().count())
     {
     }
 
-    std::pair<M, std::vector<const P*>> operator() (const std::vector<P>& dataPoints) {
+    result_type operator() (const std::vector<P>& dataPoints) {
         // Initialize random number distribution
         std::uniform_int_distribution<size_t> distribution(0, dataPoints.size() - 1);
 
