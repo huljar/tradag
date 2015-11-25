@@ -50,14 +50,14 @@ namespace TraDaG {
 
     struct PlaneFittingResult {
         PlaneFittingResult(PlaneFittingResultStatus res, const Ogre::Plane& planeFound = Ogre::Plane(),
-                           const std::vector<Ogre::Vector3>& inlierSet = std::vector<Ogre::Vector3>())
-            : result(res), plane(planeFound), inliers(inlierSet)
+                           const std::vector<Ogre::Vector3>& planeVertices = std::vector<Ogre::Vector3>())
+            : result(res), plane(planeFound), vertices(planeVertices)
         {
         }
 
         const PlaneFittingResultStatus result;
         const Ogre::Plane plane;
-        const std::vector<Ogre::Vector3> inliers;
+        const std::vector<Ogre::Vector3> vertices;
     };
 
     struct ObjectDropResult {

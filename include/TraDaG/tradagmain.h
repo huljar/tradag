@@ -55,6 +55,7 @@ public:
     // TODO: if fractionCovered > 0.9X (define in constants), return failure
     //       also prevent setting a value which is too large
     //       check fractionCovered by casting rays from camera onto the bounding box of the mesh with small offsets
+    // TODO: when checking if inliers are still underneath the object, only check for the visible part of the object (underneath the covered parts is obviously no inlier)
     ObjectDropResult dropObjectIntoScene(const std::string& meshName, const std::string& planeLabel,
                                          const Auto<cv::Vec3f>& initialPosition = Auto<cv::Vec3f>(true),
                                          const Auto<cv::Matx33f>& initialRotation = Auto<cv::Matx33f>(true),

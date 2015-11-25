@@ -17,7 +17,8 @@ template<class P, class M, size_t d>
 class TraDaG::Ransac
 {
 public:
-    typedef std::pair<M, std::vector<const P*>> result_type;
+    typedef typename std::vector<P>::const_iterator const_point_iterator;
+    typedef std::pair<M, std::vector<const_point_iterator>> result_type;
 
     Ransac(const std::function<M(const std::array<P, d>&)>& modelFunc, const std::function<float(const P&, const M&)>& evalFunc)
         : mModelFunc(modelFunc)
@@ -36,7 +37,7 @@ public:
         M bestModel; // Store best current model here
         float bestModelEval = std::numeric_limits<float>::max(); // Store evaluation result of best current model here
 
-        std::vector<const P*> bestModelInliers; // Store inliers of the best current model here
+        std::vector<const_point_iterator> bestModelInliers; // Store inliers of the best current model here
 
         // Perform standard RANSAC with adaptive number of samples
         for(unsigned int i = 0; i < n; ++i) {
@@ -51,11 +52,11 @@ public:
 
             // Evaluate current model
             float currentModelEval = 0;
-            std::vector<const P*> currentModelInliers;
-            for(typename std::vector<P>::const_iterator it = dataPoints.cbegin(); it != dataPoints.cend(); ++it) {
+            std::vector<const_point_iterator> currentModelInliers;
+            for(const_point_iterator it = dataPoints.cbegin(); it != dataPoints.cend(); ++it) {
                 float eval = mEvalFunc(*it, currentModel);
                 currentModelEval += eval;
-                if(eval < 1.0) currentModelInliers.push_back(&(*it));
+                if(eval < 1.0) currentModelInliers.push_back(it);
             }
 
             // Compare current to best model

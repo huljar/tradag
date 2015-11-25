@@ -117,7 +117,7 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
         if(mMarkInlierSet) {
             Ogre::ManualObject* test = mOgreWindow->getSceneManager()->createManualObject();
             test->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
-            for(auto it = planeFit.inliers.cbegin(); it != planeFit.inliers.cend(); ++it) {
+            for(auto it = planeFit.vertices.cbegin(); it != planeFit.vertices.cend(); ++it) {
                 test->position(*it);
             }
             test->end();
@@ -126,7 +126,7 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
 
         // Calculate initial position
         Ogre::Vector3 actualPosition = initialPosition.automate
-                                       ? calcPosition(planeFit.inliers, gravity)
+                                       ? calcPosition(planeFit.vertices, gravity)
                                        : Ogre::Vector3(initialPosition.manualValue[0], initialPosition.manualValue[1], initialPosition.manualValue[2]);
 
         // Calculate initial rotation

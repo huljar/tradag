@@ -22,6 +22,7 @@ int main(int argc, char** argv)
             ("rgb-file,c", po::value<std::string>(), "RGB (color) input file")
             ("label-file,l", po::value<std::string>(), "Label input file")
             ("mesh-name,m", po::value<std::string>(), "Object mesh name")
+            ("label-name,n", po::value<std::string>(), "Label name")
             ("help", "Display this help and exit")
             ("version", "Display version information and exit");
 
@@ -53,8 +54,9 @@ int main(int argc, char** argv)
     cv::Vec2f depthPrincipalPoint(3.2442516903961865e+02, 2.3584766381177013e+02);
     cv::Vec2f depthFocalLength(5.7616540758591043e+02, 5.7375619782082447e+02);
 
-    // Get mesh name
+    // Get additional parameters
     std::string meshName = vm["mesh-name"].as<std::string>();
+    std::string labelName = vm["label-name"].as<std::string>();
 
     // From here, let TradagMain take over
     TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, depthPrincipalPoint, depthFocalLength);
@@ -63,7 +65,7 @@ int main(int argc, char** argv)
     tradag.setDebugMarkInlierSet(true);
     //tradag.setObjectMustBeUpright(true);
     //tradag.setGravity(-100, -900, -50);
-    tradag.dropObjectIntoScene(meshName, "table", Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true),
+    tradag.dropObjectIntoScene(meshName, labelName, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true),
                                cv::Vec3f(100, 0, 120), cv::Vec3f(0, 0, 0));
 
     return 0;
