@@ -47,10 +47,9 @@ public:
 
     void updateMesh();
 
-    // TODO: use uniform distribution over inlier set to drop object
     // TODO: define angle of plane to camera and tolerance (in separate interface)
     // TODO: abort if gravity <-> plane normal angle too large (otherwise infinite object sliding can happen)
-    // TODO: define initial position uniformly? at end: check if inliers are within x radius of object (center of mass), sample again if not
+    // TODO: at end: check if inliers are within x radius of object (center of mass), sample again if not
     // TODO: when checking, cast a ray from object center of mass in direction of gravity onto the mesh
     // TODO: if fractionCovered > 0.9X (define in constants), return failure
     //       also prevent setting a value which is too large
@@ -127,7 +126,10 @@ public:
     void setShowPhysicsAnimation(bool showAnimation);
 
     bool debugMarkInlierSet() const;
-    void setDebugMarkInlierSet(bool mark);
+    void setDebugMarkInlierSet(bool markInliers);
+
+    bool debugDrawBulletShapes() const;
+    void setDebugDrawBulletShapes(bool drawShapes);
 
     cv::Vec3f getGravity() const;
     void setGravity(const cv::Vec3f& gravity);
@@ -171,6 +173,7 @@ private:
     bool mShowPreviewWindow;
     bool mShowPhysicsAnimation;
     bool mMarkInlierSet;
+    bool mDrawBulletShapes;
     cv::Vec3f mGravity;
     float mObjectRestitution;
     float mObjectFriction;

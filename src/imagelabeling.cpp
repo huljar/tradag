@@ -80,7 +80,6 @@ PlaneFittingResult ImageLabeling::getPlaneForLabel(const std::string& label, con
     Ransac<Ogre::Vector3, Ogre::Plane, 3>::result_type result = ransac(points);
 
     // Retrieve all inliers
-    typedef std::map<cv::Vec2i, Ogre::Vector3, bool(*)(const cv::Vec2i&, const cv::Vec2i&)> InlierMap;
     InlierMap inliers(
         [] (const cv::Vec2i& lhs, const cv::Vec2i& rhs) -> bool {
             return lhs[0] == rhs[0] ? lhs[1] < rhs[1] : lhs[0] < rhs[0];

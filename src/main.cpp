@@ -23,6 +23,8 @@ int main(int argc, char** argv)
             ("label-file,l", po::value<std::string>(), "Label input file")
             ("mesh-name,m", po::value<std::string>(), "Object mesh name")
             ("label-name,n", po::value<std::string>(), "Label name")
+            ("show-preview,p", "Display a preview window")
+            ("animate,a", "Show the object falling into the scene")
             ("help", "Display this help and exit")
             ("version", "Display version information and exit");
 
@@ -58,11 +60,15 @@ int main(int argc, char** argv)
     std::string meshName = vm["mesh-name"].as<std::string>();
     std::string labelName = vm["label-name"].as<std::string>();
 
+    bool preview = vm.count("show-preview");
+    bool animate = vm.count("animate");
+
     // From here, let TradagMain take over
     TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, depthPrincipalPoint, depthFocalLength);
-    tradag.setShowPreviewWindow(true);
-    tradag.setShowPhysicsAnimation(true);
+    tradag.setShowPreviewWindow(preview);
+    tradag.setShowPhysicsAnimation(animate);
     tradag.setDebugMarkInlierSet(true);
+    //tradag.setDebugDrawBulletShapes(true);
     //tradag.setObjectMustBeUpright(true);
     //tradag.setGravity(-100, -900, -50);
     tradag.dropObjectIntoScene(meshName, labelName, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true),

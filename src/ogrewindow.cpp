@@ -14,16 +14,23 @@ OgreWindow::OgreWindow()
     , mSceneMgr(NULL)
     , mCamera(NULL)
     , mCameraMan(NULL)
+    , mObject(NULL)
+    , mObjectNode(NULL)
     , mHaltRendering(false)
+    , mStatus(READY)
     , mInputManager(NULL)
     , mKeyboard(NULL)
     , mMouse(NULL)
     , mScene(NULL)
     , mSceneNode(NULL)
+    , mVertexMarkings(NULL)
     , mDefaultCameraPosition(0, 0, 0)
     , mDefaultCameraLookAt(0, 0, -1)
     , mWorld(NULL)
+    , mDebugDrawer(NULL)
     , mBounds(Ogre::Vector3(-10000, -10000, -10000), Ogre::Vector3(10000, 10000, 10000))
+    , mIdleTime(0)
+    , mTotalTime(0)
 {
     initializeOgre();
 }
@@ -192,6 +199,11 @@ void OgreWindow::initializeBullet(const Ogre::Vector3& gravity) {
 
         // Set up Bullet world
         mWorld = new OgreBulletDynamics::DynamicsWorld(mSceneMgr, mBounds, gravity);
+
+        // Set up debug drawer
+        mDebugDrawer = new OgreBulletCollisions::DebugDrawer();
+        mDebugDrawer->setDrawWireframe(true);
+        mWorld->setDebugDrawer(mDebugDrawer);
     }
 }
 
@@ -209,6 +221,9 @@ void OgreWindow::shutDownBullet() {
 
         delete mWorld;
         mWorld = NULL;
+
+        delete mDebugDrawer;
+        mDebugDrawer = NULL;
     }
 }
 
@@ -228,34 +243,43 @@ void OgreWindow::renderOneFrame() {
     mRoot->renderOneFrame();
 }
 
-void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation, Ogre::Real scale,
-                                const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
-                                Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
-                                const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
-                                const Ogre::Vector3& gravity, bool castShadows) {
+void OgreWindow::startSimulation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation, Ogre::Real scale,
+                                 const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
+                                 Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
+                                 const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
+                                 const Ogre::Vector3& gravity, bool castShadows, bool drawBulletShapes, bool animate) {
 
     // Initialize Bullet physics
     initializeBullet(gravity);
 
-    // Debug
-//    OgreBulletCollisions::DebugDrawer dd;
-//    dd.setDrawWireframe(true);
-//    mWorld->setDebugDrawer(&dd);
-//    mWorld->setShowDebugShapes(true);
+    // Draw debug shapes if requested
+    mWorld->setShowDebugShapes(drawBulletShapes);
 
     // Load object
-    Ogre::Entity* object = mSceneMgr->createEntity(meshName);
-    object->setCastShadows(castShadows); // TODO: when initializing Ogre, set stencil shadow type (and ambient light)
+    if(mObject) {
+        // Destroy any previously created objects
+        mObject->detachFromParent();
+        mSceneMgr->destroyEntity(mObject);
+    }
 
-    // Register object with Ogre and Bullet
-    Ogre::SceneNode* objNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    objNode->scale(scale, scale, scale);
-    objNode->attachObject(object);
+    // Create the new object
+    mObject = mSceneMgr->createEntity(meshName);
+    mObject->setCastShadows(castShadows); // TODO: when initializing Ogre, set stencil shadow type (and ambient light)
 
+    // Create a scene node for the object if it doesn't already exist
+    if(!mObjectNode) {
+        mObjectNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    }
+    mObjectNode->setScale(scale, scale, scale);
+
+    // Attach new object to the scene node
+    mObjectNode->attachObject(mObject);
+
+    // Register object with bullet
     OgreBulletDynamics::RigidBody* objRigidBody = new OgreBulletDynamics::RigidBody(Strings::ObjRigidBodyName, mWorld);
-    OgreBulletCollisions::CollisionShape* objCollisionShape = createConvexHull(object);
+    OgreBulletCollisions::CollisionShape* objCollisionShape = createConvexHull(mObject);
 
-    objRigidBody->setShape(objNode, objCollisionShape, objectRestitution, objectFriction, objectMass, initialPosition, Ogre::Quaternion(initialRotation));
+    objRigidBody->setShape(mObjectNode, objCollisionShape, objectRestitution, objectFriction, objectMass, initialPosition, Ogre::Quaternion(initialRotation));
     objRigidBody->setLinearVelocity(linearVelocity);
     objRigidBody->setAngularVelocity(angularVelocity);
     objRigidBody->getBulletRigidBody()->setAngularFactor(btVector3(angularFactor.x, angularFactor.y, angularFactor.z));
@@ -272,11 +296,46 @@ void OgreWindow::startAnimation(const Ogre::String& meshName, const Ogre::Vector
     mCollisionShapes.push_back(objCollisionShape);
     mCollisionShapes.push_back(planeCollisionShape);
 
-    // Enter rendering loop
-    mRoot->startRendering(); // this method does not return until rendering is stopped
+    // Reset timestep counts
+    mIdleTime = 0;
+    mTotalTime = 0;
 
-    // This is executed after rendering was stopped
-    shutDownBullet();
+    // Run simulation
+    mStatus = SIMULATION_RUNNING;
+    if(animate && !hidden()) {
+        // Enter rendering loop; the simulation steps will be performed in the rendering callbacks
+        mRoot->startRendering(); // this method does not return until rendering is stopped
+    }
+    else {
+        // Don't use real time for simulation
+        while(mStatus == SIMULATION_RUNNING) {
+            bool idle = stepSimulationWithIdleCheck(1.0 / 60.0);
+
+            if(idle) {
+                mStatus = SIMULATION_FINISHED;
+                std::cout << "Simulation finished, object is idle" << std::endl;
+            }
+            else if(mTotalTime >= Constants::TimeoutTimeThreshold) {
+                mStatus = SIMULATION_TIMEOUT;
+                std::cout << "Simulation timed out" << std::endl;
+            }
+        }
+
+        // Shut down Bullet after the simulation
+        shutDownBullet();
+
+        if(!hidden()) {
+            // Start rendering so the user can move the camera around
+            mRoot->startRendering(); // this method does not return until rendering is stopped
+            // TODO: show appropriate commands overlay
+        }
+    }
+
+    // TODO: return user-selected action; if window is hidden, auto-select action and return
+}
+
+float OgreWindow::queryCoveredFraction() const {
+
 }
 
 void OgreWindow::resetCamera() {
@@ -287,10 +346,32 @@ void OgreWindow::resetCamera() {
 }
 
 void OgreWindow::setScene(RgbdObject* scene) {
-    mScene = scene;
     if(!mSceneNode)
         mSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    else if(mScene)
+        mScene->getManualObject()->detachFromParent();
+
+    mScene = scene;
     mSceneNode->attachObject(mScene->getManualObject());
+}
+
+void OgreWindow::markVertices(const std::vector<Ogre::Vector3>& vertices) {
+    if(mSceneNode && mScene) {
+        if(mVertexMarkings) {
+            mVertexMarkings->detachFromParent();
+            mSceneMgr->destroyManualObject(mVertexMarkings);
+        }
+
+        mVertexMarkings = mSceneMgr->createManualObject();
+
+        mVertexMarkings->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
+        for(std::vector<Ogre::Vector3>::const_iterator it = vertices.cbegin(); it != vertices.cend(); ++it) {
+            mVertexMarkings->position(*it);
+        }
+        mVertexMarkings->end();
+
+        mSceneNode->attachObject(mVertexMarkings);
+    }
 }
 
 bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
@@ -299,7 +380,24 @@ bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
         return false;
     }
 
-    mWorld->stepSimulation(evt.timeSinceLastFrame, 4);
+    if(mStatus == SIMULATION_RUNNING) {
+        bool idle = stepSimulationWithIdleCheck(evt.timeSinceLastFrame);
+
+        if(idle) {
+            mStatus = SIMULATION_FINISHED;
+            shutDownBullet();
+
+            // TODO: show overlay with available commands
+            std::cout << "Simulation finished, object is idle" << std::endl;
+        }
+        else if(mTotalTime >= Constants::TimeoutTimeThreshold) {
+            mStatus = SIMULATION_TIMEOUT;
+            shutDownBullet();
+
+            // TODO: show appropriate overlay
+            std::cout << "Simulation timed out" << std::endl;
+        }
+    }
 
     return true;
 }
@@ -344,6 +442,9 @@ bool OgreWindow::windowClosing(Ogre::RenderWindow* rw) {
         // Halt rendering loop
         mHaltRendering = true;
 
+        // Adjust status
+        mStatus = WINDOW_CLOSED;
+
         return false;
     }
 
@@ -375,6 +476,36 @@ bool OgreWindow::mousePressed(const OIS::MouseEvent& e, const OIS::MouseButtonID
 bool OgreWindow::mouseReleased(const OIS::MouseEvent& e, const OIS::MouseButtonID button) {
     mCameraMan->injectMouseUp(e, button);
     return true;
+}
+
+bool OgreWindow::stepSimulationWithIdleCheck(Ogre::Real timeElapsed) {
+    // Get current object position/rotation
+    Ogre::Quaternion oldOrient = mObjectNode->getOrientation();
+    Ogre::Vector3 oldPos = mObjectNode->getPosition();
+
+    // Step the simulation
+    mWorld->stepSimulation(timeElapsed, 4);
+
+    // Add elapsed time
+    mTotalTime += timeElapsed;
+
+    // Check if the object is still moving
+    Ogre::Quaternion newOrient = mObjectNode->getOrientation();
+    Ogre::Vector3 newPos = mObjectNode->getPosition();
+
+    if(orientationEquals(oldOrient, newOrient) && oldPos.positionEquals(newPos)) {
+        // The object is idle
+        mIdleTime += timeElapsed;
+
+        if(mIdleTime >= Constants::IdleTimeThreshold)
+            return true;
+    }
+    else {
+        // The object is moving, reset idle counter
+        mIdleTime = 0;
+    }
+
+    return false;
 }
 
 bool OgreWindow::getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3& result) {
@@ -424,7 +555,7 @@ bool OgreWindow::hidden() const {
 
 void OgreWindow::show() {
     mWindow->setHidden(false);
-    Ogre::WindowEventUtilities::messagePump(); // Necessary so OIS initializes correctly
+    Ogre::WindowEventUtilities::messagePump(); // necessary so OIS initializes correctly
     initializeOIS();
 }
 

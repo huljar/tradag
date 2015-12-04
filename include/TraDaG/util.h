@@ -86,13 +86,14 @@ namespace TraDaG {
 
     namespace Defaults {
         const bool ObjectMustBeUpright = false;
-        const Auto<float> ObjectCoveredFraction = Auto<float>(true);
+        const Auto<float> ObjectCoveredFraction(true);
         const bool ObjectCastShadows = true;
         const unsigned int MaxAttempts = 20;
         const bool ShowPreviewWindow = false;
         const bool ShowPhysicsAnimation = false;
         const bool MarkInlierSet = false;
-        const cv::Vec3f Gravity = cv::Vec3f(0, -9810, 0);
+        const bool DrawBulletShapes = false;
+        const cv::Vec3f Gravity(0, -9810, 0);
         const float ObjectRestitution = 0.4;
         const float ObjectFriction = 0.7;
         const float PlaneRestitution = 0.1;
@@ -101,8 +102,10 @@ namespace TraDaG {
     }
 
     namespace Constants {
-        const float ObjectDropDistance = 700.0;
-        const float RansacConfidenceInterval = 15.0;
+        const float ObjectDropDistance = 500.0;
+        const float RansacConfidenceInterval = 18.0;
+        const float IdleTimeThreshold = 1.0; // in seconds
+        const float TimeoutTimeThreshold = 12.0; // in seconds
     }
 
     namespace Labels {

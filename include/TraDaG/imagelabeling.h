@@ -36,6 +36,8 @@ public:
     static float pointEvaluation(const Ogre::Vector3& point, const Ogre::Plane& plane);
 
 protected:
+    typedef std::map<cv::Vec2i, Ogre::Vector3, bool(*)(const cv::Vec2i&, const cv::Vec2i&)> InlierMap;
+
     cv::Mat mLabelImage;
     LabelMap mLabelMap;
     LabelMode mLabelMode;

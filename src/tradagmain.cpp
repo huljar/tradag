@@ -52,6 +52,7 @@ TradagMain::TradagMain()
     , mShowPreviewWindow(Defaults::ShowPreviewWindow)
     , mShowPhysicsAnimation(Defaults::ShowPhysicsAnimation)
     , mMarkInlierSet(Defaults::MarkInlierSet)
+    , mDrawBulletShapes(Defaults::DrawBulletShapes)
     , mGravity(Defaults::Gravity)
     , mObjectRestitution(Defaults::ObjectRestitution)
     , mObjectFriction(Defaults::ObjectFriction)
@@ -115,13 +116,7 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
 
         // Mark the plane inlier set if requested
         if(mMarkInlierSet) {
-            Ogre::ManualObject* test = mOgreWindow->getSceneManager()->createManualObject();
-            test->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
-            for(auto it = planeFit.vertices.cbegin(); it != planeFit.vertices.cend(); ++it) {
-                test->position(*it);
-            }
-            test->end();
-            mOgreWindow->getSceneManager()->getRootSceneNode()->createChildSceneNode()->attachObject(test);
+            mOgreWindow->markVertices(planeFit.vertices);
         }
 
         // Calculate initial position
@@ -149,15 +144,11 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
         if(mShowPreviewWindow && mOgreWindow->hidden())
             mOgreWindow->show();
 
-        // Simulate with animation only if needed
+        // Simulate (with animation only if needed)
         // TODO: objectCoveredFraction, maxAttempts
-        if(mShowPreviewWindow && mShowPhysicsAnimation) {
-            mOgreWindow->startAnimation(meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor, mObjectRestitution,
-                                        mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity, mObjectCastShadows);
-        }
-        else {
-            // TODO: simulate without animating
-        }
+        mOgreWindow->startSimulation(meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor, mObjectRestitution,
+                                     mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity, mObjectCastShadows, mDrawBulletShapes,
+                                     mShowPreviewWindow && mShowPhysicsAnimation);
 
         // TODO: render and return the final image
         return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
@@ -430,8 +421,16 @@ bool TradagMain::debugMarkInlierSet() const {
     return mMarkInlierSet;
 }
 
-void TradagMain::setDebugMarkInlierSet(bool mark) {
-    mMarkInlierSet = mark;
+void TradagMain::setDebugMarkInlierSet(bool markInliers) {
+    mMarkInlierSet = markInliers;
+}
+
+bool TradagMain::debugDrawBulletShapes() const {
+    return mDrawBulletShapes;
+}
+
+void TradagMain::setDebugDrawBulletShapes(bool drawShapes) {
+    mDrawBulletShapes = drawShapes;
 }
 
 cv::Vec3f TradagMain::getGravity() const {
