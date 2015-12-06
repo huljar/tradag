@@ -88,7 +88,7 @@ namespace TraDaG {
         const bool ObjectMustBeUpright = false;
         const Auto<float> ObjectCoveredFraction(true);
         const bool ObjectCastShadows = true;
-        const unsigned int MaxAttempts = 20;
+        const unsigned int MaxAttempts = 100;
         const bool ShowPreviewWindow = false;
         const bool ShowPhysicsAnimation = false;
         const bool MarkInlierSet = false;
