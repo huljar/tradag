@@ -188,24 +188,26 @@ Ogre::Matrix3 TradagMain::computeRotation(const float azimuth, const Ogre::Vecto
     Ogre::Real s = v.length(); // sine of angle
     Ogre::Real c = a.dotProduct(b); // cosine of angle
 
-    // Check if rotation is identity (otherwise division by zero can happen if s==0)
-    if(v == Ogre::Vector3::ZERO || s == 0)
-        return Ogre::Matrix3::IDENTITY;
+    Ogre::Matrix3 rotation = Ogre::Matrix3::IDENTITY;
 
-    Ogre::Matrix3 v_x(   0, -v.z,  v.y,
-                       v.z,    0, -v.x,
-                      -v.y,  v.x,    0); // cross product matrix of v
+    // Only proceed if rotation is not identity (otherwise division by zero can happen if s==0)
+    if(v != Ogre::Vector3::ZERO && s != 0) {
+        Ogre::Matrix3 v_x(   0, -v.z,  v.y,
+                           v.z,    0, -v.x,
+                          -v.y,  v.x,    0); // cross product matrix of v
 
-    Ogre::Matrix3 rotation = Ogre::Matrix3::IDENTITY
-                             + v_x
-                             + v_x * v_x * ((1 - c) / (s * s));
+        rotation = Ogre::Matrix3::IDENTITY
+                   + v_x
+                   + v_x * v_x * ((1 - c) / (s * s));
+    }
 
     // Incorporate specified azimuth
     float a_cos = std::cos(azimuth);
     float a_sin = std::sin(azimuth);
-    rotation = rotation * Ogre::Matrix3(a_cos,  0, a_sin,
-                                        0,      1,     0,
-                                        -a_sin, 0, a_cos);
+    rotation = rotation * Ogre::Matrix3(a_cos,  0,  a_sin,
+                                        0,      1,      0,
+                                        -a_sin, 0,  a_cos);
+
     return rotation;
 }
 
