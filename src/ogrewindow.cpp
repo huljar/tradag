@@ -31,6 +31,7 @@ OgreWindow::OgreWindow()
     , mBounds(Ogre::Vector3(-10000, -10000, -10000), Ogre::Vector3(10000, 10000, 10000))
     , mIdleTime(0)
     , mTotalTime(0)
+    , mSelectedAction(KEEP)
 {
     initializeOgre();
 }
@@ -327,14 +328,26 @@ void OgreWindow::startSimulation(const Ogre::String& meshName, const Ogre::Vecto
         if(!hidden()) {
             // Start rendering so the user can move the camera around
             mRoot->startRendering(); // this method does not return until rendering is stopped
-            // TODO: show appropriate commands overlay
+            // TODO: show appropriate commands overlay, no, do this in promptUserAction
         }
     }
 
     // TODO: return user-selected action; if window is hidden, auto-select action and return
 }
 
+UserAction OgreWindow::promptUserAction() {
+    mStatus = AWAITING_USER_INPUT;
+    // TODO: show overlay, start rendering, wait for key input
+
+    mStatus = READY;
+    return KEEP;
+}
+
 float OgreWindow::queryCoveredFraction() const {
+
+}
+
+bool OgreWindow::queryObjectStillOnPlane() const {
 
 }
 

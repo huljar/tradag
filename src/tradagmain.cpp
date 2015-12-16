@@ -1,5 +1,6 @@
 #include <TraDaG/tradagmain.h>
 
+#include <cmath>
 #include <stdexcept>
 
 using namespace TraDaG;
@@ -97,10 +98,11 @@ void TradagMain::updateMesh() {
 
 ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, const std::string& planeLabel,
                                                  const Auto<cv::Vec3f>& initialPosition, const Auto<cv::Matx33f>& initialRotation,
+                                                 const float initialAzimuth,
                                                  const cv::Vec3f& initialVelocity, const cv::Vec3f& initialTorque) {
 
     // Calculate plane from labels using RANSAC
-    // TODO: handle non-success
+    // TODO: handle non-success, re-use previous planes
     PlaneFittingResult planeFit = mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject);
 
     if(planeFit.result == SUCCESS_FIT) {
@@ -121,12 +123,12 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
 
         // Calculate initial position
         Ogre::Vector3 actualPosition = initialPosition.automate
-                                       ? calcPosition(planeFit.vertices, gravity)
+                                       ? computePosition(planeFit.vertices, gravity)
                                        : Ogre::Vector3(initialPosition.manualValue[0], initialPosition.manualValue[1], initialPosition.manualValue[2]);
 
         // Calculate initial rotation
         Ogre::Matrix3 actualRotation = initialRotation.automate
-                                       ? calcRotation(gravity)
+                                       ? computeRotation(initialAzimuth, gravity)
                                        : convertCvMatToOgreMat(initialRotation.manualValue);
 
         // Calculate/convert additional parameters
@@ -145,10 +147,22 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
             mOgreWindow->show();
 
         // Simulate (with animation only if needed)
+        // This function does not return until the simulation is completed
         // TODO: objectCoveredFraction, maxAttempts
         mOgreWindow->startSimulation(meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor, mObjectRestitution,
                                      mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity, mObjectCastShadows, mDrawBulletShapes,
                                      mShowPreviewWindow && mShowPhysicsAnimation);
+
+        // Select an action describing what to do with the result
+        UserAction action = KEEP;
+        if(!mOgreWindow->hidden()) {
+            action = mOgreWindow->promptUserAction();
+            // TODO
+        }
+        else {
+            // Auto-select action
+            action = KEEP;
+        }
 
         // TODO: render and return the final image
         return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
@@ -157,14 +171,14 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0)); // TODO
 }
 
-Ogre::Vector3 TradagMain::calcPosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
+Ogre::Vector3 TradagMain::computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
     std::uniform_int_distribution<size_t> distribution(0, inliers.size() - 1);
     Ogre::Vector3 point = inliers[distribution(mRandomEngine)];
 
     return point - Constants::ObjectDropDistance * gravity.normalisedCopy();
 }
 
-Ogre::Matrix3 TradagMain::calcRotation(const Ogre::Vector3& gravity) const {
+Ogre::Matrix3 TradagMain::computeRotation(const float azimuth, const Ogre::Vector3& gravity) const {
     // Find rotation matrix so the object starts upright
     // (see https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d)
     Ogre::Vector3 a = Ogre::Vector3::UNIT_Y;
@@ -174,7 +188,7 @@ Ogre::Matrix3 TradagMain::calcRotation(const Ogre::Vector3& gravity) const {
     Ogre::Real s = v.length(); // sine of angle
     Ogre::Real c = a.dotProduct(b); // cosine of angle
 
-    // Check if rotation is identity (otherwise division by zero can happen if s=0)
+    // Check if rotation is identity (otherwise division by zero can happen if s==0)
     if(v == Ogre::Vector3::ZERO || s == 0)
         return Ogre::Matrix3::IDENTITY;
 
@@ -186,6 +200,12 @@ Ogre::Matrix3 TradagMain::calcRotation(const Ogre::Vector3& gravity) const {
                              + v_x
                              + v_x * v_x * ((1 - c) / (s * s));
 
+    // Incorporate specified azimuth
+    float a_cos = std::cos(azimuth);
+    float a_sin = std::sin(azimuth);
+    rotation = rotation * Ogre::Matrix3(a_cos,  0, a_sin,
+                                        0,      1,     0,
+                                        -a_sin, 0, a_cos);
     return rotation;
 }
 

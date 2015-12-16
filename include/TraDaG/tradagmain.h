@@ -59,6 +59,7 @@ public:
     ObjectDropResult dropObjectIntoScene(const std::string& meshName, const std::string& planeLabel,
                                          const Auto<cv::Vec3f>& initialPosition = Auto<cv::Vec3f>(true),
                                          const Auto<cv::Matx33f>& initialRotation = Auto<cv::Matx33f>(true),
+                                         const float initialAzimuth = 0,
                                          const cv::Vec3f& initialVelocity = cv::Vec3f(0, 0, 0),
                                          const cv::Vec3f& initialTorque = cv::Vec3f(0, 0, 0));
 
@@ -157,8 +158,8 @@ private:
               const cv::Matx33f& rotation, const cv::Vec3f& translation,
               MapMode mode, LabelMode labelMode);
 
-    Ogre::Vector3 calcPosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
-    Ogre::Matrix3 calcRotation(const Ogre::Vector3& gravity) const;
+    Ogre::Vector3 computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
+    Ogre::Matrix3 computeRotation(const float azimuth, const Ogre::Vector3& gravity) const;
 
     Ogre::Matrix3 convertCvMatToOgreMat(const cv::Matx33f& mat) const;
 

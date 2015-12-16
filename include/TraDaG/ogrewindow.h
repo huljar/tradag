@@ -31,7 +31,10 @@ public:
                                  const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
                                  const Ogre::Vector3& gravity, bool castShadows, bool drawBulletShapes, bool animate);
 
+    virtual UserAction promptUserAction();
+
     virtual float queryCoveredFraction() const;
+    virtual bool queryObjectStillOnPlane() const;
 
     virtual void resetCamera();
 
@@ -68,7 +71,8 @@ protected:
         SIMULATION_RUNNING,
         SIMULATION_FINISHED,
         SIMULATION_TIMEOUT,
-        WINDOW_CLOSED
+        WINDOW_CLOSED,
+        AWAITING_USER_INPUT
     } SimulationStatus;
 
     virtual bool stepSimulationWithIdleCheck(Ogre::Real timeElapsed);
@@ -116,6 +120,9 @@ protected:
 
     Ogre::Real mIdleTime;
     Ogre::Real mTotalTime;
+
+    // User action
+    UserAction mSelectedAction;
 
 private:
     void initializeOgre();

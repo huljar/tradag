@@ -69,10 +69,10 @@ int main(int argc, char** argv)
     tradag.setShowPhysicsAnimation(animate);
     tradag.setDebugMarkInlierSet(true);
     //tradag.setDebugDrawBulletShapes(true);
-    //tradag.setObjectMustBeUpright(true);
-    //tradag.setGravity(-100, -900, -50);
-    tradag.dropObjectIntoScene(meshName, labelName, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true),
-                               cv::Vec3f(100, 0, 120), cv::Vec3f(0, 0, 0));
+    tradag.setObjectMustBeUpright(true);
+    tradag.setGravity(-40, -90, -5);
+    tradag.dropObjectIntoScene(meshName, labelName, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true), M_PI_2,
+                               cv::Vec3f(0, 0, 0), cv::Vec3f(0, 0, 0));
 
     return 0;
 }

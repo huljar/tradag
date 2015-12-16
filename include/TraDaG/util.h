@@ -31,7 +31,14 @@ namespace TraDaG {
     } PlaneFittingResultStatus;
 
     typedef enum {
-        SUCCESS_DROP
+        KEEP,
+        RETRY,
+        ABORT
+    } UserAction;
+
+    typedef enum {
+        SUCCESS_DROP,
+        PLANE_TOO_STEEP
     } ObjectDropResultStatus;
 
     typedef std::vector<unsigned short> LabelVec;
@@ -103,6 +110,7 @@ namespace TraDaG {
 
     namespace Constants {
         const float ObjectDropDistance = 500.0;
+        const Ogre::Degree MaxPlaneNormalToGravityAngle(30);
         const float RansacConfidenceInterval = 18.0;
         const float IdleTimeThreshold = 1.0; // in seconds
         const float TimeoutTimeThreshold = 12.0; // in seconds
