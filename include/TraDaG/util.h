@@ -100,7 +100,7 @@ namespace TraDaG {
         const bool ShowPhysicsAnimation = false;
         const bool MarkInlierSet = false;
         const bool DrawBulletShapes = false;
-        const cv::Vec3f Gravity(0, -9810, 0);
+        const Auto<cv::Vec3f> Gravity(true, cv::Vec3f(0, -9810, 0));
         const float ObjectRestitution = 0.4;
         const float ObjectFriction = 0.7;
         const float PlaneRestitution = 0.1;
@@ -110,10 +110,13 @@ namespace TraDaG {
 
     namespace Constants {
         const float ObjectDropDistance = 500.0;
-        const Ogre::Degree MaxPlaneNormalToGravityAngle(30);
+        const Ogre::Degree MaxPlaneNormalToGravityAngle(25);
         const float RansacConfidenceInterval = 18.0;
         const float IdleTimeThreshold = 1.0; // in seconds
         const float TimeoutTimeThreshold = 12.0; // in seconds
+
+        const Ogre::Vector3 DefaultCameraPosition = Ogre::Vector3::ZERO;
+        const Ogre::Vector3 DefaultCameraLookAt = Ogre::Vector3::NEGATIVE_UNIT_Z;
     }
 
     namespace Labels {

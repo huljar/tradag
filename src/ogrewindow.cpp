@@ -24,8 +24,8 @@ OgreWindow::OgreWindow()
     , mScene(NULL)
     , mSceneNode(NULL)
     , mVertexMarkings(NULL)
-    , mDefaultCameraPosition(0, 0, 0)
-    , mDefaultCameraLookAt(0, 0, -1)
+    , mInitialCameraPosition(Constants::DefaultCameraPosition)
+    , mInitialCameraLookAt(Constants::DefaultCameraLookAt)
     , mWorld(NULL)
     , mDebugDrawer(NULL)
     , mBounds(Ogre::Vector3(-10000, -10000, -10000), Ogre::Vector3(10000, 10000, 10000))
@@ -230,8 +230,8 @@ void OgreWindow::shutDownBullet() {
 
 void OgreWindow::createCamera() {
     mCamera = mSceneMgr->createCamera("MainCamera");
-    mCamera->setPosition(mDefaultCameraPosition);
-    mCamera->lookAt(mDefaultCameraLookAt);
+    mCamera->setPosition(mInitialCameraPosition);
+    mCamera->lookAt(mInitialCameraLookAt);
     mCamera->setNearClipDistance(5.0);
     mCamera->setFOVy(Ogre::Degree(55.0));
 
@@ -353,8 +353,8 @@ bool OgreWindow::queryObjectStillOnPlane() const {
 
 void OgreWindow::resetCamera() {
     if(mCamera) {
-        mCamera->setPosition(mDefaultCameraPosition);
-        mCamera->lookAt(mDefaultCameraLookAt);
+        mCamera->setPosition(mInitialCameraPosition);
+        mCamera->lookAt(mInitialCameraLookAt);
     }
 }
 
@@ -579,4 +579,12 @@ void OgreWindow::hide() {
 
 Ogre::SceneManager* OgreWindow::getSceneManager() {
     return mSceneMgr;
+}
+
+Ogre::Vector3 OgreWindow::getInitialCameraPosition() const {
+    return mInitialCameraPosition;
+}
+
+Ogre::Vector3 OgreWindow::getInitialCameraLookAt() const {
+    return mInitialCameraLookAt;
 }

@@ -48,6 +48,9 @@ public:
 
     virtual Ogre::SceneManager* getSceneManager();
 
+    virtual Ogre::Vector3 getInitialCameraPosition() const;
+    virtual Ogre::Vector3 getInitialCameraLookAt() const;
+
     // FrameListener methods
     virtual bool frameStarted(const Ogre::FrameEvent& evt);
     virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt);
@@ -107,8 +110,8 @@ protected:
     Ogre::ManualObject* mVertexMarkings;
 
     // Camera
-    Ogre::Vector3 mDefaultCameraPosition;
-    Ogre::Vector3 mDefaultCameraLookAt;
+    Ogre::Vector3 mInitialCameraPosition;
+    Ogre::Vector3 mInitialCameraLookAt;
 
     // Bullet physics
     OgreBulletDynamics::DynamicsWorld* mWorld;

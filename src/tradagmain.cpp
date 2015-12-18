@@ -106,14 +106,21 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     PlaneFittingResult planeFit = mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject);
 
     if(planeFit.result == SUCCESS_FIT) {
-        // Get gravity vector
-        Ogre::Vector3 gravity(mGravity[0], mGravity[1], mGravity[2]);
-
-        // If the plane does not face upwards (i.e. contrary to the gravity), invert its normal
+        // If the plane does not face the camera (i.e. the camera lies on the negative side of the plane), invert its normal (to make it face the camera)
         Ogre::Plane groundPlane(planeFit.plane);
-        if(planeFit.plane.normal.dotProduct(gravity) > 0) {
+        if(planeFit.plane.getDistance(mOgreWindow->getInitialCameraPosition()) < 0) {
             groundPlane.normal = -groundPlane.normal;
             groundPlane.d = -groundPlane.d;
+        }
+
+        // Calculate gravity vector
+        Ogre::Vector3 gravity = mGravity.automate
+                                ? groundPlane.normal.normalisedCopy() * Defaults::Gravity.manualValue[1]
+                                : Ogre::Vector3(mGravity.manualValue[0], mGravity.manualValue[1], mGravity.manualValue[2]);
+
+        // Abort if the angle between plane normal and gravity vector is too large
+        if(!mGravity.automate && groundPlane.normal.angleBetween(-gravity) > Constants::MaxPlaneNormalToGravityAngle) {
+            return ObjectDropResult(PLANE_TOO_STEEP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
         }
 
         // Mark the plane inlier set if requested
@@ -131,7 +138,7 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
                                        ? computeRotation(initialAzimuth, gravity)
                                        : convertCvMatToOgreMat(initialRotation.manualValue);
 
-        // Calculate/convert additional parameters
+        // Set linear velocity
         Ogre::Vector3 linearVelocity(initialVelocity[0], initialVelocity[1], initialVelocity[2]);
 
         // If the object shall be upright, ignore any torque passed to the function (anything else wouldn't make sense... right?)
@@ -455,16 +462,12 @@ void TradagMain::setDebugDrawBulletShapes(bool drawShapes) {
     mDrawBulletShapes = drawShapes;
 }
 
-cv::Vec3f TradagMain::getGravity() const {
+Auto<cv::Vec3f> TradagMain::getGravity() const {
     return mGravity;
 }
 
-void TradagMain::setGravity(const cv::Vec3f& gravity) {
+void TradagMain::setGravity(const Auto<cv::Vec3f>& gravity) {
     mGravity = gravity;
-}
-
-void TradagMain::setGravity(float x, float y, float z) {
-    mGravity = cv::Vec3f(x, y, z);
 }
 
 float TradagMain::getObjectRestitution() const {
