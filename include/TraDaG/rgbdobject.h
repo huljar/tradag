@@ -24,8 +24,14 @@ public:
 
     virtual void meshify();
 
-    Ogre::Vector3 depthToWorld(int x, int y, unsigned short depth) const;
-    Ogre::Vector2 worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const;
+    virtual Ogre::Vector3 depthToWorld(int u, int v, unsigned short depth) const;
+    virtual Ogre::Vector3 depthToWorld(Ogre::Real u, Ogre::Real v, Ogre::Real depth) const;
+    virtual Ogre::Vector3 depthToWorld(const Ogre::Vector3& uvdPoint) const;
+
+    virtual Ogre::Vector3 worldToDepth(Ogre::Real x, Ogre::Real y, Ogre::Real z) const;
+    virtual Ogre::Vector3 worldToDepth(const Ogre::Vector3& point) const;
+
+    virtual Ogre::Vector2 worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const;
 
     virtual Ogre::ManualObject* getManualObject();
 

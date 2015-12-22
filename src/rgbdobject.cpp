@@ -59,40 +59,63 @@ void RgbdObject::meshify() {
     }
 }
 
-Ogre::Vector3 RgbdObject::depthToWorld(int x, int y, unsigned short depth) const {
+Ogre::Vector3 RgbdObject::depthToWorld(int u, int v, unsigned short depth) const {
+    return depthToWorld((Ogre::Real)u, (Ogre::Real)v, (Ogre::Real)depth);
+}
+
+Ogre::Vector3 RgbdObject::depthToWorld(Ogre::Real u, Ogre::Real v, Ogre::Real depth) const {
     Ogre::Vector2 principalPoint = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbPrincipalPoint : mDepthPrincipalPoint;
     Ogre::Vector2 focalLength = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbFocalLength : mDepthFocalLength;
 
-    Ogre::Real retX = ((Ogre::Real)x - principalPoint.x) * (Ogre::Real)depth / focalLength.x;
+    Ogre::Real retX = (u - principalPoint.x) * depth / focalLength.x;
     // Ogre's y-vector points up, but OpenCV's y-vector points down (therefore negate result)
-    Ogre::Real retY = -(((Ogre::Real)y - principalPoint.y) * (Ogre::Real)depth / focalLength.y);
-    Ogre::Real retZ = -((Ogre::Real)depth);
+    Ogre::Real retY = -((v - principalPoint.y) * depth / focalLength.y);
+    Ogre::Real retZ = -depth;
 
     return Ogre::Vector3(retX, retY, retZ);
+}
+
+Ogre::Vector3 RgbdObject::depthToWorld(const Ogre::Vector3& uvdPoint) const {
+    return depthToWorld(uvdPoint.x, uvdPoint.y, uvdPoint.z);
+}
+
+Ogre::Vector3 RgbdObject::worldToDepth(Ogre::Real x, Ogre::Real y, Ogre::Real z) const {
+    Ogre::Vector2 principalPoint = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbPrincipalPoint : mDepthPrincipalPoint;
+    Ogre::Vector2 focalLength = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbFocalLength : mDepthFocalLength;
+
+    Ogre::Real retU = x * focalLength.x / (-z) + principalPoint.x;
+    Ogre::Real retV = (-y) * focalLength.y / (-z) + principalPoint.y;
+    Ogre::Real retD = -z;
+
+    return Ogre::Vector3(retU, retV, retD);
+}
+
+Ogre::Vector3 RgbdObject::worldToDepth(const Ogre::Vector3& point) const {
+    return worldToDepth(point.x, point.y, point.z);
 }
 
 Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const {
     Ogre::Vector3 transformed = rotation * point + translation;
 
-    Ogre::Real retX = std::round(transformed.x * mRgbFocalLength.x / (-transformed.z) + mRgbPrincipalPoint.x);
-    Ogre::Real retY = std::round((-transformed.y) * mRgbFocalLength.y / (-transformed.z) + mRgbPrincipalPoint.y);
+    Ogre::Real retU = std::round(transformed.x * mRgbFocalLength.x / (-transformed.z) + mRgbPrincipalPoint.x);
+    Ogre::Real retV = std::round((-transformed.y) * mRgbFocalLength.y / (-transformed.z) + mRgbPrincipalPoint.y);
 
     return Ogre::Vector2(
-            std::max(0.0f, std::min((Ogre::Real)mRgbImage.cols, retX)),
-            std::max(0.0f, std::min((Ogre::Real)mRgbImage.rows, retY)));
+            std::max(0.0f, std::min((Ogre::Real)mRgbImage.cols, retU)),
+            std::max(0.0f, std::min((Ogre::Real)mRgbImage.rows, retV)));
 }
 
 void RgbdObject::createVertices() {
-    for(int y = 0; y < mDepthImage.rows; ++y) {
-        for(int x = 0; x < mDepthImage.cols; ++x) {
+    for(int v = 0; v < mDepthImage.rows; ++v) {
+        for(int u = 0; u < mDepthImage.cols; ++u) {
             // Transform depth pixel to world coordinates
-            Ogre::Vector3 worldPoint = depthToWorld(x, y, mDepthImage.at<unsigned short>(y, x));
+            Ogre::Vector3 worldPoint = depthToWorld(u, v, mDepthImage.at<unsigned short>(v, u));
             mSceneObject->position(worldPoint);
 
             // Retrieve RGB pixel for this world point according to map mode
             cv::Vec3b rgbColor(255, 255, 255);
             if(mMapMode == MAPPED_RGB_TO_DEPTH || mMapMode == MAPPED_DEPTH_TO_RGB) {
-                rgbColor = mRgbImage.at<cv::Vec3b>(y, x);
+                rgbColor = mRgbImage.at<cv::Vec3b>(v, u);
             }
             else if(mMapMode == UNMAPPED_RGB_TO_DEPTH) {
                 Ogre::Vector2 rgbPixel = worldToRgb(worldPoint, mRotation, mTranslation);
@@ -110,16 +133,16 @@ void RgbdObject::createVertices() {
 }
 
 void RgbdObject::createIndices() {
-    for(int y = 0; y < mDepthImage.rows - 1; ++y) {
-        for(int x = 0; x < mDepthImage.cols - 1; ++x) {
+    for(int v = 0; v < mDepthImage.rows - 1; ++v) {
+        for(int u = 0; u < mDepthImage.cols - 1; ++u) {
             // Create 2 triangles (= 1 "square") per iteration
-            mSceneObject->index(pixelToIndex(x, y));
-            mSceneObject->index(pixelToIndex(x, y + 1));
-            mSceneObject->index(pixelToIndex(x + 1, y));
+            mSceneObject->index(pixelToIndex(u, v));
+            mSceneObject->index(pixelToIndex(u, v + 1));
+            mSceneObject->index(pixelToIndex(u + 1, v));
 
-            mSceneObject->index(pixelToIndex(x + 1, y));
-            mSceneObject->index(pixelToIndex(x, y + 1));
-            mSceneObject->index(pixelToIndex(x + 1, y + 1));
+            mSceneObject->index(pixelToIndex(u + 1, v));
+            mSceneObject->index(pixelToIndex(u, v + 1));
+            mSceneObject->index(pixelToIndex(u + 1, v + 1));
         }
     }
 }

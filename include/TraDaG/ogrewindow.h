@@ -33,8 +33,8 @@ public:
 
     virtual UserAction promptUserAction();
 
-    virtual float queryCoveredFraction() const;
-    virtual bool queryObjectStillOnPlane() const;
+    virtual Ogre::Real queryCoveredFraction(Ogre::Real workPlaneDepth = 50.0) const;
+    virtual bool queryObjectOnPlane() const;
 
     virtual void resetCamera();
 

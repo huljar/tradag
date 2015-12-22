@@ -6,6 +6,8 @@
 #include <BulletCollision/CollisionShapes/btConvexHullShape.h>
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
 
+#include <limits>
+
 using namespace TraDaG;
 
 OgreWindow::OgreWindow()
@@ -264,7 +266,7 @@ void OgreWindow::startSimulation(const Ogre::String& meshName, const Ogre::Vecto
     }
 
     // Create the new object
-    mObject = mSceneMgr->createEntity(meshName);
+    mObject = mSceneMgr->createEntity(Strings::ObjName, meshName);
     mObject->setCastShadows(castShadows); // TODO: when initializing Ogre, set stencil shadow type (and ambient light)
 
     // Create a scene node for the object if it doesn't already exist
@@ -327,7 +329,7 @@ void OgreWindow::startSimulation(const Ogre::String& meshName, const Ogre::Vecto
 
         if(!hidden()) {
             // Start rendering so the user can move the camera around
-            mRoot->startRendering(); // this method does not return until rendering is stopped
+            //mRoot->startRendering(); // this method does not return until rendering is stopped
             // TODO: show appropriate commands overlay, no, do this in promptUserAction
         }
     }
@@ -343,11 +345,96 @@ UserAction OgreWindow::promptUserAction() {
     return KEEP;
 }
 
-float OgreWindow::queryCoveredFraction() const {
+Ogre::Real OgreWindow::queryCoveredFraction(Ogre::Real workPlaneDepth) const {
+    if(mObject) {
+        // Find bounding box of object in image coordinates
+        const Ogre::AxisAlignedBox& boundingBox3D = mObject->getWorldBoundingBox(true);
 
+        std::pair<Ogre::Vector2, Ogre::Vector2> boundingBox2D(
+            Ogre::Vector2(std::numeric_limits<Ogre::Real>::max(), std::numeric_limits<Ogre::Real>::max()),
+            Ogre::Vector2(-std::numeric_limits<Ogre::Real>::max(), -std::numeric_limits<Ogre::Real>::max())
+        );
+
+        // Iterate over all corners of the 3D box
+        for(const Ogre::Vector3* it = boundingBox3D.getAllCorners(); it < boundingBox3D.getAllCorners() + 8; ++it) {
+
+            // Project the 3D point onto the 2D plane at a specific depth
+            Ogre::Vector3 pointXYZ = (*it) * workPlaneDepth / std::abs(it->z);
+
+            // Transform to (u, v, d)
+            Ogre::Vector3 pointUVD = mScene->worldToDepth(pointXYZ);
+
+            // Update bounding box
+            if(pointUVD.x < boundingBox2D.first.x) boundingBox2D.first.x = pointUVD.x;
+            if(pointUVD.y < boundingBox2D.first.y) boundingBox2D.first.y = pointUVD.y;
+
+            if(pointUVD.x > boundingBox2D.second.x) boundingBox2D.second.x = pointUVD.x;
+            if(pointUVD.y > boundingBox2D.second.y) boundingBox2D.second.y = pointUVD.y;
+        }
+
+        // Round bounding box
+        boundingBox2D.first.x = std::floor(boundingBox2D.first.x);
+        boundingBox2D.first.y = std::floor(boundingBox2D.first.y);
+        boundingBox2D.second.x = std::ceil(boundingBox2D.second.x);
+        boundingBox2D.second.y = std::ceil(boundingBox2D.second.y);
+
+        // Debug start
+//        std::cout << "Bounding box: (" << boundingBox2D.first.x << ", " << boundingBox2D.first.y
+//                  << "), (" << boundingBox2D.second.x << ", " << boundingBox2D.second.y << ")" << std::endl;
+//        Ogre::ManualObject* bbObj = mSceneMgr->createManualObject();
+//        bbObj->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_LINE_STRIP);
+//        bbObj->position(mScene->depthToWorld(boundingBox2D.first.x, boundingBox2D.first.y, workPlaneDepth));
+//        bbObj->position(mScene->depthToWorld(boundingBox2D.second.x, boundingBox2D.first.y, workPlaneDepth));
+//        bbObj->position(mScene->depthToWorld(boundingBox2D.second.x, boundingBox2D.second.y, workPlaneDepth));
+//        bbObj->position(mScene->depthToWorld(boundingBox2D.first.x, boundingBox2D.second.y, workPlaneDepth));
+//        bbObj->position(mScene->depthToWorld(boundingBox2D.first.x, boundingBox2D.first.y, workPlaneDepth));
+//        bbObj->end();
+//        mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(bbObj);
+//        mRoot->renderOneFrame();
+        // Debug end
+
+        // Temporarily detach RGBD scene from scene manager
+        mScene->getManualObject()->detachFromParent();
+
+        // Cast rays through all pixels inside the bounding box
+        std::vector<Ogre::Vector3> objectImgCoords;
+        OgreBites::OgreRay polygonRayCaster(mSceneMgr);
+
+        for(Ogre::Real v = boundingBox2D.first.y; v <= boundingBox2D.second.y; v += 1.0) {
+            for(Ogre::Real u = boundingBox2D.first.x; u <= boundingBox2D.second.x; u += 1.0) {
+                Ogre::Vector3 result;
+                Ogre::MovableObject* object;
+
+                if(polygonRayCaster.RaycastFromPoint(mInitialCameraPosition, mScene->depthToWorld(u, v, workPlaneDepth) - mInitialCameraPosition, result, object)
+                        && object == mObject) {
+                    objectImgCoords.push_back(mScene->worldToDepth(result));
+                }
+            }
+        }
+
+        // Reattach the RGBD scene
+        mSceneNode->attachObject(mScene->getManualObject());
+
+        // Test for all object image coordinates if the scene depth is smaller than the object depth
+        cv::Mat depthImg = mScene->getDepthImage();
+        size_t coveredPixels = 0;
+
+        for(std::vector<Ogre::Vector3>::iterator it = objectImgCoords.begin(); it != objectImgCoords.end(); ++it) {
+            int u = (int)std::round(it->x);
+            int v = (int)std::round(it->y);
+            if(it->z >= (Ogre::Real)depthImg.at<unsigned short>(v, u)) {
+                ++coveredPixels;
+            }
+        }
+
+        // Compute and return fraction
+        return (Ogre::Real)coveredPixels / (Ogre::Real)objectImgCoords.size();
+    }
+
+    return -1.0;
 }
 
-bool OgreWindow::queryObjectStillOnPlane() const {
+bool OgreWindow::queryObjectOnPlane() const {
 
 }
 
@@ -402,6 +489,7 @@ bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
 
             // TODO: show overlay with available commands
             std::cout << "Simulation finished, object is idle" << std::endl;
+            return false;
         }
         else if(mTotalTime >= Constants::TimeoutTimeThreshold) {
             mStatus = SIMULATION_TIMEOUT;
@@ -409,6 +497,7 @@ bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
 
             // TODO: show appropriate overlay
             std::cout << "Simulation timed out" << std::endl;
+            return false;
         }
     }
 
@@ -528,7 +617,8 @@ bool OgreWindow::getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3
                              (Ogre::Real)mouseY / (Ogre::Real)vp->getActualHeight());
 
     OgreBites::OgreRay polygonRayQuery(mSceneMgr);
-    return polygonRayQuery.RaycastFromPoint(mouseRay.getOrigin(), mouseRay.getDirection(), result);
+    Ogre::MovableObject* obj;
+    return polygonRayQuery.RaycastFromPoint(mouseRay.getOrigin(), mouseRay.getDirection(), result, obj);
 }
 
 OgreBulletCollisions::CollisionShape* OgreWindow::createConvexHull(Ogre::Entity* object) {
@@ -568,7 +658,7 @@ bool OgreWindow::hidden() const {
 
 void OgreWindow::show() {
     mWindow->setHidden(false);
-    Ogre::WindowEventUtilities::messagePump(); // necessary so OIS initializes correctly
+    Ogre::WindowEventUtilities::messagePump(); // necessary for OIS to initialize correctly
     initializeOIS();
 }
 

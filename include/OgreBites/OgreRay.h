@@ -8,12 +8,13 @@
 * OgreRay ray(sceneMgr);
 * //...
 *
-* 	Ogre::Vector3 result;
-* 	if( ray.RaycastFromPoint(m_camera->getPosition(), Ogre::Vector3 direction = m_camera->getDirection(), result) ){
-*		printf("Your mouse is over the position %f,%f,%f (which is textured)\n", result.x, result.y, result.z);
-*	}else{
-*		printf("No mouse collision\n Are you looking the sky ?\n");
-* 	}
+*   Ogre::Vector3 result;
+*   Ogre::MovableObject* object;
+*   if( ray.RaycastFromPoint(m_camera->getPosition(), Ogre::Vector3 direction = m_camera->getDirection(), result, object) ){
+*	    printf("Your mouse is over the position %f,%f,%f (which is textured)\n", result.x, result.y, result.z);
+*   }else{
+*       printf("No mouse collision\n Are you looking the sky ?\n");
+*   }
 * @endcode
 */
 
@@ -28,10 +29,12 @@ namespace OgreBites {
     {
         private:
             Ogre::RaySceneQuery* m_raySceneQuery;//!< Ray query
+            Ogre::SceneManager* m_sceneMgr;
 
         public:
             OgreRay( Ogre::SceneManager* sceneMgr );
-            bool RaycastFromPoint( const Ogre::Vector3& point, const Ogre::Vector3& normal, Ogre::Vector3& result );
+            ~OgreRay();
+            bool RaycastFromPoint(const Ogre::Vector3& point, const Ogre::Vector3& normal, Ogre::Vector3& result , Ogre::MovableObject*& object);
 
             static void GetMeshInformation( const Ogre::MeshPtr mesh, size_t &vertex_count, Ogre::Vector3*& vertices,  size_t& index_count, unsigned long*& indices, const Ogre::Vector3& position, const Ogre::Quaternion& orient, const Ogre::Vector3& scale );
             static void GetMeshInformation( const Ogre::ManualObject* manual, size_t& vertex_count, Ogre::Vector3*& vertices, size_t& index_count, unsigned long*& indices, const Ogre::Vector3& position, const Ogre::Quaternion& orient, const Ogre::Vector3& scale );
@@ -50,6 +53,15 @@ namespace OgreBites {
         if( !m_raySceneQuery )
             printf("[" __FILE__ "::%u] Failed to create Ogre::RaySceneQuery instance\n", __LINE__);
         m_raySceneQuery->setSortByDistance(true);
+        m_sceneMgr = sceneMgr;
+    }
+
+
+    /***************************************************************************//*!
+     * @brief Destructor
+     */
+    OgreRay::~OgreRay() {
+        m_sceneMgr->destroyQuery(m_raySceneQuery);
     }
 
 
@@ -58,9 +70,10 @@ namespace OgreBites {
     * @param[in] point		Point to analyse
     * @param[in] normal		Direction
     * @param[out] result	Result ( ONLY if return TRUE )
-    * @return TRUE if somethings found => {result} NOT EMPTY
+    * @param[out] object    Object of result ( ONLY if return TRUE )
+    * @return TRUE if somethings found => {result, object} NOT EMPTY
     */
-    bool OgreRay::RaycastFromPoint( const Ogre::Vector3& point, const Ogre::Vector3& normal, Ogre::Vector3& result )
+    bool OgreRay::RaycastFromPoint( const Ogre::Vector3& point, const Ogre::Vector3& normal, Ogre::Vector3& result, Ogre::MovableObject*& object )
     {
         // create the ray to test
         Ogre::Ray ray(point,normal);
@@ -83,6 +96,7 @@ namespace OgreBites {
         // we need to test every triangle of every object.
         Ogre::Real closest_distance = -1.0f;
         Ogre::Vector3 closest_result;
+        Ogre::MovableObject* closest_object;
         Ogre::RaySceneQueryResult& query_result = m_raySceneQuery->getLastResults();
         for( size_t qr_idx=0, size=query_result.size(); qr_idx<size; ++qr_idx )
         {
@@ -123,19 +137,45 @@ namespace OgreBites {
                     continue;
                 }
 
+                // test if the indices are valid and if not, use the vertices directly
+                bool use_indices = true;
+                for(size_t i = 0; i < index_count; ++i) {
+                    if(indices[i] >= vertex_count) {
+                        use_indices = false;
+                        break;
+                    }
+                }
+
                 // test for hitting individual triangles on the mesh
                 bool new_closest_found=false;
-                for ( int i=0; i<static_cast<int>(index_count); i += 3)
-                {
-                    // check for a hit against this triangle
-                    std::pair<bool, Ogre::Real> hit = Ogre::Math::intersects(ray, vertices[indices[i]], vertices[indices[i+1]], vertices[indices[i+2]], true, false);
-
-                    // if it was a hit check if its the closest
-                    if( hit.first && (closest_distance < 0.0f || hit.second < closest_distance) )
+                if(use_indices) {
+                    for ( int i=0; i<static_cast<int>(index_count); i += 3)
                     {
-                        // this is the closest so far, save it off
-                        closest_distance = hit.second;
-                        new_closest_found = true;
+                        // check for a hit against this triangle
+                        std::pair<bool, Ogre::Real> hit = Ogre::Math::intersects(ray, vertices[indices[i]], vertices[indices[i+1]], vertices[indices[i+2]], true, false);
+
+                        // if it was a hit check if its the closest
+                        if( hit.first && (closest_distance < 0.0f || hit.second < closest_distance) )
+                        {
+                            // this is the closest so far, save it off
+                            closest_distance = hit.second;
+                            new_closest_found = true;
+                        }
+                    }
+                }
+                else {
+                    for ( int i=0; i<static_cast<int>(vertex_count); i += 3)
+                    {
+                        // check for a hit against this triangle
+                        std::pair<bool, Ogre::Real> hit = Ogre::Math::intersects(ray, vertices[i], vertices[i+1], vertices[i+2], true, false);
+
+                        // if it was a hit check if its the closest
+                        if( hit.first && (closest_distance < 0.0f || hit.second < closest_distance) )
+                        {
+                            // this is the closest so far, save it off
+                            closest_distance = hit.second;
+                            new_closest_found = true;
+                        }
                     }
                 }
 
@@ -146,7 +186,10 @@ namespace OgreBites {
                 // if we found a new closest raycast for this object, update the
                 // closest_result before moving on to the next object.
                 if( new_closest_found )
+                {
                     closest_result = ray.getPoint(closest_distance);
+                    closest_object = query_result[qr_idx].movable;
+                }
             }
         }
 
@@ -154,6 +197,7 @@ namespace OgreBites {
         if( closest_distance >= 0.0f ){
             // raycast success
             result = closest_result;
+            object = closest_object;
             return true;
         }
         // raycast failed

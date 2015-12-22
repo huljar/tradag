@@ -160,6 +160,10 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
                                      mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity, mObjectCastShadows, mDrawBulletShapes,
                                      mShowPreviewWindow && mShowPhysicsAnimation);
 
+        // Get covered fraction of the object
+        Ogre::Real covered = mOgreWindow->queryCoveredFraction();
+        std::cout << "Covered fraction: " << covered << std::endl;
+
         // Select an action describing what to do with the result
         UserAction action = KEEP;
         if(!mOgreWindow->hidden()) {
