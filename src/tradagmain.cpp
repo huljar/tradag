@@ -89,7 +89,7 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage,
 
     mImageLabeling = new ImageLabeling(labelImage, labelMap, labelMode);
 
-    mOgreWindow->setScene(mRgbdObject);
+    mOgreWindow->setScene(mRgbdObject, true);
 }
 
 void TradagMain::updateMesh() {
@@ -103,83 +103,95 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
 
     // Calculate plane from labels using RANSAC
     // TODO: handle non-success, re-use previous planes
-    PlaneFittingResult planeFit = mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject);
+    PlaneFitResult planeFit = mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject);
 
-    if(planeFit.result == SUCCESS_FIT) {
-        // If the plane does not face the camera (i.e. the camera lies on the negative side of the plane), invert its normal (to make it face the camera)
-        Ogre::Plane groundPlane(planeFit.plane);
-        if(planeFit.plane.getDistance(mOgreWindow->getInitialCameraPosition()) < 0) {
-            groundPlane.normal = -groundPlane.normal;
-            groundPlane.d = -groundPlane.d;
-        }
+    if(planeFit.status != PF_SUCCESS)
+        return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0)); // TODO: use different error
 
-        // Calculate gravity vector
-        Ogre::Vector3 gravity = mGravity.automate
-                                ? groundPlane.normal.normalisedCopy() * Defaults::Gravity.manualValue[1]
-                                : Ogre::Vector3(mGravity.manualValue[0], mGravity.manualValue[1], mGravity.manualValue[2]);
-
-        // Abort if the angle between plane normal and gravity vector is too large
-        if(!mGravity.automate && groundPlane.normal.angleBetween(-gravity) > Constants::MaxPlaneNormalToGravityAngle) {
-            return ObjectDropResult(PLANE_TOO_STEEP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
-        }
-
-        // Mark the plane inlier set if requested
-        if(mMarkInlierSet) {
-            mOgreWindow->markVertices(planeFit.vertices);
-        }
-
-        // Calculate initial position
-        Ogre::Vector3 actualPosition = initialPosition.automate
-                                       ? computePosition(planeFit.vertices, gravity)
-                                       : Ogre::Vector3(initialPosition.manualValue[0], initialPosition.manualValue[1], initialPosition.manualValue[2]);
-
-        // Calculate initial rotation
-        Ogre::Matrix3 actualRotation = initialRotation.automate
-                                       ? computeRotation(initialAzimuth, gravity)
-                                       : convertCvMatToOgreMat(initialRotation.manualValue);
-
-        // Set linear velocity
-        Ogre::Vector3 linearVelocity(initialVelocity[0], initialVelocity[1], initialVelocity[2]);
-
-        // If the object shall be upright, ignore any torque passed to the function (anything else wouldn't make sense... right?)
-        Ogre::Vector3 angularVelocity = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3(initialTorque[0], initialTorque[1], initialTorque[2]);
-
-        // Pass all-zero vector as angular factor to prevent random infinite object spinning
-        // (yes, this can happen if you allow yaw rotation, i.e. if you pass (0, 1, 0))
-        // To emulate yaw rotation, one can pass a random initial rotation around the y-axis to this function
-        Ogre::Vector3 angularFactor = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3::UNIT_SCALE;
-
-        // Display the window if requested
-        if(mShowPreviewWindow && mOgreWindow->hidden())
-            mOgreWindow->show();
-
-        // Simulate (with animation only if needed)
-        // This function does not return until the simulation is completed
-        // TODO: objectCoveredFraction, maxAttempts
-        mOgreWindow->startSimulation(meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor, mObjectRestitution,
-                                     mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity, mObjectCastShadows, mDrawBulletShapes,
-                                     mShowPreviewWindow && mShowPhysicsAnimation);
-
-        // Get covered fraction of the object
-        Ogre::Real covered = mOgreWindow->queryCoveredFraction();
-        std::cout << "Covered fraction: " << covered << std::endl;
-
-        // Select an action describing what to do with the result
-        UserAction action = KEEP;
-        if(!mOgreWindow->hidden()) {
-            action = mOgreWindow->promptUserAction();
-            // TODO
-        }
-        else {
-            // Auto-select action
-            action = KEEP;
-        }
-
-        // TODO: render and return the final image
-        return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
+    // If the plane does not face the camera (i.e. the camera lies on the negative side of the plane), invert its normal (to make it face the camera)
+    Ogre::Plane groundPlane(planeFit.plane);
+    if(planeFit.plane.getDistance(mOgreWindow->getInitialCameraPosition()) < 0) {
+        groundPlane.normal = -groundPlane.normal;
+        groundPlane.d = -groundPlane.d;
     }
 
-    return ObjectDropResult(SUCCESS_DROP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0)); // TODO
+    // Calculate gravity vector
+    Ogre::Vector3 gravity = mGravity.automate
+                            ? groundPlane.normal.normalisedCopy() * Defaults::Gravity.manualValue[1]
+                            : Ogre::Vector3(mGravity.manualValue[0], mGravity.manualValue[1], mGravity.manualValue[2]);
+
+    // Abort if the angle between plane normal and gravity vector is too large
+    if(!mGravity.automate && groundPlane.normal.angleBetween(-gravity) > Constants::MaxPlaneNormalToGravityAngle) {
+        return ObjectDropResult(OD_PLANE_TOO_STEEP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
+    }
+
+    // Mark the plane inlier set if requested
+    if(mMarkInlierSet) {
+        mOgreWindow->markVertices(planeFit.vertices);
+    }
+
+    // Calculate initial position
+    Ogre::Vector3 actualPosition = initialPosition.automate
+                                   ? computePosition(planeFit.vertices, gravity)
+                                   : Ogre::Vector3(initialPosition.manualValue[0], initialPosition.manualValue[1], initialPosition.manualValue[2]);
+
+    // Calculate initial rotation
+    Ogre::Matrix3 actualRotation = initialRotation.automate
+                                   ? computeRotation(initialAzimuth, gravity)
+                                   : convertCvMatToOgreMat(initialRotation.manualValue);
+
+    // Set linear velocity
+    Ogre::Vector3 linearVelocity(initialVelocity[0], initialVelocity[1], initialVelocity[2]);
+
+    // If the object shall be upright, ignore any torque passed to the function (anything else wouldn't make sense... right?)
+    Ogre::Vector3 angularVelocity = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3(initialTorque[0], initialTorque[1], initialTorque[2]);
+
+    // Pass all-zero vector as angular factor to prevent random infinite object spinning
+    // (yes, this can happen if you allow yaw rotation, i.e. if you pass (0, 1, 0))
+    // To emulate yaw rotation, one can pass a random initial rotation around the y-axis to this function
+    Ogre::Vector3 angularFactor = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3::UNIT_SCALE;
+
+    // Display the window to view animation
+    if(mShowPreviewWindow && mShowPhysicsAnimation && mOgreWindow->hidden())
+        mOgreWindow->show();
+
+    // Simulate (with animation only if needed)
+    // This function does not return until the simulation is completed
+    // TODO: objectCoveredFraction, maxAttempts
+    SimulationResult result = mOgreWindow->startSimulation(
+                                  meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor,
+                                  mObjectRestitution, mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity,
+                                  mObjectCastShadows, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation
+                              );
+
+    // Get covered fraction of the object
+    Ogre::Real covered = mOgreWindow->queryCoveredFraction();
+
+    // If a preview without animation was requested, display the window now
+    if(mShowPreviewWindow && !mShowPhysicsAnimation && mOgreWindow->hidden())
+        mOgreWindow->show();
+
+    // Select an action describing what to do with the result
+    UserAction action = UA_KEEP;
+    if(!mOgreWindow->hidden()) {
+        action = mOgreWindow->promptUserAction();
+        // TODO
+    }
+    else {
+        // Auto-select action
+        action = UA_KEEP;
+    }
+
+    // Remove vertex markings
+    mOgreWindow->unmarkVertices();
+
+    // Get and show rendered image
+    cv::Mat renderedImage;
+    if(mOgreWindow->render(renderedImage)) {
+        return ObjectDropResult(OD_SUCCESS, renderedImage, covered, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0)); // TODO: set rot, trans
+    }
+
+    return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
 }
 
 Ogre::Vector3 TradagMain::computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
@@ -280,7 +292,7 @@ void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage,
     mImageLabeling = new ImageLabeling(labelImage, labelMap, tmpLM);
 
     // Notify OgreWindow of the new scene
-    mOgreWindow->setScene(mRgbdObject);
+    mOgreWindow->setScene(mRgbdObject, true);
 }
 
 bool TradagMain::loadNewScene(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath, const LabelMap& labelMap) {

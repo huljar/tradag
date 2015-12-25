@@ -12,39 +12,46 @@
 namespace TraDaG {
 
     typedef enum {
-        MAPPED_RGB_TO_DEPTH,
-        MAPPED_DEPTH_TO_RGB,
-        UNMAPPED_RGB_TO_DEPTH,
-        UNMAPPED_DEPTH_TO_RGB
+        MM_MAPPED_RGB_TO_DEPTH,
+        MM_MAPPED_DEPTH_TO_RGB,
+        MM_UNMAPPED_RGB_TO_DEPTH,
+        MM_UNMAPPED_DEPTH_TO_RGB
     } MapMode;
 
     typedef enum {
-        LABELS_ON_DEPTH_IMAGE,
-        LABELS_ON_RGB_IMAGE
+        LM_DEPTH_IMAGE,
+        LM_RGB_IMAGE
     } LabelMode;
 
     typedef enum {
-        SUCCESS_FIT,
-        DEPTH_LABEL_DIFFERENT_DIMENSIONS,
-        INVALID_LABEL,
-        LABEL_NOT_IN_IMAGE
-    } PlaneFittingResultStatus;
+        PF_SUCCESS,
+        PF_DIFFERENT_DIMENSIONS,
+        PF_INVALID_LABEL,
+        PF_LABEL_NOT_IN_IMAGE
+    } PlaneFitStatus;
 
     typedef enum {
-        KEEP,
-        RETRY,
-        ABORT
+        SR_SUCCESS,
+        SR_ABORTED,
+        SR_TIMEOUT
+    } SimulationResult;
+
+    typedef enum {
+        UA_KEEP,
+        UA_RETRY,
+        UA_ABORT
     } UserAction;
 
     typedef enum {
-        SUCCESS_DROP,
-        PLANE_TOO_STEEP
-    } ObjectDropResultStatus;
+        OD_SUCCESS,
+        OD_PLANE_TOO_STEEP,
+        OD_UNKNOWN_ERROR
+    } ObjectDropStatus;
 
     typedef std::vector<unsigned short> LabelVec;
     typedef std::map<std::string, LabelVec> LabelMap;
 
-    template<class T>
+    template<typename T>
     struct Auto {
         Auto(bool automate, const T& manualValue = T())
             : automate(automate), manualValue(manualValue)
@@ -55,25 +62,25 @@ namespace TraDaG {
         T manualValue;
     };
 
-    struct PlaneFittingResult {
-        PlaneFittingResult(PlaneFittingResultStatus res, const Ogre::Plane& planeFound = Ogre::Plane(),
+    struct PlaneFitResult {
+        PlaneFitResult(PlaneFitStatus status, const Ogre::Plane& planeFound = Ogre::Plane(),
                            const std::vector<Ogre::Vector3>& planeVertices = std::vector<Ogre::Vector3>())
-            : result(res), plane(planeFound), vertices(planeVertices)
+            : status(status), plane(planeFound), vertices(planeVertices)
         {
         }
 
-        const PlaneFittingResultStatus result;
+        const PlaneFitStatus status;
         const Ogre::Plane plane;
         const std::vector<Ogre::Vector3> vertices;
     };
 
     struct ObjectDropResult {
-        ObjectDropResult(ObjectDropResultStatus res, const cv::Mat& image, float covered, const cv::Matx33f& rot, const cv::Vec3f& trans)
-            : result(res), renderedImage(image), fractionCovered(covered), rotation(rot), translation(trans)
+        ObjectDropResult(ObjectDropStatus status, const cv::Mat& image, float covered, const cv::Matx33f& rot, const cv::Vec3f& trans)
+            : status(status), renderedImage(image), fractionCovered(covered), rotation(rot), translation(trans)
         {
         }
 
-        const ObjectDropResultStatus result;
+        const ObjectDropStatus status;
         const cv::Mat renderedImage;
         const float fractionCovered;
         const cv::Matx33f rotation;
@@ -89,7 +96,8 @@ namespace TraDaG {
         const std::string ObjRigidBodyName = "objectBody";
         const std::string PlaneRigidBodyName = "planeBody";
 
-        const std::string RenderWindowName = "Training Data Generator Preview Window";
+        const std::string PreviewWindowName = "Training Data Generator Preview Window";
+        const std::string RenderWindowName = "Training Data Generator Render Window";
     }
 
     namespace Defaults {

@@ -19,19 +19,19 @@ ImageLabeling::~ImageLabeling() {
 
 }
 
-PlaneFittingResult ImageLabeling::getPlaneForLabel(const std::string& label, const RgbdObject* scene) const {
+PlaneFitResult ImageLabeling::getPlaneForLabel(const std::string& label, const RgbdObject* scene) const {
     // Get depth image from scene
     const cv::Mat depthImage = scene->getDepthImage();
 
     // Check if the depth image has the same dimensions as the label image
     // TODO: what to do if the labels are defined on RGB image?
     if(depthImage.rows != mLabelImage.rows || depthImage.cols != mLabelImage.cols)
-        return PlaneFittingResult(DEPTH_LABEL_DIFFERENT_DIMENSIONS);
+        return PlaneFitResult(PF_DIFFERENT_DIMENSIONS);
 
     // Check if the label is contained in the label map
     LabelMap::const_iterator entry = mLabelMap.find(label);
     if(entry == mLabelMap.end())
-        return PlaneFittingResult(INVALID_LABEL);
+        return PlaneFitResult(PF_INVALID_LABEL);
 
     LabelVec labelValues = entry->second;
 
@@ -53,7 +53,7 @@ PlaneFittingResult ImageLabeling::getPlaneForLabel(const std::string& label, con
 
     // If none of the labels is contained in the image, abort
     if(actualLabels.size() == 0)
-        return PlaneFittingResult(LABEL_NOT_IN_IMAGE);
+        return PlaneFitResult(PF_LABEL_NOT_IN_IMAGE);
 
     // Select a random valid label
     // TODO: random?
@@ -159,7 +159,7 @@ PlaneFittingResult ImageLabeling::getPlaneForLabel(const std::string& label, con
 
     // TODO: apply least-squares-fit using only the remaining inliers?
 
-    return PlaneFittingResult(SUCCESS_FIT, result.first, planePoints);
+    return PlaneFitResult(PF_SUCCESS, result.first, planePoints);
 }
 
 cv::Mat ImageLabeling::getLabelImage() {

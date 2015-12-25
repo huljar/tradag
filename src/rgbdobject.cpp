@@ -64,8 +64,8 @@ Ogre::Vector3 RgbdObject::depthToWorld(int u, int v, unsigned short depth) const
 }
 
 Ogre::Vector3 RgbdObject::depthToWorld(Ogre::Real u, Ogre::Real v, Ogre::Real depth) const {
-    Ogre::Vector2 principalPoint = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbPrincipalPoint : mDepthPrincipalPoint;
-    Ogre::Vector2 focalLength = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbFocalLength : mDepthFocalLength;
+    Ogre::Vector2 principalPoint = mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRgbPrincipalPoint : mDepthPrincipalPoint;
+    Ogre::Vector2 focalLength = mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRgbFocalLength : mDepthFocalLength;
 
     Ogre::Real retX = (u - principalPoint.x) * depth / focalLength.x;
     // Ogre's y-vector points up, but OpenCV's y-vector points down (therefore negate result)
@@ -80,8 +80,8 @@ Ogre::Vector3 RgbdObject::depthToWorld(const Ogre::Vector3& uvdPoint) const {
 }
 
 Ogre::Vector3 RgbdObject::worldToDepth(Ogre::Real x, Ogre::Real y, Ogre::Real z) const {
-    Ogre::Vector2 principalPoint = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbPrincipalPoint : mDepthPrincipalPoint;
-    Ogre::Vector2 focalLength = mMapMode == MAPPED_DEPTH_TO_RGB ? mRgbFocalLength : mDepthFocalLength;
+    Ogre::Vector2 principalPoint = mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRgbPrincipalPoint : mDepthPrincipalPoint;
+    Ogre::Vector2 focalLength = mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRgbFocalLength : mDepthFocalLength;
 
     Ogre::Real retU = x * focalLength.x / (-z) + principalPoint.x;
     Ogre::Real retV = (-y) * focalLength.y / (-z) + principalPoint.y;
@@ -114,14 +114,14 @@ void RgbdObject::createVertices() {
 
             // Retrieve RGB pixel for this world point according to map mode
             cv::Vec3b rgbColor(255, 255, 255);
-            if(mMapMode == MAPPED_RGB_TO_DEPTH || mMapMode == MAPPED_DEPTH_TO_RGB) {
+            if(mMapMode == MM_MAPPED_RGB_TO_DEPTH || mMapMode == MM_MAPPED_DEPTH_TO_RGB) {
                 rgbColor = mRgbImage.at<cv::Vec3b>(v, u);
             }
-            else if(mMapMode == UNMAPPED_RGB_TO_DEPTH) {
+            else if(mMapMode == MM_UNMAPPED_RGB_TO_DEPTH) {
                 Ogre::Vector2 rgbPixel = worldToRgb(worldPoint, mRotation, mTranslation);
                 rgbColor = mRgbImage.at<cv::Vec3b>(rgbPixel.y, rgbPixel.x);
             }
-            else if(mMapMode == UNMAPPED_DEPTH_TO_RGB) {
+            else if(mMapMode == MM_UNMAPPED_DEPTH_TO_RGB) {
                 Ogre::Vector2 rgbPixel = worldToRgb(worldPoint, mRotation.Transpose(), -mTranslation); // TODO: check if correct
                 rgbColor = mRgbImage.at<cv::Vec3b>(rgbPixel.y, rgbPixel.x);
             }

@@ -4,6 +4,7 @@
 #include <TraDaG/util.h>
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -67,12 +68,20 @@ int main(int argc, char** argv)
     TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, depthPrincipalPoint, depthFocalLength);
     tradag.setShowPreviewWindow(preview);
     tradag.setShowPhysicsAnimation(animate);
-    tradag.setDebugMarkInlierSet(true);
+    //tradag.setDebugMarkInlierSet(true);
     //tradag.setDebugDrawBulletShapes(true);
     //tradag.setObjectMustBeUpright(true);
     //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -2000, 1000)));
-    tradag.dropObjectIntoScene(meshName, labelName, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true), M_PI_2,
-                               cv::Vec3f(0, 0, 0), cv::Vec3f(0, 0, 0));
+    ObjectDropResult result = tradag.dropObjectIntoScene(meshName, labelName, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true), M_PI_2,
+                                                         cv::Vec3f(0, 0, 0), cv::Vec3f(0, 0, 0));
+
+    if(result.status == OD_SUCCESS) {
+        std::cout << "Success! Fraction covered: " << result.fractionCovered << std::endl;
+
+        cv::namedWindow("Test Display Window");
+        cv::imshow("Test Display Window", result.renderedImage);
+        cv::waitKey(0);
+    }
 
     return 0;
 }

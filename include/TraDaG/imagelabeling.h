@@ -20,7 +20,7 @@ public:
     ImageLabeling(const cv::Mat& labelImage, const LabelMap& labelMap, LabelMode labelMode);
     virtual ~ImageLabeling();
 
-    virtual PlaneFittingResult getPlaneForLabel(const std::string& label, const RgbdObject* scene) const;
+    virtual PlaneFitResult getPlaneForLabel(const std::string& label, const RgbdObject* scene) const;
 
     virtual cv::Mat getLabelImage();
     virtual const cv::Mat getLabelImage() const;

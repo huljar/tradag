@@ -2,6 +2,7 @@
 #define OGREWINDOW_H
 
 #include <TraDaG/rgbdobject.h>
+#include <TraDaG/util.h>
 
 #include <Ogre.h>
 #include <OgreBites/SdkCameraMan.h>
@@ -23,24 +24,26 @@ public:
     OgreWindow();
     virtual ~OgreWindow();
 
-    virtual void renderOneFrame();
-
-    virtual void startSimulation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation, Ogre::Real scale,
-                                 const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
-                                 Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
-                                 const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
-                                 const Ogre::Vector3& gravity, bool castShadows, bool drawBulletShapes, bool animate);
+    virtual SimulationResult startSimulation(
+            const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation, Ogre::Real scale,
+            const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
+            Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
+            const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
+            const Ogre::Vector3& gravity, bool castShadows, bool drawBulletShapes, bool animate);
 
     virtual UserAction promptUserAction();
 
     virtual Ogre::Real queryCoveredFraction(Ogre::Real workPlaneDepth = 50.0) const;
     virtual bool queryObjectOnPlane() const;
 
+    virtual bool render(cv::Mat& result, Ogre::Real workPlaneDepth = 50.0) const;
+
     virtual void resetCamera();
 
-    virtual void setScene(RgbdObject* scene);
+    virtual void setScene(RgbdObject* scene, bool updateCameraFOV = false, Ogre::Real workPlaneDepth = 50.0);
 
     virtual void markVertices(const std::vector<Ogre::Vector3>& vertices);
+    virtual void unmarkVertices();
 
     virtual bool hidden() const;
     virtual void show();
@@ -79,8 +82,6 @@ protected:
     } SimulationStatus;
 
     virtual bool stepSimulationWithIdleCheck(Ogre::Real timeElapsed);
-
-    virtual void createCamera();
 
     virtual bool getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3& result);
 
@@ -123,9 +124,6 @@ protected:
 
     Ogre::Real mIdleTime;
     Ogre::Real mTotalTime;
-
-    // User action
-    UserAction mSelectedAction;
 
 private:
     void initializeOgre();

@@ -33,7 +33,6 @@ OgreWindow::OgreWindow()
     , mBounds(Ogre::Vector3(-10000, -10000, -10000), Ogre::Vector3(10000, 10000, 10000))
     , mIdleTime(0)
     , mTotalTime(0)
-    , mSelectedAction(KEEP)
 {
     initializeOgre();
 }
@@ -115,7 +114,7 @@ void OgreWindow::initializeOgre() {
     windowParams["vsync"] = "true";
     windowParams["hidden"] = "true";
 
-    mWindow = mRoot->createRenderWindow(Strings::RenderWindowName, 1024, 768, false, &windowParams);
+    mWindow = mRoot->createRenderWindow(Strings::PreviewWindowName, 1024, 768, false, &windowParams);
 
     // Init resources
     Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
@@ -125,11 +124,19 @@ void OgreWindow::initializeOgre() {
     mSceneMgr = mRoot->createSceneManager(Ogre::ST_GENERIC);
 
     // Create camera
-    createCamera();
+    mCamera = mSceneMgr->createCamera("MainCamera");
+    mCamera->setPosition(mInitialCameraPosition);
+    mCamera->lookAt(mInitialCameraLookAt);
+    mCamera->setNearClipDistance(5.0);
+    mCamera->setFOVy(Ogre::Degree(55.0));
+
+    // Create camera controller
+    mCameraMan = new OgreBites::SdkCameraMan(mCamera);
+    mCameraMan->setTopSpeed(300);
 
     // Add viewport
     Ogre::Viewport* vp = mWindow->addViewport(mCamera);
-    vp->setBackgroundColour(Ogre::ColourValue(0, 0, 0));
+    vp->setBackgroundColour(Ogre::ColourValue::Black);
 
     mCamera->setAspectRatio(Ogre::Real(vp->getActualWidth()) / Ogre::Real(vp->getActualHeight()));
     mCamera->setAutoAspectRatio(true);
@@ -230,27 +237,13 @@ void OgreWindow::shutDownBullet() {
     }
 }
 
-void OgreWindow::createCamera() {
-    mCamera = mSceneMgr->createCamera("MainCamera");
-    mCamera->setPosition(mInitialCameraPosition);
-    mCamera->lookAt(mInitialCameraLookAt);
-    mCamera->setNearClipDistance(5.0);
-    mCamera->setFOVy(Ogre::Degree(55.0));
-
-    // Create camera controller
-    mCameraMan = new OgreBites::SdkCameraMan(mCamera);
-    mCameraMan->setTopSpeed(300);
-}
-
-void OgreWindow::renderOneFrame() {
-    mRoot->renderOneFrame();
-}
-
-void OgreWindow::startSimulation(const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation, Ogre::Real scale,
-                                 const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
-                                 Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
-                                 const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
-                                 const Ogre::Vector3& gravity, bool castShadows, bool drawBulletShapes, bool animate) {
+SimulationResult OgreWindow::startSimulation(
+        const Ogre::String& meshName, const Ogre::Vector3& initialPosition,
+        const Ogre::Matrix3& initialRotation, Ogre::Real scale,
+        const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
+        Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
+        const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
+        const Ogre::Vector3& gravity, bool castShadows, bool drawBulletShapes, bool animate) {
 
     // Initialize Bullet physics
     initializeBullet(gravity);
@@ -305,9 +298,18 @@ void OgreWindow::startSimulation(const Ogre::String& meshName, const Ogre::Vecto
 
     // Run simulation
     mStatus = SIMULATION_RUNNING;
+    SimulationResult ret = SR_SUCCESS;
+
     if(animate && !hidden()) {
         // Enter rendering loop; the simulation steps will be performed in the rendering callbacks
         mRoot->startRendering(); // this method does not return until rendering is stopped
+
+        if(mStatus == SIMULATION_TIMEOUT) {
+            ret = SR_TIMEOUT;
+        }
+        else if(mStatus == WINDOW_CLOSED) {
+            ret = SR_ABORTED;
+        }
     }
     else {
         // Don't use real time for simulation
@@ -316,33 +318,27 @@ void OgreWindow::startSimulation(const Ogre::String& meshName, const Ogre::Vecto
 
             if(idle) {
                 mStatus = SIMULATION_FINISHED;
-                std::cout << "Simulation finished, object is idle" << std::endl;
             }
             else if(mTotalTime >= Constants::TimeoutTimeThreshold) {
                 mStatus = SIMULATION_TIMEOUT;
-                std::cout << "Simulation timed out" << std::endl;
+                ret = SR_TIMEOUT;
             }
-        }
-
-        // Shut down Bullet after the simulation
-        shutDownBullet();
-
-        if(!hidden()) {
-            // Start rendering so the user can move the camera around
-            //mRoot->startRendering(); // this method does not return until rendering is stopped
-            // TODO: show appropriate commands overlay, no, do this in promptUserAction
         }
     }
 
-    // TODO: return user-selected action; if window is hidden, auto-select action and return
+    // Shut down Bullet after the simulation
+    shutDownBullet();
+
+    return ret;
 }
 
 UserAction OgreWindow::promptUserAction() {
     mStatus = AWAITING_USER_INPUT;
     // TODO: show overlay, start rendering, wait for key input
+    // TODO: when window is hidden, somehow auto-select action?
 
     mStatus = READY;
-    return KEEP;
+    return UA_KEEP;
 }
 
 Ogre::Real OgreWindow::queryCoveredFraction(Ogre::Real workPlaneDepth) const {
@@ -438,6 +434,104 @@ bool OgreWindow::queryObjectOnPlane() const {
 
 }
 
+bool OgreWindow::render(cv::Mat& result, Ogre::Real workPlaneDepth) const {
+    // Determine aspect ratio
+    const cv::Mat depthImg = mScene->getDepthImage();
+    Ogre::Vector3 topLeft = mScene->depthToWorld(0.0, 0.0, workPlaneDepth); // Explicit type statement, otherwise call is ambiguous
+    Ogre::Vector3 topRight = mScene->depthToWorld((Ogre::Real)(depthImg.cols - 1), 0.0, workPlaneDepth);
+    Ogre::Vector3 bottomLeft = mScene->depthToWorld(0.0, (Ogre::Real)(depthImg.rows - 1), workPlaneDepth);
+
+    Ogre::Real width = topRight.x - topLeft.x;
+    Ogre::Real height = topLeft.y - bottomLeft.y;
+    if(height == 0.0)
+        return false;
+
+    // Determine vertical field of view (horizontal fov is automatically adjusted according to aspect ratio)
+    Ogre::Vector3 top(0, topLeft.y, topLeft.z);
+    Ogre::Vector3 bottom(0, bottomLeft.y, bottomLeft.z);
+    Ogre::Radian verticalFOV(std::max(
+        top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
+        bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
+    ) * 2.0);
+
+    // Create a hidden render window
+    Ogre::NameValuePairList windowParams;
+    windowParams["vsync"] = "true";
+    windowParams["hidden"] = "true";
+
+    Ogre::uint32 imgWidth = depthImg.cols * 1.2; // render in larger resolution because we crop black edges later
+    Ogre::uint32 imgHeight = depthImg.rows * 1.2;
+
+    Ogre::RenderWindow* renderWin = mRoot->createRenderWindow(Strings::RenderWindowName, imgWidth, imgHeight, false, &windowParams);
+
+    // Create camera to use for rendering
+    Ogre::Camera* renderCam = mSceneMgr->createCamera("RenderCamera");
+
+    // Set camera parameters
+    renderCam->setPosition(mInitialCameraPosition);
+    renderCam->lookAt(mInitialCameraLookAt);
+    renderCam->setNearClipDistance(5.0);
+    renderCam->setFOVy(verticalFOV);
+    renderCam->setAspectRatio(width / height);
+
+    // Add viewport
+    Ogre::Viewport* renderViewport = renderWin->addViewport(renderCam);
+    renderViewport->setBackgroundColour(Ogre::ColourValue::Black);
+    renderViewport->setOverlaysEnabled(false);
+
+    // Render current frame
+    mRoot->renderOneFrame(); // ensure that we are up to date
+    renderWin->update(); // necessary, otherwise the captured screenshot may contain junk data
+
+    // Allocate storage space
+    Ogre::PixelFormat renderFormat = renderWin->suggestPixelFormat();
+    size_t bytesPerPixel = Ogre::PixelUtil::getNumElemBytes(renderFormat);
+    unsigned char* pixelData = new unsigned char[imgWidth * imgHeight * bytesPerPixel];
+
+    // Get window contents
+    Ogre::PixelBox renderPixelBox(imgWidth, imgHeight, 1, renderFormat, pixelData);
+    renderWin->copyContentsToMemory(renderPixelBox);
+
+    // Convert and copy to cv::Mat
+    cv::Mat renderImage(renderPixelBox.getHeight(), renderPixelBox.getWidth(), CV_8UC3);
+    for(int y = 0; y < renderImage.rows; ++y) {
+        for(int x = 0; x < renderImage.cols; ++x) {
+            Ogre::ColourValue value = renderPixelBox.getColourAt(x, y, 0);
+            // OpenCV uses BGR color channel ordering and (row, col) pixel addresses
+            renderImage.at<cv::Vec3b>(y, x) = cv::Vec3b(
+                static_cast<unsigned char>(value.b * 255.0),
+                static_cast<unsigned char>(value.g * 255.0),
+                static_cast<unsigned char>(value.r * 255.0)
+            );
+        }
+    }
+
+    // Crop and resize image
+    // Cropping is necessary because the image has black borders if the principal point of the camera is not the middle of the image
+    cv::Mat renderImageGray;
+    cv::cvtColor(renderImage, renderImageGray, CV_BGR2GRAY);
+
+    // Gather all non-black points
+    std::vector<cv::Point> points;
+    for (cv::Mat_<unsigned char>::iterator it = renderImageGray.begin<unsigned char>(); it != renderImageGray.end<unsigned char>(); ++it) {
+        if(*it) points.push_back(it.pos());
+    }
+
+    // Compute bounding rectangle of points
+    cv::Rect roi = cv::boundingRect(points);
+
+    // Resize the remaining area and copy to output parameter
+    cv::resize(renderImage(roi), result, cv::Size(depthImg.cols, depthImg.rows));
+
+    // Clean up
+    delete[] pixelData;
+    renderWin->removeAllViewports();
+    mSceneMgr->destroyCamera(renderCam);
+    mRoot->destroyRenderTarget(renderWin);
+
+    return true;
+}
+
 void OgreWindow::resetCamera() {
     if(mCamera) {
         mCamera->setPosition(mInitialCameraPosition);
@@ -445,7 +539,7 @@ void OgreWindow::resetCamera() {
     }
 }
 
-void OgreWindow::setScene(RgbdObject* scene) {
+void OgreWindow::setScene(RgbdObject* scene, bool updateCameraFOV, Ogre::Real workPlaneDepth) {
     if(!mSceneNode)
         mSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     else if(mScene)
@@ -453,6 +547,20 @@ void OgreWindow::setScene(RgbdObject* scene) {
 
     mScene = scene;
     mSceneNode->attachObject(mScene->getManualObject());
+
+    if(updateCameraFOV) {
+        const cv::Mat depthImg = mScene->getDepthImage();
+        Ogre::Vector3 topLeft = mScene->depthToWorld(0.0, 0.0, workPlaneDepth);
+        Ogre::Vector3 bottomLeft = mScene->depthToWorld(0.0, (Ogre::Real)(depthImg.rows - 1), workPlaneDepth);
+
+        Ogre::Vector3 top(0, topLeft.y, topLeft.z);
+        Ogre::Vector3 bottom(0, bottomLeft.y, bottomLeft.z);
+        Ogre::Radian angle(std::max(
+            top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
+            bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
+        ) * 2.0 + 0.04);
+        mCamera->setFOVy(angle);
+    }
 }
 
 void OgreWindow::markVertices(const std::vector<Ogre::Vector3>& vertices) {
@@ -474,6 +582,14 @@ void OgreWindow::markVertices(const std::vector<Ogre::Vector3>& vertices) {
     }
 }
 
+void OgreWindow::unmarkVertices() {
+    if(mVertexMarkings) {
+        mVertexMarkings->detachFromParent();
+        mSceneMgr->destroyManualObject(mVertexMarkings);
+        mVertexMarkings = NULL;
+    }
+}
+
 bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
     if(mHaltRendering || mWindow->isClosed()) {
         mHaltRendering = false;
@@ -485,18 +601,10 @@ bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
 
         if(idle) {
             mStatus = SIMULATION_FINISHED;
-            shutDownBullet();
-
-            // TODO: show overlay with available commands
-            std::cout << "Simulation finished, object is idle" << std::endl;
             return false;
         }
         else if(mTotalTime >= Constants::TimeoutTimeThreshold) {
             mStatus = SIMULATION_TIMEOUT;
-            shutDownBullet();
-
-            // TODO: show appropriate overlay
-            std::cout << "Simulation timed out" << std::endl;
             return false;
         }
     }

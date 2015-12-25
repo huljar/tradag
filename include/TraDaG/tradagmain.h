@@ -28,14 +28,14 @@ public:
                const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(320, 240), const cv::Vec2f& rgbFocalLength = cv::Vec2f(500, 500),
                const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
-               MapMode mapMode = MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LABELS_ON_DEPTH_IMAGE);
+               MapMode mapMode = MM_MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LM_DEPTH_IMAGE);
 
     TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath,
                const std::string& labelImagePath, const LabelMap& labelMap,
                const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
                const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(320, 240), const cv::Vec2f& rgbFocalLength = cv::Vec2f(500, 500),
                const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
-               MapMode mapMode = MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LABELS_ON_DEPTH_IMAGE);
+               MapMode mapMode = MM_MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LM_DEPTH_IMAGE);
 
     // no copy
     TradagMain(const TradagMain&) = delete;
