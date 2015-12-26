@@ -51,6 +51,8 @@ public:
 
     virtual Ogre::SceneManager* getSceneManager();
 
+    virtual Ogre::Entity* getObject();
+
     virtual Ogre::Vector3 getInitialCameraPosition() const;
     virtual Ogre::Vector3 getInitialCameraLookAt() const;
 

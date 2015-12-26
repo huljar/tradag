@@ -76,7 +76,10 @@ int main(int argc, char** argv)
                                                          cv::Vec3f(0, 0, 0), cv::Vec3f(0, 0, 0));
 
     if(result.status == OD_SUCCESS) {
-        std::cout << "Success! Fraction covered: " << result.fractionCovered << std::endl;
+        std::cout << "Success!" << std::endl
+                  << "Fraction covered: " << result.fractionCovered << std::endl
+                  << "Rotation: " << result.rotation << std::endl
+                  << "Position: " << result.translation << std::endl;
 
         cv::namedWindow("Test Display Window");
         cv::imshow("Test Display Window", result.renderedImage);

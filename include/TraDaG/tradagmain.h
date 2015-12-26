@@ -161,6 +161,7 @@ private:
     Ogre::Matrix3 computeRotation(const float azimuth, const Ogre::Vector3& gravity) const;
 
     Ogre::Matrix3 convertCvMatToOgreMat(const cv::Matx33f& mat) const;
+    cv::Matx33f convertOgreMatToCvMat(const Ogre::Matrix3& mat) const;
 
     OgreWindow* mOgreWindow;
     RgbdObject* mRgbdObject;

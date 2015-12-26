@@ -779,6 +779,10 @@ Ogre::SceneManager* OgreWindow::getSceneManager() {
     return mSceneMgr;
 }
 
+Ogre::Entity* OgreWindow::getObject() {
+    return mObject;
+}
+
 Ogre::Vector3 OgreWindow::getInitialCameraPosition() const {
     return mInitialCameraPosition;
 }

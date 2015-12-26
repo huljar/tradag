@@ -167,6 +167,18 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     // Get covered fraction of the object
     Ogre::Real covered = mOgreWindow->queryCoveredFraction();
 
+    // Get object pose
+    Ogre::SceneNode* objectSceneNode = mOgreWindow->getObject()->getParentSceneNode();
+
+    Ogre::Matrix3 objectRot;
+    objectSceneNode->getOrientation().ToRotationMatrix(objectRot);
+
+    Ogre::Vector3 objectPos = objectSceneNode->getPosition();
+
+    // Check if covered fraction is too large
+    if(covered > Constants::MaxFractionCovered)
+        return ObjectDropResult(OD_INCORRECT_FRACTION_COVERED, cv::Mat(), covered, convertOgreMatToCvMat(objectRot), cv::Vec3f(objectPos.x, objectPos.y, objectPos.z));
+
     // If a preview without animation was requested, display the window now
     if(mShowPreviewWindow && !mShowPhysicsAnimation && mOgreWindow->hidden())
         mOgreWindow->show();
@@ -188,10 +200,10 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     // Get and show rendered image
     cv::Mat renderedImage;
     if(mOgreWindow->render(renderedImage)) {
-        return ObjectDropResult(OD_SUCCESS, renderedImage, covered, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0)); // TODO: set rot, trans
+        return ObjectDropResult(OD_SUCCESS, renderedImage, covered, convertOgreMatToCvMat(objectRot), cv::Vec3f(objectPos.x, objectPos.y, objectPos.z));
     }
 
-    return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
+    return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), covered, convertOgreMatToCvMat(objectRot), cv::Vec3f(objectPos.x, objectPos.y, objectPos.z));
 }
 
 Ogre::Vector3 TradagMain::computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
@@ -242,6 +254,16 @@ Ogre::Matrix3 TradagMain::convertCvMatToOgreMat(const cv::Matx33f& mat) const {
         }
     }
     return Ogre::Matrix3(conv);
+}
+
+cv::Matx33f TradagMain::convertOgreMatToCvMat(const Ogre::Matrix3& mat) const {
+    float conv[3][3];
+    for(int i = 0; i < 3; ++i) {
+        for(int j = 0; j < 3; ++j) {
+            conv[i][j] = mat[i][j];
+        }
+    }
+    return cv::Matx33f(&conv[0][0]);
 }
 
 cv::Mat TradagMain::getDepthImage() {
