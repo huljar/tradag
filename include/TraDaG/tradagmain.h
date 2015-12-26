@@ -50,13 +50,11 @@ public:
     // TODO: define angle of plane to camera and tolerance (in separate interface)
     // TODO: at end: check if inliers are within x radius of object (center of mass), sample again if not
     // TODO: when checking, cast a ray from object center of mass in direction of gravity (or direction of negative plane normal?) onto the mesh
-    // TODO: if fractionCovered > 0.9X (define in constants), return failure
-    //       also prevent setting a value which is too large
-    //       check fractionCovered by casting rays from camera onto the bounding box of the mesh with small offsets
+    // TODO: prevent setting a value for fraction covered which is too large
     // TODO: when checking if inliers are still underneath the object, only check for the visible part of the object (underneath the covered parts is obviously no inlier)
     // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
     // TODO: setVerbose parameter, detailed log messages if enabled
-    ObjectDropResult dropObjectIntoScene(const std::string& meshName, const std::string& planeLabel,
+    ObjectDropResult dropObjectIntoScene(const std::string& meshName, const Auto<PlaneFitResult>& plane, const std::string& planeLabel,
                                          const Auto<cv::Vec3f>& initialPosition = Auto<cv::Vec3f>(true),
                                          const Auto<cv::Matx33f>& initialRotation = Auto<cv::Matx33f>(true),
                                          const float initialAzimuth = 0,

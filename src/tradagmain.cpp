@@ -96,14 +96,14 @@ void TradagMain::updateMesh() {
     mRgbdObject->meshify();
 }
 
-ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, const std::string& planeLabel,
+ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, const Auto<PlaneFitResult>& plane, const std::string& planeLabel,
                                                  const Auto<cv::Vec3f>& initialPosition, const Auto<cv::Matx33f>& initialRotation,
                                                  const float initialAzimuth,
                                                  const cv::Vec3f& initialVelocity, const cv::Vec3f& initialTorque) {
 
     // Calculate plane from labels using RANSAC
-    // TODO: handle non-success, re-use previous planes
-    PlaneFitResult planeFit = mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject);
+    // TODO: handle non-success correctly
+    PlaneFitResult planeFit = plane.automate ? mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject) : plane.manualValue;
 
     if(planeFit.status != PF_SUCCESS)
         return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0)); // TODO: use different error

@@ -64,6 +64,10 @@ namespace TraDaG {
     };
 
     struct PlaneFitResult {
+        PlaneFitResult()
+            : status(PF_SUCCESS)
+        {
+        }
         PlaneFitResult(PlaneFitStatus status, const Ogre::Plane& planeFound = Ogre::Plane(),
                            const std::vector<Ogre::Vector3>& planeVertices = std::vector<Ogre::Vector3>())
             : status(status), plane(planeFound), vertices(planeVertices)
