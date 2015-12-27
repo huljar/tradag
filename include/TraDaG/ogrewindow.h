@@ -36,7 +36,7 @@ public:
     virtual Ogre::Real queryCoveredFraction(Ogre::Real workPlaneDepth = 50.0) const;
     virtual bool queryObjectOnPlane() const;
 
-    virtual bool render(cv::Mat& result, Ogre::Real workPlaneDepth = 50.0) const;
+    virtual bool renderToImage(cv::Mat& result, Ogre::Real workPlaneDepth = 50.0) const;
 
     virtual void resetCamera();
 

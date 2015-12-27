@@ -72,6 +72,8 @@ int main(int argc, char** argv)
     //tradag.setDebugDrawBulletShapes(true);
     //tradag.setObjectMustBeUpright(true);
     //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -2000, 1000)));
+    tradag.setObjectCoveredFractionInterval(0.2, 0.7);
+    tradag.setMaxAttempts(5);
     ObjectDropResult result = tradag.dropObjectIntoScene(meshName, Auto<PlaneFitResult>(true), labelName, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true),
                                                          M_PI_2, cv::Vec3f(0, 0, 0), cv::Vec3f(0, 0, 0));
 

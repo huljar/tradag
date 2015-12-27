@@ -54,6 +54,8 @@ public:
     // TODO: when checking if inliers are still underneath the object, only check for the visible part of the object (underneath the covered parts is obviously no inlier)
     // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
     // TODO: setVerbose parameter, detailed log messages if enabled
+    // TODO: refactor startSimulation, split into addObject, clearObjects and simulate
+    // TODO: create object class, define coveredfractioninterval and mustbeupright on per-object basis
     ObjectDropResult dropObjectIntoScene(const std::string& meshName, const Auto<PlaneFitResult>& plane, const std::string& planeLabel,
                                          const Auto<cv::Vec3f>& initialPosition = Auto<cv::Vec3f>(true),
                                          const Auto<cv::Matx33f>& initialRotation = Auto<cv::Matx33f>(true),
@@ -110,8 +112,9 @@ public:
     bool objectMustBeUpright() const;
     void setObjectMustBeUpright(bool upright);
 
-    Auto<float> getObjectCoveredFraction() const;
-    void setObjectCoveredFraction(const Auto<float>& covered);
+    std::pair<float, float> getObjectCoveredFractionInterval() const;
+    void setObjectCoveredFractionInterval(const std::pair<float, float>& covered);
+    void setObjectCoveredFractionInterval(float minCovered, float maxCovered);
 
     bool objectCastShadows() const;
     void setObjectCastShadows(bool castShadows);
@@ -158,8 +161,13 @@ private:
     Ogre::Vector3 computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
     Ogre::Matrix3 computeRotation(const float azimuth, const Ogre::Vector3& gravity) const;
 
+    bool continueLoop(bool solutionFound, unsigned int attempt, Ogre::Real fractionCovered) const;
+    float distanceToInterval(float value, float min, float max) const;
+
     Ogre::Matrix3 convertCvMatToOgreMat(const cv::Matx33f& mat) const;
     cv::Matx33f convertOgreMatToCvMat(const Ogre::Matrix3& mat) const;
+
+    bool checkFractionValid(float min, float max) const;
 
     OgreWindow* mOgreWindow;
     RgbdObject* mRgbdObject;
@@ -167,7 +175,7 @@ private:
 
     float mObjectScale;
     bool mObjectMustBeUpright;
-    Auto<float> mObjectCoveredFraction;
+    std::pair<float, float> mObjectCoveredFractionInterval;
     bool mObjectCastShadows;
     unsigned int mMaxAttempts;
     bool mShowPreviewWindow;

@@ -47,7 +47,7 @@ TradagMain::TradagMain()
     , mImageLabeling(NULL)
     , mObjectScale(Defaults::ObjectScale)
     , mObjectMustBeUpright(Defaults::ObjectMustBeUpright)
-    , mObjectCoveredFraction(Defaults::ObjectCoveredFraction)
+    , mObjectCoveredFractionInterval(Defaults::ObjectCoveredFractionInterval)
     , mObjectCastShadows(Defaults::ObjectCastShadows)
     , mMaxAttempts(Defaults::MaxAttempts)
     , mShowPreviewWindow(Defaults::ShowPreviewWindow)
@@ -102,11 +102,10 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
                                                  const cv::Vec3f& initialVelocity, const cv::Vec3f& initialTorque) {
 
     // Calculate plane from labels using RANSAC
-    // TODO: handle non-success correctly
     PlaneFitResult planeFit = plane.automate ? mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject) : plane.manualValue;
 
-    if(planeFit.status != PF_SUCCESS)
-        return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0)); // TODO: use different error
+    if(plane.automate && planeFit.status != PF_SUCCESS)
+        return ObjectDropResult(OD_PLANE_FIT_ERROR, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
 
     // If the plane does not face the camera (i.e. the camera lies on the negative side of the plane), invert its normal (to make it face the camera)
     Ogre::Plane groundPlane(planeFit.plane);
@@ -121,19 +120,13 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
                             : Ogre::Vector3(mGravity.manualValue[0], mGravity.manualValue[1], mGravity.manualValue[2]);
 
     // Abort if the angle between plane normal and gravity vector is too large
-    if(!mGravity.automate && groundPlane.normal.angleBetween(-gravity) > Constants::MaxPlaneNormalToGravityAngle) {
+    if(!mGravity.automate && groundPlane.normal.angleBetween(-gravity) > Constants::MaxPlaneNormalToGravityAngle)
         return ObjectDropResult(OD_PLANE_TOO_STEEP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
-    }
 
     // Mark the plane inlier set if requested
-    if(mMarkInlierSet) {
+    if(mMarkInlierSet && mShowPreviewWindow) {
         mOgreWindow->markVertices(planeFit.vertices);
     }
-
-    // Calculate initial position
-    Ogre::Vector3 actualPosition = initialPosition.automate
-                                   ? computePosition(planeFit.vertices, gravity)
-                                   : Ogre::Vector3(initialPosition.manualValue[0], initialPosition.manualValue[1], initialPosition.manualValue[2]);
 
     // Calculate initial rotation
     Ogre::Matrix3 actualRotation = initialRotation.automate
@@ -155,29 +148,73 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     if(mShowPreviewWindow && mShowPhysicsAnimation && mOgreWindow->hidden())
         mOgreWindow->show();
 
-    // Simulate (with animation only if needed)
-    // This function does not return until the simulation is completed
-    // TODO: objectCoveredFraction, maxAttempts
-    SimulationResult result = mOgreWindow->startSimulation(
-                                  meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor,
-                                  mObjectRestitution, mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity,
-                                  mObjectCastShadows, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation
-                              );
+    // Get min/max covered fraction
+    float minCovered = mObjectCoveredFractionInterval.first;
+    float maxCovered = mObjectCoveredFractionInterval.second;
 
-    // Get covered fraction of the object
-    Ogre::Real covered = mOgreWindow->queryCoveredFraction();
+    // Main loop - perform simulations until the criteria are met or the maximum number of attempts was reached
+    std::pair<Ogre::Matrix3, Ogre::Vector3> bestAttemptPose(Ogre::Matrix3::IDENTITY, Ogre::Vector3::ZERO);
+    cv::Mat bestAttemptRendered;
+    float bestAttemptCovered = -1000.0;
 
-    // Get object pose
-    Ogre::SceneNode* objectSceneNode = mOgreWindow->getObject()->getParentSceneNode();
+    bool solutionFound = false;
+    unsigned int attempt = 0;
 
-    Ogre::Matrix3 objectRot;
-    objectSceneNode->getOrientation().ToRotationMatrix(objectRot);
+    do {
+        ++attempt;
 
-    Ogre::Vector3 objectPos = objectSceneNode->getPosition();
+        // Calculate initial position
+        Ogre::Vector3 actualPosition = initialPosition.automate
+                                       ? computePosition(planeFit.vertices, gravity)
+                                       : Ogre::Vector3(initialPosition.manualValue[0], initialPosition.manualValue[1], initialPosition.manualValue[2]);
 
-    // Check if covered fraction is too large
-    if(covered > Constants::MaxFractionCovered)
-        return ObjectDropResult(OD_INCORRECT_FRACTION_COVERED, cv::Mat(), covered, convertOgreMatToCvMat(objectRot), cv::Vec3f(objectPos.x, objectPos.y, objectPos.z));
+        // Simulate (with animation only if needed)
+        // This function does not return until the simulation is completed
+        SimulationResult result = mOgreWindow->startSimulation(
+                                      meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor,
+                                      mObjectRestitution, mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity,
+                                      mObjectCastShadows, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation
+                                  );
+
+        if(result == SR_TIMEOUT)
+            continue;
+        else if(result == SR_ABORTED)
+            break;
+
+        // Get covered fraction of the object
+        Ogre::Real covered = mOgreWindow->queryCoveredFraction();
+
+        // TODO: check if object on plane
+
+        // Check the quality of this attempt
+        float eval = distanceToInterval(covered, minCovered, maxCovered);
+
+        if(eval < distanceToInterval(bestAttemptCovered, minCovered, maxCovered)) {
+            // Get object pose
+            Ogre::SceneNode* objectSceneNode = mOgreWindow->getObject()->getParentSceneNode();
+
+            Ogre::Matrix3 objectRot;
+            objectSceneNode->getOrientation().ToRotationMatrix(objectRot);
+
+            Ogre::Vector3 objectPos = objectSceneNode->getPosition();
+
+            // Render image
+            cv::Mat tmpRender;
+            if(!mOgreWindow->renderToImage(tmpRender))
+                continue;
+
+            // Save this attempt
+            bestAttemptPose.first = objectRot;
+            bestAttemptPose.second = objectPos;
+            bestAttemptRendered = tmpRender;
+            bestAttemptCovered = covered;
+        }
+
+        if(eval == 0.0) {
+            solutionFound = true;
+        }
+
+    } while(continueLoop(solutionFound, attempt, bestAttemptCovered));
 
     // If a preview without animation was requested, display the window now
     if(mShowPreviewWindow && !mShowPhysicsAnimation && mOgreWindow->hidden())
@@ -197,13 +234,16 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     // Remove vertex markings
     mOgreWindow->unmarkVertices();
 
-    // Get and show rendered image
-    cv::Mat renderedImage;
-    if(mOgreWindow->render(renderedImage)) {
-        return ObjectDropResult(OD_SUCCESS, renderedImage, covered, convertOgreMatToCvMat(objectRot), cv::Vec3f(objectPos.x, objectPos.y, objectPos.z));
+    // Convert pose
+    cv::Matx33f finalRot = convertOgreMatToCvMat(bestAttemptPose.first);
+    cv::Vec3f finalPos = cv::Vec3f(bestAttemptPose.second.x, bestAttemptPose.second.y, bestAttemptPose.second.z);
+
+    // Check rendered image
+    if(bestAttemptRendered.data) {
+        return ObjectDropResult(OD_SUCCESS, bestAttemptRendered, bestAttemptCovered, finalRot, finalPos);
     }
 
-    return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), covered, convertOgreMatToCvMat(objectRot), cv::Vec3f(objectPos.x, objectPos.y, objectPos.z));
+    return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), bestAttemptCovered, finalRot, finalPos);
 }
 
 Ogre::Vector3 TradagMain::computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
@@ -246,6 +286,27 @@ Ogre::Matrix3 TradagMain::computeRotation(const float azimuth, const Ogre::Vecto
     return rotation;
 }
 
+bool TradagMain::continueLoop(bool solutionFound, unsigned int attempt, Ogre::Real fractionCovered) const {
+    if(solutionFound)
+        return false;
+
+    if(attempt >= mMaxAttempts)
+        return false;
+
+    return fractionCovered < mObjectCoveredFractionInterval.first ||
+           fractionCovered > mObjectCoveredFractionInterval.second;
+}
+
+float TradagMain::distanceToInterval(float value, float min, float max) const {
+    if(value < min)
+        return min - value;
+
+    if(value > max)
+        return value - max;
+
+    return 0.0;
+}
+
 Ogre::Matrix3 TradagMain::convertCvMatToOgreMat(const cv::Matx33f& mat) const {
     Ogre::Real conv[3][3];
     for(int i = 0; i < 3; ++i) {
@@ -264,6 +325,16 @@ cv::Matx33f TradagMain::convertOgreMatToCvMat(const Ogre::Matrix3& mat) const {
         }
     }
     return cv::Matx33f(&conv[0][0]);
+}
+
+bool TradagMain::checkFractionValid(float min, float max) const {
+    if(max < min)
+        return false;
+
+    if(min < 0.0 || max > 1.0)
+        return false;
+
+    return true;
 }
 
 cv::Mat TradagMain::getDepthImage() {
@@ -444,12 +515,18 @@ void TradagMain::setObjectMustBeUpright(bool upright) {
     mObjectMustBeUpright = upright;
 }
 
-Auto<float> TradagMain::getObjectCoveredFraction() const {
-    return mObjectCoveredFraction;
+std::pair<float, float> TradagMain::getObjectCoveredFractionInterval() const {
+    return mObjectCoveredFractionInterval;
 }
 
-void TradagMain::setObjectCoveredFraction(const Auto<float>& covered) {
-    mObjectCoveredFraction = covered;
+void TradagMain::setObjectCoveredFractionInterval(const std::pair<float, float>& covered) {
+    if(checkFractionValid(covered.first, covered.second))
+        mObjectCoveredFractionInterval = covered;
+}
+
+void TradagMain::setObjectCoveredFractionInterval(float minCovered, float maxCovered) {
+    if(checkFractionValid(minCovered, maxCovered))
+        mObjectCoveredFractionInterval = std::make_pair(minCovered, maxCovered);
 }
 
 bool TradagMain::objectCastShadows() const {

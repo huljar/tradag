@@ -45,7 +45,8 @@ namespace TraDaG {
     typedef enum {
         OD_SUCCESS,
         OD_PLANE_TOO_STEEP,
-        OD_INCORRECT_FRACTION_COVERED,
+        OD_PLANE_FIT_ERROR,
+        OD_MAX_ATTEMPTS_REACHED,
         OD_UNKNOWN_ERROR
     } ObjectDropStatus;
 
@@ -107,7 +108,7 @@ namespace TraDaG {
 
     namespace Defaults {
         const bool ObjectMustBeUpright = false;
-        const Auto<float> ObjectCoveredFraction(true);
+        const std::pair<float, float> ObjectCoveredFractionInterval(0.0, 0.95);
         const bool ObjectCastShadows = true;
         const unsigned int MaxAttempts = 100;
         const bool ShowPreviewWindow = false;
@@ -125,7 +126,6 @@ namespace TraDaG {
     namespace Constants {
         const float ObjectDropDistance = 500.0;
         const Ogre::Degree MaxPlaneNormalToGravityAngle(25);
-        const float MaxFractionCovered = 0.95;
         const float RansacConfidenceInterval = 18.0;
         const float IdleTimeThreshold = 1.0; // in seconds
         const float TimeoutTimeThreshold = 12.0; // in seconds

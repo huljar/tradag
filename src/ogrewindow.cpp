@@ -262,10 +262,12 @@ SimulationResult OgreWindow::startSimulation(
     mObject = mSceneMgr->createEntity(Strings::ObjName, meshName);
     mObject->setCastShadows(castShadows); // TODO: when initializing Ogre, set stencil shadow type (and ambient light)
 
-    // Create a scene node for the object if it doesn't already exist
-    if(!mObjectNode) {
-        mObjectNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    // Create a new scene node
+    if(mObjectNode) {
+        mSceneMgr->destroySceneNode(mObjectNode);
     }
+
+    mObjectNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
     mObjectNode->setScale(scale, scale, scale);
 
     // Attach new object to the scene node
@@ -434,7 +436,7 @@ bool OgreWindow::queryObjectOnPlane() const {
 
 }
 
-bool OgreWindow::render(cv::Mat& result, Ogre::Real workPlaneDepth) const {
+bool OgreWindow::renderToImage(cv::Mat& result, Ogre::Real workPlaneDepth) const {
     // Determine aspect ratio
     const cv::Mat depthImg = mScene->getDepthImage();
     Ogre::Vector3 topLeft = mScene->depthToWorld(0.0, 0.0, workPlaneDepth); // Explicit type statement, otherwise call is ambiguous
