@@ -1,6 +1,8 @@
 #include <TraDaG/tradagmain.h>
 #include <TraDaG/ogrewindow.h>
-#include <TraDaG/rgbdobject.h>
+#include <TraDaG/rgbdscene.h>
+#include <TraDaG/droppableobject.h>
+#include <TraDaG/groundplane.h>
 #include <TraDaG/util.h>
 
 #include <opencv2/core/core.hpp>
@@ -64,27 +66,47 @@ int main(int argc, char** argv)
     bool preview = vm.count("show-preview");
     bool animate = vm.count("animate");
 
-    // From here, let TradagMain take over
+    // Create the TraDaG main class and set parameters
     TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, depthPrincipalPoint, depthFocalLength);
     tradag.setShowPreviewWindow(preview);
     tradag.setShowPhysicsAnimation(animate);
     //tradag.setDebugMarkInlierSet(true);
     //tradag.setDebugDrawBulletShapes(true);
-    //tradag.setObjectMustBeUpright(true);
-    //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -2000, 1000)));
-    tradag.setObjectCoveredFractionInterval(0.2, 0.7);
+    tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
     tradag.setMaxAttempts(5);
-    ObjectDropResult result = tradag.dropObjectIntoScene(meshName, Auto<PlaneFitResult>(true), labelName, Auto<cv::Vec3f>(true), Auto<cv::Matx33f>(true),
-                                                         M_PI_2, cv::Vec3f(0, 0, 0), cv::Vec3f(0, 0, 0));
 
+    // Create an object
+    DroppableObject* obj = tradag.createObject(meshName);
+    obj->setDesiredOcclusion(0.2, 0.4);
+    obj->setInitialAzimuth(M_PI_2);
+    obj->setInitialTorque(5, 5, 5);
+
+    // Create another object
+    DroppableObject* obj2 = tradag.createObject("003.mesh");
+    obj2->setDesiredOcclusion(0.0, 0.5);
+    obj2->setInitialVelocity(0, 100, 0);
+    obj2->setInitialAzimuth(M_PI_2);
+
+    // Compute ground plane
+    GroundPlane plane;
+    if(tradag.getImageLabeling()->computePlaneForLabel(labelName, tradag.getRGBDScene(), plane) != PF_SUCCESS) {
+        std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
+        return 1;
+    }
+    tradag.setGroundPlane(plane);
+
+    // Execute simulation
+    ObjectDropResult result = tradag.execute();
+
+    // Evaluate result
     if(result.status == OD_SUCCESS) {
         std::cout << "Success!" << std::endl
-                  << "Fraction covered: " << result.fractionCovered << std::endl
-                  << "Rotation: " << result.rotation << std::endl
-                  << "Position: " << result.translation << std::endl;
+                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
+                  << "Rotation: " << obj->getFinalRotation() << std::endl
+                  << "Position: " << obj->getFinalPosition() << std::endl;
 
         cv::namedWindow("Test Display Window");
-        cv::imshow("Test Display Window", result.renderedImage);
+        cv::imshow("Test Display Window", result.rgbImage);
         cv::waitKey(0);
     }
 

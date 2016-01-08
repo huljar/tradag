@@ -19,19 +19,19 @@ ImageLabeling::~ImageLabeling() {
 
 }
 
-PlaneFitResult ImageLabeling::getPlaneForLabel(const std::string& label, const RgbdObject* scene) const {
+PlaneFitStatus ImageLabeling::computePlaneForLabel(const std::string& label, const RGBDScene* scene, GroundPlane& result) const {
     // Get depth image from scene
     const cv::Mat depthImage = scene->getDepthImage();
 
     // Check if the depth image has the same dimensions as the label image
     // TODO: what to do if the labels are defined on RGB image?
     if(depthImage.rows != mLabelImage.rows || depthImage.cols != mLabelImage.cols)
-        return PlaneFitResult(PF_DIFFERENT_DIMENSIONS);
+        return PF_DIFFERENT_DIMENSIONS;
 
     // Check if the label is contained in the label map
     LabelMap::const_iterator entry = mLabelMap.find(label);
     if(entry == mLabelMap.end())
-        return PlaneFitResult(PF_INVALID_LABEL);
+        return PF_INVALID_LABEL;
 
     LabelVec labelValues = entry->second;
 
@@ -53,7 +53,7 @@ PlaneFitResult ImageLabeling::getPlaneForLabel(const std::string& label, const R
 
     // If none of the labels is contained in the image, abort
     if(actualLabels.size() == 0)
-        return PlaneFitResult(PF_LABEL_NOT_IN_IMAGE);
+        return PF_LABEL_NOT_IN_IMAGE;
 
     // Select a random valid label
     // TODO: random?
@@ -76,8 +76,8 @@ PlaneFitResult ImageLabeling::getPlaneForLabel(const std::string& label, const R
     }
 
     // Perform RANSAC with the points
-    Ransac<Ogre::Vector3, Ogre::Plane, 3> ransac(createPlaneFromPoints, pointEvaluation);
-    Ransac<Ogre::Vector3, Ogre::Plane, 3>::result_type result = ransac(points);
+    Ransac<Ogre::Vector3, Ogre::Plane, 3> ransac(GroundPlane::createPlaneFromPoints, GroundPlane::pointEvaluation);
+    Ransac<Ogre::Vector3, Ogre::Plane, 3>::result_type ransacRes = ransac(points);
 
     // Retrieve all inliers
     InlierMap inliers(
@@ -86,7 +86,7 @@ PlaneFitResult ImageLabeling::getPlaneForLabel(const std::string& label, const R
         }
     );
 
-    for(std::vector<Ransac<Ogre::Vector3, Ogre::Plane, 3>::const_point_iterator>::const_iterator it = result.second.cbegin(); it != result.second.cend(); ++it) {
+    for(std::vector<Ransac<Ogre::Vector3, Ogre::Plane, 3>::const_point_iterator>::const_iterator it = ransacRes.second.cbegin(); it != ransacRes.second.cend(); ++it) {
         size_t idx = std::distance(points.cbegin(), *it);
         inliers.insert(std::make_pair(pixels[idx], points[idx]));
     }
@@ -157,9 +157,10 @@ PlaneFitResult ImageLabeling::getPlaneForLabel(const std::string& label, const R
         }
     }
 
-    // TODO: apply least-squares-fit using only the remaining inliers?
+    // TODO: apply least-squares-fit using only the remaining inliers? (using GroundPlane::leastSquaresFit())
 
-    return PlaneFitResult(PF_SUCCESS, result.first, planePoints);
+    result = GroundPlane(ransacRes.first, planePoints, label);
+    return PF_SUCCESS;
 }
 
 cv::Mat ImageLabeling::getLabelImage() {
@@ -184,23 +185,4 @@ LabelMode ImageLabeling::getLabelMode() const {
 
 void ImageLabeling::setLabelMode(LabelMode mode) {
     mLabelMode = mode;
-}
-
-Ogre::Plane ImageLabeling::createPlaneFromPoints(const std::array<Ogre::Vector3, 3>& points) {
-    Ogre::Plane ret(points[0], points[1], points[2]);
-    ret.normalise(); // required so the getDistance member function returns the correct distance
-    return ret;
-}
-
-float ImageLabeling::pointEvaluation(const Ogre::Vector3& point, const Ogre::Plane& plane) {
-    // Check for invalid plane first (this can occur, probably when the RANSAC sampled points
-    // lie on a line and no unique plane can be created)
-    if(plane.normal == Ogre::Vector3::ZERO)
-        return 1.0; // treat every point as outlier so this model will be discarded
-
-    // Ogre::Plane::getDistance returns positive/negative values depending on which side of the plane the point lies
-    if(std::abs(plane.getDistance(point)) < Constants::RansacConfidenceInterval)
-        return 0.0;
-
-    return 1.0;
 }

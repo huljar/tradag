@@ -11,6 +11,8 @@
 
 namespace TraDaG {
 
+    class DroppableObject; // forward declaration
+
     typedef enum {
         MM_MAPPED_RGB_TO_DEPTH,
         MM_MAPPED_DEPTH_TO_RGB,
@@ -45,11 +47,11 @@ namespace TraDaG {
     typedef enum {
         OD_SUCCESS,
         OD_PLANE_TOO_STEEP,
-        OD_PLANE_FIT_ERROR,
         OD_MAX_ATTEMPTS_REACHED,
         OD_UNKNOWN_ERROR
     } ObjectDropStatus;
 
+    typedef std::vector<DroppableObject*> ObjectVec;
     typedef std::vector<unsigned short> LabelVec;
     typedef std::map<std::string, LabelVec> LabelMap;
 
@@ -64,41 +66,22 @@ namespace TraDaG {
         T manualValue;
     };
 
-    struct PlaneFitResult {
-        PlaneFitResult()
-            : status(PF_SUCCESS)
-        {
-        }
-        PlaneFitResult(PlaneFitStatus status, const Ogre::Plane& planeFound = Ogre::Plane(),
-                           const std::vector<Ogre::Vector3>& planeVertices = std::vector<Ogre::Vector3>())
-            : status(status), plane(planeFound), vertices(planeVertices)
-        {
-        }
-
-        const PlaneFitStatus status;
-        const Ogre::Plane plane;
-        const std::vector<Ogre::Vector3> vertices;
-    };
-
     struct ObjectDropResult {
-        ObjectDropResult(ObjectDropStatus status, const cv::Mat& image, float covered, const cv::Matx33f& rot, const cv::Vec3f& trans)
-            : status(status), renderedImage(image), fractionCovered(covered), rotation(rot), translation(trans)
+        ObjectDropResult(ObjectDropStatus status, const cv::Mat& depthImage, const cv::Mat& rgbImage)
+            : status(status), depthImage(depthImage), rgbImage(rgbImage)
         {
         }
 
         const ObjectDropStatus status;
-        const cv::Mat renderedImage;
-        const float fractionCovered;
-        const cv::Matx33f rotation;
-        const cv::Vec3f translation;
+        const cv::Mat depthImage;
+        const cv::Mat rgbImage;
     };
 
     namespace Strings {
         const std::string ResourcesCfgPath = "../config/resources.cfg";
         const std::string PluginsCfgPath = "../config/plugins.cfg";
 
-        const std::string ObjName = "droppingObject";
-        const std::string RgbdSceneName = "sceneRgbdEntity";
+        const std::string RgbdSceneName = "rgbdSceneEntity";
         const std::string ObjRigidBodyName = "objectBody";
         const std::string PlaneRigidBodyName = "planeBody";
 
@@ -108,19 +91,25 @@ namespace TraDaG {
 
     namespace Defaults {
         const bool ObjectMustBeUpright = false;
-        const std::pair<float, float> ObjectCoveredFractionInterval(0.0, 0.95);
+        const std::pair<float, float> ObjectDesiredOcclusion(0.0, 0.95);
         const bool ObjectCastShadows = true;
         const unsigned int MaxAttempts = 100;
         const bool ShowPreviewWindow = false;
         const bool ShowPhysicsAnimation = false;
         const bool MarkInlierSet = false;
         const bool DrawBulletShapes = false;
+        const Auto<cv::Vec3f> ObjectInitialPosition(true);
+        const Auto<cv::Matx33f> ObjectInitialRotation(true);
+        const float ObjectInitialAzimuth = 0.0;
+        const cv::Vec3f ObjectInitialVelocity(0, 0, 0);
+        const cv::Vec3f ObjectInitialTorque(0, 0, 0);
         const Auto<cv::Vec3f> Gravity(true, cv::Vec3f(0, -9810, 0));
         const float ObjectRestitution = 0.4;
         const float ObjectFriction = 0.7;
+        const float ObjectMass = 1.0;
         const float PlaneRestitution = 0.1;
         const float PlaneFriction = 0.9;
-        const float ObjectScale = 1000.0;
+        const cv::Vec3f ObjectScale(1000, 1000, 1000);
     }
 
     namespace Constants {
@@ -132,6 +121,8 @@ namespace TraDaG {
 
         const Ogre::Vector3 DefaultCameraPosition = Ogre::Vector3::ZERO;
         const Ogre::Vector3 DefaultCameraLookAt = Ogre::Vector3::NEGATIVE_UNIT_Z;
+
+        const float WorkPlaneDepth = 50.0;
     }
 
     namespace Labels {
@@ -195,6 +186,9 @@ namespace TraDaG {
             }}
         });
     }
+
+    Ogre::Matrix3 convertCvMatToOgreMat(const cv::Matx33f& mat);
+    cv::Matx33f convertOgreMatToCvMat(const Ogre::Matrix3& mat);
 
 }
 

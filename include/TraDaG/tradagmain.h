@@ -2,8 +2,10 @@
 #define TRADAGMAIN_H
 
 #include <TraDaG/ogrewindow.h>
-#include <TraDaG/rgbdobject.h>
+#include <TraDaG/rgbdscene.h>
 #include <TraDaG/imagelabeling.h>
+#include <TraDaG/droppableobject.h>
+#include <TraDaG/groundplane.h>
 #include <TraDaG/util.h>
 
 #include <Ogre.h>
@@ -45,7 +47,15 @@ public:
 
     ~TradagMain();
 
-    void updateMesh();
+    DroppableObject* createObject(const std::string& meshName);
+    void destroyObject(DroppableObject* object);
+    void destroyObject(unsigned int index);
+    void destroyAllObjects();
+
+    ObjectVec::iterator beginObjects();
+    ObjectVec::const_iterator beginObjects() const;
+    ObjectVec::iterator endObjects();
+    ObjectVec::const_iterator endObjects() const;
 
     // TODO: define angle of plane to camera and tolerance (in separate interface)
     // TODO: at end: check if inliers are within x radius of object (center of mass), sample again if not
@@ -55,69 +65,19 @@ public:
     // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
     // TODO: setVerbose parameter, detailed log messages if enabled
     // TODO: refactor startSimulation, split into addObject, clearObjects and simulate
-    // TODO: create object class, define coveredfractioninterval and mustbeupright on per-object basis
-    ObjectDropResult dropObjectIntoScene(const std::string& meshName, const Auto<PlaneFitResult>& plane, const std::string& planeLabel,
-                                         const Auto<cv::Vec3f>& initialPosition = Auto<cv::Vec3f>(true),
-                                         const Auto<cv::Matx33f>& initialRotation = Auto<cv::Matx33f>(true),
-                                         const float initialAzimuth = 0,
-                                         const cv::Vec3f& initialVelocity = cv::Vec3f(0, 0, 0),
-                                         const cv::Vec3f& initialTorque = cv::Vec3f(0, 0, 0));
+    ObjectDropResult execute();
 
-    cv::Mat getDepthImage();
-    const cv::Mat getDepthImage() const;
-
-    cv::Mat getRgbImage();
-    const cv::Mat getRgbImage() const;
-
-    cv::Mat getLabelImage();
-    const cv::Mat getLabelImage() const;
+    cv::Mat getDepthImage() const;
+    cv::Mat getRgbImage() const;
+    cv::Mat getLabelImage() const;
 
     LabelMap getLabelMap() const;
 
     void setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage, const LabelMap& labelMap);
     bool loadNewScene(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath, const LabelMap& labelMap);
 
-    cv::Vec2f getDepthPrincipalPoint() const;
-    void setDepthPrincipalPoint(const cv::Vec2f& principalPoint);
-    void setDepthPrincipalPoint(float x, float y);
-
-    cv::Vec2f getDepthFocalLength() const;
-    void setDepthFocalLength(const cv::Vec2f& focalLength);
-    void setDepthFocalLength(float x, float y);
-
-    cv::Vec2f getRgbPrincipalPoint() const;
-    void setRgbPrincipalPoint(const cv::Vec2f& principalPoint);
-    void setRgbPrincipalPoint(float x, float y);
-
-    cv::Vec2f getRgbFocalLength() const;
-    void setRgbFocalLength(const cv::Vec2f& focalLength);
-    void setRgbFocalLength(float x, float y);
-
-    cv::Matx33f getRotation() const;
-    void setRotation(const cv::Matx33f& rotation);
-
-    cv::Vec3f getTranslation() const;
-    void setTranslation(const cv::Vec3f& translation);
-    void setTranslation(float x, float y, float z);
-
-    MapMode getMapMode() const;
-    void setMapMode(MapMode mode);
-
-    LabelMode getLabelMode() const;
-    void setLabelMode(LabelMode mode);
-
-    float getObjectScale() const;
-    void setObjectScale(float scale);
-
-    bool objectMustBeUpright() const;
-    void setObjectMustBeUpright(bool upright);
-
-    std::pair<float, float> getObjectCoveredFractionInterval() const;
-    void setObjectCoveredFractionInterval(const std::pair<float, float>& covered);
-    void setObjectCoveredFractionInterval(float minCovered, float maxCovered);
-
-    bool objectCastShadows() const;
-    void setObjectCastShadows(bool castShadows);
+    GroundPlane getGroundPlane() const;
+    void setGroundPlane(const GroundPlane& groundPlane);
 
     unsigned int getMaxAttempts() const;
     void setMaxAttempts(unsigned int maxAttempts);
@@ -137,17 +97,9 @@ public:
     Auto<cv::Vec3f> getGravity() const;
     void setGravity(const Auto<cv::Vec3f>& gravity);
 
-    float getObjectRestitution() const;
-    void setObjectRestitution(float restitution);
-
-    float getObjectFriction() const;
-    void setObjectFriction(float friction);
-
-    float getPlaneRestitution() const;
-    void setPlaneRestitution(float restitution);
-
-    float getPlaneFriction() const;
-    void setPlaneFriction(float friction);
+    OgreWindow* getOgreWindow() const;
+    RGBDScene* getRGBDScene() const;
+    ImageLabeling* getImageLabeling() const;
 
 private:
     TradagMain();
@@ -161,32 +113,21 @@ private:
     Ogre::Vector3 computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
     Ogre::Matrix3 computeRotation(const float azimuth, const Ogre::Vector3& gravity) const;
 
-    bool continueLoop(bool solutionFound, unsigned int attempt, Ogre::Real fractionCovered) const;
     float distanceToInterval(float value, float min, float max) const;
 
-    Ogre::Matrix3 convertCvMatToOgreMat(const cv::Matx33f& mat) const;
-    cv::Matx33f convertOgreMatToCvMat(const Ogre::Matrix3& mat) const;
-
-    bool checkFractionValid(float min, float max) const;
-
     OgreWindow* mOgreWindow;
-    RgbdObject* mRgbdObject;
+    RGBDScene* mRGBDScene;
     ImageLabeling* mImageLabeling;
 
-    float mObjectScale;
-    bool mObjectMustBeUpright;
-    std::pair<float, float> mObjectCoveredFractionInterval;
-    bool mObjectCastShadows;
+    ObjectVec mObjects;
+    GroundPlane mGroundPlane;
+
     unsigned int mMaxAttempts;
     bool mShowPreviewWindow;
     bool mShowPhysicsAnimation;
     bool mMarkInlierSet;
     bool mDrawBulletShapes;
     Auto<cv::Vec3f> mGravity;
-    float mObjectRestitution;
-    float mObjectFriction;
-    float mPlaneRestitution;
-    float mPlaneFriction;
 
     std::default_random_engine mRandomEngine;
 

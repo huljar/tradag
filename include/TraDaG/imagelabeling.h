@@ -1,7 +1,8 @@
 #ifndef IMAGELABELING_H
 #define IMAGELABELING_H
 
-#include <TraDaG/rgbdobject.h>
+#include <TraDaG/rgbdscene.h>
+#include <TraDaG/groundplane.h>
 #include <TraDaG/util.h>
 
 #include <Ogre.h>
@@ -20,7 +21,7 @@ public:
     ImageLabeling(const cv::Mat& labelImage, const LabelMap& labelMap, LabelMode labelMode);
     virtual ~ImageLabeling();
 
-    virtual PlaneFitResult getPlaneForLabel(const std::string& label, const RgbdObject* scene) const;
+    virtual PlaneFitStatus computePlaneForLabel(const std::string& label, const RGBDScene* scene, GroundPlane& result) const;
 
     virtual cv::Mat getLabelImage();
     virtual const cv::Mat getLabelImage() const;
@@ -30,10 +31,6 @@ public:
 
     virtual LabelMode getLabelMode() const;
     virtual void setLabelMode(LabelMode mode);
-
-    // model construction and evaluation functions for RANSAC
-    static Ogre::Plane createPlaneFromPoints(const std::array<Ogre::Vector3, 3>& points);
-    static float pointEvaluation(const Ogre::Vector3& point, const Ogre::Plane& plane);
 
 protected:
     typedef std::map<cv::Vec2i, Ogre::Vector3, bool(*)(const cv::Vec2i&, const cv::Vec2i&)> InlierMap;

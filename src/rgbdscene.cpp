@@ -1,15 +1,15 @@
-#include <TraDaG/rgbdobject.h>
+#include <TraDaG/rgbdscene.h>
 
 #include <stdexcept>
 
 using namespace TraDaG;
 
-RgbdObject::RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManager,
-                       const cv::Mat& depthImage, const cv::Mat& rgbImage,
-                       const Ogre::Vector2& depthPrincipalPoint, const Ogre::Vector2& depthFocalLength,
-                       const Ogre::Vector2& rgbPrincipalPoint, const Ogre::Vector2& rgbFocalLength,
-                       const Ogre::Matrix3& rotation, const Ogre::Vector3& translation,
-                       MapMode mapMode, bool autoCreateMesh)
+RGBDScene::RGBDScene(const Ogre::String& name, Ogre::SceneManager* sceneManager,
+                     const cv::Mat& depthImage, const cv::Mat& rgbImage,
+                     const Ogre::Vector2& depthPrincipalPoint, const Ogre::Vector2& depthFocalLength,
+                     const Ogre::Vector2& rgbPrincipalPoint, const Ogre::Vector2& rgbFocalLength,
+                     const Ogre::Matrix3& rotation, const Ogre::Vector3& translation,
+                     MapMode mapMode, bool autoCreateMesh)
     : mDepthImage(depthImage)
     , mRgbImage(rgbImage)
     , mDepthPrincipalPoint(depthPrincipalPoint)
@@ -39,14 +39,14 @@ RgbdObject::RgbdObject(const Ogre::String& name, Ogre::SceneManager* sceneManage
         meshify();
 }
 
-RgbdObject::~RgbdObject() {
+RGBDScene::~RGBDScene() {
     // If our object was attached to a scene node at some point, it has to be detached before being destroyed
     mSceneObject->detachFromParent();
     // Use the scene manager to do the cleanup
     mSceneMgr->destroyManualObject(mSceneObject);
 }
 
-void RgbdObject::meshify() {
+void RGBDScene::meshify() {
     if(!mMeshUpdated) {
         mSceneObject->clear();
 
@@ -59,11 +59,7 @@ void RgbdObject::meshify() {
     }
 }
 
-Ogre::Vector3 RgbdObject::depthToWorld(int u, int v, unsigned short depth) const {
-    return depthToWorld((Ogre::Real)u, (Ogre::Real)v, (Ogre::Real)depth);
-}
-
-Ogre::Vector3 RgbdObject::depthToWorld(Ogre::Real u, Ogre::Real v, Ogre::Real depth) const {
+Ogre::Vector3 RGBDScene::depthToWorld(Ogre::Real u, Ogre::Real v, Ogre::Real depth) const {
     Ogre::Vector2 principalPoint = mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRgbPrincipalPoint : mDepthPrincipalPoint;
     Ogre::Vector2 focalLength = mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRgbFocalLength : mDepthFocalLength;
 
@@ -75,11 +71,11 @@ Ogre::Vector3 RgbdObject::depthToWorld(Ogre::Real u, Ogre::Real v, Ogre::Real de
     return Ogre::Vector3(retX, retY, retZ);
 }
 
-Ogre::Vector3 RgbdObject::depthToWorld(const Ogre::Vector3& uvdPoint) const {
+Ogre::Vector3 RGBDScene::depthToWorld(const Ogre::Vector3& uvdPoint) const {
     return depthToWorld(uvdPoint.x, uvdPoint.y, uvdPoint.z);
 }
 
-Ogre::Vector3 RgbdObject::worldToDepth(Ogre::Real x, Ogre::Real y, Ogre::Real z) const {
+Ogre::Vector3 RGBDScene::worldToDepth(Ogre::Real x, Ogre::Real y, Ogre::Real z) const {
     Ogre::Vector2 principalPoint = mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRgbPrincipalPoint : mDepthPrincipalPoint;
     Ogre::Vector2 focalLength = mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRgbFocalLength : mDepthFocalLength;
 
@@ -90,11 +86,11 @@ Ogre::Vector3 RgbdObject::worldToDepth(Ogre::Real x, Ogre::Real y, Ogre::Real z)
     return Ogre::Vector3(retU, retV, retD);
 }
 
-Ogre::Vector3 RgbdObject::worldToDepth(const Ogre::Vector3& point) const {
+Ogre::Vector3 RGBDScene::worldToDepth(const Ogre::Vector3& point) const {
     return worldToDepth(point.x, point.y, point.z);
 }
 
-Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const {
+Ogre::Vector2 RGBDScene::worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const {
     Ogre::Vector3 transformed = rotation * point + translation;
 
     Ogre::Real retU = std::round(transformed.x * mRgbFocalLength.x / (-transformed.z) + mRgbPrincipalPoint.x);
@@ -105,7 +101,7 @@ Ogre::Vector2 RgbdObject::worldToRgb(const Ogre::Vector3& point, const Ogre::Mat
             std::max(0.0f, std::min((Ogre::Real)mRgbImage.rows, retV)));
 }
 
-void RgbdObject::createVertices() {
+void RGBDScene::createVertices() {
     for(int v = 0; v < mDepthImage.rows; ++v) {
         for(int u = 0; u < mDepthImage.cols; ++u) {
             // Transform depth pixel to world coordinates
@@ -132,7 +128,7 @@ void RgbdObject::createVertices() {
     }
 }
 
-void RgbdObject::createIndices() {
+void RGBDScene::createIndices() {
     for(int v = 0; v < mDepthImage.rows - 1; ++v) {
         for(int u = 0; u < mDepthImage.cols - 1; ++u) {
             // Create 2 triangles (= 1 "square") per iteration
@@ -147,110 +143,134 @@ void RgbdObject::createIndices() {
     }
 }
 
-Ogre::ManualObject* RgbdObject::getManualObject() {
+Ogre::ManualObject* RGBDScene::getManualObject() const {
     return mSceneObject;
 }
 
-cv::Mat RgbdObject::getDepthImage() {
+cv::Mat RGBDScene::getDepthImage() const {
     return mDepthImage;
 }
 
-const cv::Mat RgbdObject::getDepthImage() const {
-    return mDepthImage;
-}
-
-cv::Mat RgbdObject::getRgbImage() {
+cv::Mat RGBDScene::getRgbImage() const {
     return mRgbImage;
 }
 
-const cv::Mat RgbdObject::getRgbImage() const {
-    return mRgbImage;
-}
-
-Ogre::Vector2 RgbdObject::getDepthPrincipalPoint() const {
+Ogre::Vector2 RGBDScene::getDepthPrincipalPoint() const {
     return mDepthPrincipalPoint;
 }
 
-void RgbdObject::setDepthPrincipalPoint(const Ogre::Vector2& principalPoint) {
+void RGBDScene::setDepthPrincipalPoint(const Ogre::Vector2& principalPoint) {
     mDepthPrincipalPoint = principalPoint;
     mMeshUpdated = false;
 }
 
-void RgbdObject::setDepthPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY) {
+void RGBDScene::setDepthPrincipalPoint(const cv::Vec2f& principalPoint) {
+    mDepthPrincipalPoint = Ogre::Vector2(principalPoint[0], principalPoint[1]);
+    mMeshUpdated = false;
+}
+
+void RGBDScene::setDepthPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY) {
     mDepthPrincipalPoint = Ogre::Vector2(principalPointX, principalPointY);
     mMeshUpdated = false;
 }
 
-Ogre::Vector2 RgbdObject::getDepthFocalLength() const {
+Ogre::Vector2 RGBDScene::getDepthFocalLength() const {
     return mDepthFocalLength;
 }
 
-void RgbdObject::setDepthFocalLength(const Ogre::Vector2& focalLength) {
+void RGBDScene::setDepthFocalLength(const Ogre::Vector2& focalLength) {
     mDepthFocalLength = focalLength;
     mMeshUpdated = false;
 }
 
-void RgbdObject::setDepthFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY) {
+void RGBDScene::setDepthFocalLength(const cv::Vec2f& focalLength) {
+    mDepthFocalLength = Ogre::Vector2(focalLength[0], focalLength[1]);
+    mMeshUpdated = false;
+}
+
+void RGBDScene::setDepthFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY) {
     mDepthFocalLength = Ogre::Vector2(focalLengthX, focalLengthY);
     mMeshUpdated = false;
 }
 
-Ogre::Vector2 RgbdObject::getRgbPrincipalPoint() const {
+Ogre::Vector2 RGBDScene::getRgbPrincipalPoint() const {
     return mRgbPrincipalPoint;
 }
 
-void RgbdObject::setRgbPrincipalPoint(const Ogre::Vector2& principalPoint) {
+void RGBDScene::setRgbPrincipalPoint(const Ogre::Vector2& principalPoint) {
     mRgbPrincipalPoint = principalPoint;
     mMeshUpdated = false;
 }
 
-void RgbdObject::setRgbPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY) {
+void RGBDScene::setRgbPrincipalPoint(const cv::Vec2f& principalPoint) {
+    mRgbPrincipalPoint = Ogre::Vector2(principalPoint[0], principalPoint[1]);
+    mMeshUpdated = false;
+}
+
+void RGBDScene::setRgbPrincipalPoint(Ogre::Real principalPointX, Ogre::Real principalPointY) {
     mRgbPrincipalPoint = Ogre::Vector2(principalPointX, principalPointY);
     mMeshUpdated = false;
 }
 
-Ogre::Vector2 RgbdObject::getRgbFocalLength() const {
+Ogre::Vector2 RGBDScene::getRgbFocalLength() const {
     return mRgbFocalLength;
 }
 
-void RgbdObject::setRgbFocalLength(const Ogre::Vector2& focalLength) {
+void RGBDScene::setRgbFocalLength(const Ogre::Vector2& focalLength) {
     mRgbFocalLength = focalLength;
     mMeshUpdated = false;
 }
 
-void RgbdObject::setRgbFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY) {
+void RGBDScene::setRgbFocalLength(const cv::Vec2f& focalLength) {
+    mRgbFocalLength = Ogre::Vector2(focalLength[0], focalLength[1]);
+    mMeshUpdated = false;
+}
+
+void RGBDScene::setRgbFocalLength(Ogre::Real focalLengthX, Ogre::Real focalLengthY) {
     mRgbFocalLength = Ogre::Vector2(focalLengthX, focalLengthY);
     mMeshUpdated = false;
 }
 
-Ogre::Matrix3 RgbdObject::getRotation() const {
+Ogre::Matrix3 RGBDScene::getRotation() const {
     return mRotation;
 }
 
-void RgbdObject::setRotation(const Ogre::Matrix3& rotation) {
+void RGBDScene::setRotation(const Ogre::Matrix3& rotation) {
     mRotation = rotation;
     mMeshUpdated = false;
 }
 
-Ogre::Vector3 RgbdObject::getTranslation() const {
+void RGBDScene::setRotation(const cv::Matx33f& rotation) {
+    mRotation = Ogre::Matrix3(rotation(0, 0), rotation(0, 1), rotation(0, 2),
+                              rotation(1, 0), rotation(1, 1), rotation(1, 2),
+                              rotation(2, 0), rotation(2, 1), rotation(2, 2));
+    mMeshUpdated = false;
+}
+
+Ogre::Vector3 RGBDScene::getTranslation() const {
     return mTranslation;
 }
 
-void RgbdObject::setTranslation(const Ogre::Vector3& translation) {
+void RGBDScene::setTranslation(const Ogre::Vector3& translation) {
     mTranslation = translation;
     mMeshUpdated = false;
 }
 
-void RgbdObject::setTranslation(Ogre::Real translationX, Ogre::Real translationY, Ogre::Real translationZ) {
+void RGBDScene::setTranslation(const cv::Vec3f& translation) {
+    mTranslation = Ogre::Vector3(translation[0], translation[1], translation[2]);
+    mMeshUpdated = false;
+}
+
+void RGBDScene::setTranslation(Ogre::Real translationX, Ogre::Real translationY, Ogre::Real translationZ) {
     mTranslation = Ogre::Vector3(translationX, translationY, translationZ);
     mMeshUpdated = false;
 }
 
-MapMode RgbdObject::getMapMode() const {
+MapMode RGBDScene::getMapMode() const {
     return mMapMode;
 }
 
-void RgbdObject::setMapMode(MapMode mapMode) {
+void RGBDScene::setMapMode(MapMode mapMode) {
     mMapMode = mapMode;
     mMeshUpdated = false;
 }

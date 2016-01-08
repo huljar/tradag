@@ -1,7 +1,9 @@
 #ifndef OGREWINDOW_H
 #define OGREWINDOW_H
 
-#include <TraDaG/rgbdobject.h>
+#include <TraDaG/rgbdscene.h>
+#include <TraDaG/droppableobject.h>
+#include <TraDaG/groundplane.h>
 #include <TraDaG/util.h>
 
 #include <Ogre.h>
@@ -24,34 +26,29 @@ public:
     OgreWindow();
     virtual ~OgreWindow();
 
-    virtual SimulationResult startSimulation(
-            const Ogre::String& meshName, const Ogre::Vector3& initialPosition, const Ogre::Matrix3& initialRotation, Ogre::Real scale,
-            const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
-            Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
-            const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
-            const Ogre::Vector3& gravity, bool castShadows, bool drawBulletShapes, bool animate);
+    virtual SimulationResult startSimulation(const ObjectVec& objects, const GroundPlane& plane,
+                                             const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate);
 
     virtual UserAction promptUserAction();
 
-    virtual Ogre::Real queryCoveredFraction(Ogre::Real workPlaneDepth = 50.0) const;
-    virtual bool queryObjectOnPlane() const;
+    virtual Ogre::Real queryObjectOcclusion(DroppableObject* object) const;
+    virtual bool queryObjectOnPlane(DroppableObject* object) const;
 
-    virtual bool renderToImage(cv::Mat& result, Ogre::Real workPlaneDepth = 50.0) const;
+    // TODO: render depth image
+    virtual bool renderRGBImage(cv::Mat& result) const;
 
     virtual void resetCamera();
 
-    virtual void setScene(RgbdObject* scene, bool updateCameraFOV = false, Ogre::Real workPlaneDepth = 50.0);
+    virtual void setScene(RGBDScene* scene, bool updateCameraFOV = false);
 
-    virtual void markVertices(const std::vector<Ogre::Vector3>& vertices);
-    virtual void unmarkVertices();
+    virtual void markVertices(const std::vector<Ogre::Vector3>& vertices = std::vector<Ogre::Vector3>());
+    virtual void unmarkVertices(bool destroy = false);
 
     virtual bool hidden() const;
     virtual void show();
     virtual void hide();
 
     virtual Ogre::SceneManager* getSceneManager();
-
-    virtual Ogre::Entity* getObject();
 
     virtual Ogre::Vector3 getInitialCameraPosition() const;
     virtual Ogre::Vector3 getInitialCameraLookAt() const;
@@ -96,9 +93,6 @@ protected:
     Ogre::Camera* mCamera;
     OgreBites::SdkCameraMan* mCameraMan;
 
-    Ogre::Entity* mObject;
-    Ogre::SceneNode* mObjectNode;
-
     bool mHaltRendering;
     SimulationStatus mStatus;
 
@@ -107,9 +101,12 @@ protected:
     OIS::Keyboard* mKeyboard;
     OIS::Mouse* mMouse;
 
+    // Objects
+    std::vector<Ogre::Entity*> mObjects;
+
     // Scene
-    RgbdObject* mScene;
-    Ogre::SceneNode* mSceneNode;
+    RGBDScene* mRGBDScene;
+    Ogre::SceneNode* mRGBDSceneNode;
     Ogre::ManualObject* mVertexMarkings;
 
     // Camera

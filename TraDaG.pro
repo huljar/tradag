@@ -9,18 +9,23 @@ INCLUDEPATH += ./include
 
 SOURCES += main.cpp \
     ogrewindow.cpp \
-    rgbdobject.cpp \
+    rgbdscene.cpp \
     tradagmain.cpp \
-    imagelabeling.cpp
+    util.cpp \
+    imagelabeling.cpp \
+    droppableobject.cpp \
+    src/groundplane.cpp
 
 HEADERS += include/OgreBites/SdkCameraMan.h \
     include/OgreBites/OgreRay.h \
     ogrewindow.h \
-    rgbdobject.h \
+    rgbdscene.h \
     tradagmain.h \
     ransac.h \
     util.h \
-    imagelabeling.h
+    imagelabeling.h \
+    droppableobject.h \
+    include/TraDaG/groundplane.h
 
 # OGRE
 INCLUDEPATH += /usr/include/OGRE

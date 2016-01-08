@@ -7,6 +7,7 @@
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
 
 #include <limits>
+#include <string>
 
 using namespace TraDaG;
 
@@ -16,15 +17,13 @@ OgreWindow::OgreWindow()
     , mSceneMgr(NULL)
     , mCamera(NULL)
     , mCameraMan(NULL)
-    , mObject(NULL)
-    , mObjectNode(NULL)
     , mHaltRendering(false)
     , mStatus(READY)
     , mInputManager(NULL)
     , mKeyboard(NULL)
     , mMouse(NULL)
-    , mScene(NULL)
-    , mSceneNode(NULL)
+    , mRGBDScene(NULL)
+    , mRGBDSceneNode(NULL)
     , mVertexMarkings(NULL)
     , mInitialCameraPosition(Constants::DefaultCameraPosition)
     , mInitialCameraLookAt(Constants::DefaultCameraLookAt)
@@ -237,61 +236,73 @@ void OgreWindow::shutDownBullet() {
     }
 }
 
-SimulationResult OgreWindow::startSimulation(
-        const Ogre::String& meshName, const Ogre::Vector3& initialPosition,
-        const Ogre::Matrix3& initialRotation, Ogre::Real scale,
-        const Ogre::Vector3& linearVelocity, const Ogre::Vector3& angularVelocity, const Ogre::Vector3& angularFactor,
-        Ogre::Real objectRestitution, Ogre::Real objectFriction, Ogre::Real objectMass,
-        const Ogre::Plane& groundPlane, Ogre::Real planeRestitution, Ogre::Real planeFriction,
-        const Ogre::Vector3& gravity, bool castShadows, bool drawBulletShapes, bool animate) {
-
+SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, const GroundPlane& plane,
+                                             const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate) {
     // Initialize Bullet physics
     initializeBullet(gravity);
 
     // Draw debug shapes if requested
     mWorld->setShowDebugShapes(drawBulletShapes);
 
-    // Load object
-    if(mObject) {
-        // Destroy any previously created objects
-        mObject->detachFromParent();
-        mSceneMgr->destroyEntity(mObject);
+    // Clear any objects from previous simulations
+    for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
+        Ogre::SceneNode* node = (*it)->getParentSceneNode();
+        if(node) {
+            node->detachAllObjects();
+            mSceneMgr->destroySceneNode(node);
+        }
     }
+    mObjects.clear();
 
-    // Create the new object
-    mObject = mSceneMgr->createEntity(Strings::ObjName, meshName);
-    mObject->setCastShadows(castShadows); // TODO: when initializing Ogre, set stencil shadow type (and ambient light)
+    // Load objects
+    for(ObjectVec::const_iterator it = objects.cbegin(); it != objects.cend(); ++it) {
+        Ogre::Entity* entity = (*it)->getOgreEntity();
+        mObjects.push_back(entity);
 
-    // Create a new scene node
-    if(mObjectNode) {
-        mSceneMgr->destroySceneNode(mObjectNode);
+        Ogre::SceneNode* node = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+        node->attachObject(entity);
+        cv::Vec3f scale = (*it)->getScale();
+        node->setScale(Ogre::Vector3(scale[0], scale[1], scale[2]));
+
+        Auto<cv::Vec3f> tmpPos = (*it)->getInitialPosition();
+        Ogre::Vector3 position(tmpPos.manualValue[0], tmpPos.manualValue[1], tmpPos.manualValue[2]);
+        Ogre::Quaternion rotation(convertCvMatToOgreMat((*it)->getInitialRotation().manualValue));
+
+        // Register object with Bullet
+        OgreBulletDynamics::RigidBody* rigidBody = new OgreBulletDynamics::RigidBody(
+                                                           Strings::ObjRigidBodyName + std::to_string(std::distance(objects.cbegin(), it)),
+                                                           mWorld);
+        OgreBulletCollisions::CollisionShape* collisionShape = createConvexHull(entity);
+
+        rigidBody->setShape(node, collisionShape, (*it)->getRestitution(), (*it)->getFriction(), (*it)->getMass(), position, rotation);
+        cv::Vec3f velocity = (*it)->getInitialVelocity();
+        rigidBody->setLinearVelocity(velocity[0], velocity[1], velocity[2]);
+
+        // If the object shall be upright, ignore any torque passed to the function (anything else wouldn't make sense... right?).
+        // Pass zero as angular factor to prevent random infinite object spinning (this can happen if you allow rotation only around
+        // the y-axis, i.e. if you pass (0, 1, 0) vector).
+        if((*it)->getMustBeUpright()) {
+            rigidBody->getBulletRigidBody()->setAngularFactor(0);
+        }
+        else {
+            cv::Vec3f torque = (*it)->getInitialTorque();
+            rigidBody->setAngularVelocity(torque[0], torque[1], torque[2]);
+        }
+
+        // Store pointers so they can be cleaned up later
+        mRigidBodies.push_back(rigidBody);
+        mCollisionShapes.push_back(collisionShape);
     }
-
-    mObjectNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    mObjectNode->setScale(scale, scale, scale);
-
-    // Attach new object to the scene node
-    mObjectNode->attachObject(mObject);
-
-    // Register object with bullet
-    OgreBulletDynamics::RigidBody* objRigidBody = new OgreBulletDynamics::RigidBody(Strings::ObjRigidBodyName, mWorld);
-    OgreBulletCollisions::CollisionShape* objCollisionShape = createConvexHull(mObject);
-
-    objRigidBody->setShape(mObjectNode, objCollisionShape, objectRestitution, objectFriction, objectMass, initialPosition, Ogre::Quaternion(initialRotation));
-    objRigidBody->setLinearVelocity(linearVelocity);
-    objRigidBody->setAngularVelocity(angularVelocity);
-    objRigidBody->getBulletRigidBody()->setAngularFactor(btVector3(angularFactor.x, angularFactor.y, angularFactor.z));
+    // TODO: when initializing Ogre, set stencil shadow type (and ambient light)
 
     // Register plane with Bullet
     OgreBulletDynamics::RigidBody* planeRigidBody = new OgreBulletDynamics::RigidBody(Strings::PlaneRigidBodyName, mWorld);
-    OgreBulletCollisions::CollisionShape* planeCollisionShape = new OgreBulletCollisions::StaticPlaneCollisionShape(groundPlane.normal, -groundPlane.d);
+    OgreBulletCollisions::CollisionShape* planeCollisionShape = new OgreBulletCollisions::StaticPlaneCollisionShape(plane.getOgrePlane().normal, -plane.getOgrePlane().d);
 
-    planeRigidBody->setStaticShape(planeCollisionShape, planeRestitution, planeFriction);
+    planeRigidBody->setStaticShape(planeCollisionShape, plane.getRestitution(), plane.getFriction());
 
     // Store pointers so they can be cleaned up later
-    mRigidBodies.push_back(objRigidBody);
     mRigidBodies.push_back(planeRigidBody);
-    mCollisionShapes.push_back(objCollisionShape);
     mCollisionShapes.push_back(planeCollisionShape);
 
     // Reset timestep counts
@@ -343,10 +354,12 @@ UserAction OgreWindow::promptUserAction() {
     return UA_KEEP;
 }
 
-Ogre::Real OgreWindow::queryCoveredFraction(Ogre::Real workPlaneDepth) const {
-    if(mObject) {
+Ogre::Real OgreWindow::queryObjectOcclusion(DroppableObject* object) const {
+    Ogre::Entity* entity = object->getOgreEntity();
+
+    if(std::find(mObjects.begin(), mObjects.end(), entity) != mObjects.end()) {
         // Find bounding box of object in image coordinates
-        const Ogre::AxisAlignedBox& boundingBox3D = mObject->getWorldBoundingBox(true);
+        const Ogre::AxisAlignedBox& boundingBox3D = entity->getWorldBoundingBox(true);
 
         std::pair<Ogre::Vector2, Ogre::Vector2> boundingBox2D(
             Ogre::Vector2(std::numeric_limits<Ogre::Real>::max(), std::numeric_limits<Ogre::Real>::max()),
@@ -357,10 +370,10 @@ Ogre::Real OgreWindow::queryCoveredFraction(Ogre::Real workPlaneDepth) const {
         for(const Ogre::Vector3* it = boundingBox3D.getAllCorners(); it < boundingBox3D.getAllCorners() + 8; ++it) {
 
             // Project the 3D point onto the 2D plane at a specific depth
-            Ogre::Vector3 pointXYZ = (*it) * workPlaneDepth / std::abs(it->z);
+            Ogre::Vector3 pointXYZ = (*it) * Constants::WorkPlaneDepth / std::abs(it->z);
 
             // Transform to (u, v, d)
-            Ogre::Vector3 pointUVD = mScene->worldToDepth(pointXYZ);
+            Ogre::Vector3 pointUVD = mRGBDScene->worldToDepth(pointXYZ);
 
             // Update bounding box
             if(pointUVD.x < boundingBox2D.first.x) boundingBox2D.first.x = pointUVD.x;
@@ -392,7 +405,7 @@ Ogre::Real OgreWindow::queryCoveredFraction(Ogre::Real workPlaneDepth) const {
         // Debug end
 
         // Temporarily detach RGBD scene from scene manager
-        mScene->getManualObject()->detachFromParent();
+        mRGBDScene->getManualObject()->detachFromParent();
 
         // Cast rays through all pixels inside the bounding box
         std::vector<Ogre::Vector3> objectImgCoords;
@@ -401,20 +414,20 @@ Ogre::Real OgreWindow::queryCoveredFraction(Ogre::Real workPlaneDepth) const {
         for(Ogre::Real v = boundingBox2D.first.y; v <= boundingBox2D.second.y; v += 1.0) {
             for(Ogre::Real u = boundingBox2D.first.x; u <= boundingBox2D.second.x; u += 1.0) {
                 Ogre::Vector3 result;
-                Ogre::MovableObject* object;
+                Ogre::MovableObject* objectHit;
 
-                if(polygonRayCaster.RaycastFromPoint(mInitialCameraPosition, mScene->depthToWorld(u, v, workPlaneDepth) - mInitialCameraPosition, result, object)
-                        && object == mObject) {
-                    objectImgCoords.push_back(mScene->worldToDepth(result));
+                if(polygonRayCaster.RaycastFromPoint(mInitialCameraPosition, mRGBDScene->depthToWorld(u, v, Constants::WorkPlaneDepth) - mInitialCameraPosition, result, objectHit)
+                        && objectHit == entity) {
+                    objectImgCoords.push_back(mRGBDScene->worldToDepth(result));
                 }
             }
         }
 
         // Reattach the RGBD scene
-        mSceneNode->attachObject(mScene->getManualObject());
+        mRGBDSceneNode->attachObject(mRGBDScene->getManualObject());
 
         // Test for all object image coordinates if the scene depth is smaller than the object depth
-        cv::Mat depthImg = mScene->getDepthImage();
+        cv::Mat depthImg = mRGBDScene->getDepthImage();
         size_t coveredPixels = 0;
 
         for(std::vector<Ogre::Vector3>::iterator it = objectImgCoords.begin(); it != objectImgCoords.end(); ++it) {
@@ -432,16 +445,16 @@ Ogre::Real OgreWindow::queryCoveredFraction(Ogre::Real workPlaneDepth) const {
     return -1.0;
 }
 
-bool OgreWindow::queryObjectOnPlane() const {
+bool OgreWindow::queryObjectOnPlane(DroppableObject* object) const {
 
 }
 
-bool OgreWindow::renderToImage(cv::Mat& result, Ogre::Real workPlaneDepth) const {
+bool OgreWindow::renderRGBImage(cv::Mat& result) const {
     // Determine aspect ratio
-    const cv::Mat depthImg = mScene->getDepthImage();
-    Ogre::Vector3 topLeft = mScene->depthToWorld(0.0, 0.0, workPlaneDepth); // Explicit type statement, otherwise call is ambiguous
-    Ogre::Vector3 topRight = mScene->depthToWorld((Ogre::Real)(depthImg.cols - 1), 0.0, workPlaneDepth);
-    Ogre::Vector3 bottomLeft = mScene->depthToWorld(0.0, (Ogre::Real)(depthImg.rows - 1), workPlaneDepth);
+    const cv::Mat depthImg = mRGBDScene->getDepthImage();
+    Ogre::Vector3 topLeft = mRGBDScene->depthToWorld(0, 0, Constants::WorkPlaneDepth);
+    Ogre::Vector3 topRight = mRGBDScene->depthToWorld(depthImg.cols - 1, 0, Constants::WorkPlaneDepth);
+    Ogre::Vector3 bottomLeft = mRGBDScene->depthToWorld(0, depthImg.rows - 1, Constants::WorkPlaneDepth);
 
     Ogre::Real width = topRight.x - topLeft.x;
     Ogre::Real height = topLeft.y - bottomLeft.y;
@@ -541,19 +554,19 @@ void OgreWindow::resetCamera() {
     }
 }
 
-void OgreWindow::setScene(RgbdObject* scene, bool updateCameraFOV, Ogre::Real workPlaneDepth) {
-    if(!mSceneNode)
-        mSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    else if(mScene)
-        mScene->getManualObject()->detachFromParent();
+void OgreWindow::setScene(RGBDScene* scene, bool updateCameraFOV) {
+    if(!mRGBDSceneNode)
+        mRGBDSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+    else if(mRGBDScene)
+        mRGBDScene->getManualObject()->detachFromParent();
 
-    mScene = scene;
-    mSceneNode->attachObject(mScene->getManualObject());
+    mRGBDScene = scene;
+    mRGBDSceneNode->attachObject(mRGBDScene->getManualObject());
 
     if(updateCameraFOV) {
-        const cv::Mat depthImg = mScene->getDepthImage();
-        Ogre::Vector3 topLeft = mScene->depthToWorld(0.0, 0.0, workPlaneDepth);
-        Ogre::Vector3 bottomLeft = mScene->depthToWorld(0.0, (Ogre::Real)(depthImg.rows - 1), workPlaneDepth);
+        const cv::Mat depthImg = mRGBDScene->getDepthImage();
+        Ogre::Vector3 topLeft = mRGBDScene->depthToWorld(0.0, 0.0, Constants::WorkPlaneDepth);
+        Ogre::Vector3 bottomLeft = mRGBDScene->depthToWorld(0.0, (Ogre::Real)(depthImg.rows - 1), Constants::WorkPlaneDepth);
 
         Ogre::Vector3 top(0, topLeft.y, topLeft.z);
         Ogre::Vector3 bottom(0, bottomLeft.y, bottomLeft.z);
@@ -566,29 +579,38 @@ void OgreWindow::setScene(RgbdObject* scene, bool updateCameraFOV, Ogre::Real wo
 }
 
 void OgreWindow::markVertices(const std::vector<Ogre::Vector3>& vertices) {
-    if(mSceneNode && mScene) {
-        if(mVertexMarkings) {
-            mVertexMarkings->detachFromParent();
-            mSceneMgr->destroyManualObject(mVertexMarkings);
+    if(mRGBDSceneNode && mRGBDScene) {
+        if(vertices.size() == 0) {
+            if(mVertexMarkings && !mVertexMarkings->isAttached()) {
+                mRGBDSceneNode->attachObject(mVertexMarkings);
+            }
         }
+        else {
+            if(mVertexMarkings) {
+                mVertexMarkings->detachFromParent();
+                mSceneMgr->destroyManualObject(mVertexMarkings);
+            }
 
-        mVertexMarkings = mSceneMgr->createManualObject();
+            mVertexMarkings = mSceneMgr->createManualObject();
 
-        mVertexMarkings->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
-        for(std::vector<Ogre::Vector3>::const_iterator it = vertices.cbegin(); it != vertices.cend(); ++it) {
-            mVertexMarkings->position(*it);
+            mVertexMarkings->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
+            for(std::vector<Ogre::Vector3>::const_iterator it = vertices.cbegin(); it != vertices.cend(); ++it) {
+                mVertexMarkings->position(*it);
+            }
+            mVertexMarkings->end();
+
+            mRGBDSceneNode->attachObject(mVertexMarkings);
         }
-        mVertexMarkings->end();
-
-        mSceneNode->attachObject(mVertexMarkings);
     }
 }
 
-void OgreWindow::unmarkVertices() {
+void OgreWindow::unmarkVertices(bool destroy) {
     if(mVertexMarkings) {
         mVertexMarkings->detachFromParent();
-        mSceneMgr->destroyManualObject(mVertexMarkings);
-        mVertexMarkings = NULL;
+        if(destroy) {
+            mSceneMgr->destroyManualObject(mVertexMarkings);
+            mVertexMarkings = NULL;
+        }
     }
 }
 
@@ -691,9 +713,14 @@ bool OgreWindow::mouseReleased(const OIS::MouseEvent& e, const OIS::MouseButtonI
 }
 
 bool OgreWindow::stepSimulationWithIdleCheck(Ogre::Real timeElapsed) {
-    // Get current object position/rotation
-    Ogre::Quaternion oldOrient = mObjectNode->getOrientation();
-    Ogre::Vector3 oldPos = mObjectNode->getPosition();
+    // Get current object positions/rotations
+    std::vector<Ogre::Quaternion> oldRotations;
+    std::vector<Ogre::Vector3> oldPositions;
+    for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
+        Ogre::SceneNode* node = (*it)->getParentSceneNode();
+        oldRotations.push_back(node->getOrientation());
+        oldPositions.push_back(node->getPosition());
+    }
 
     // Step the simulation
     mWorld->stepSimulation(timeElapsed, 4);
@@ -701,20 +728,27 @@ bool OgreWindow::stepSimulationWithIdleCheck(Ogre::Real timeElapsed) {
     // Add elapsed time
     mTotalTime += timeElapsed;
 
-    // Check if the object is still moving
-    Ogre::Quaternion newOrient = mObjectNode->getOrientation();
-    Ogre::Vector3 newPos = mObjectNode->getPosition();
+    // Check if the objects are still moving
+    bool allIdle = true;
+    for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
+        Ogre::SceneNode* node = (*it)->getParentSceneNode();
+        Ogre::Quaternion newRotation = node->getOrientation();
+        Ogre::Vector3 newPosition = node->getPosition();
 
-    if(orientationEquals(oldOrient, newOrient) && oldPos.positionEquals(newPos)) {
-        // The object is idle
-        mIdleTime += timeElapsed;
+        unsigned int idx = std::distance(mObjects.begin(), it);
 
-        if(mIdleTime >= Constants::IdleTimeThreshold)
-            return true;
+        if(!orientationEquals(oldRotations[idx], newRotation) || !oldPositions[idx].positionEquals(newPosition)) {
+            allIdle = false;
+            mIdleTime = 0;
+            break;
+        }
     }
-    else {
-        // The object is moving, reset idle counter
-        mIdleTime = 0;
+
+    if(allIdle) {
+        mIdleTime += timeElapsed;
+        if(mIdleTime >= Constants::IdleTimeThreshold) {
+            return true;
+        }
     }
 
     return false;
@@ -779,10 +813,6 @@ void OgreWindow::hide() {
 
 Ogre::SceneManager* OgreWindow::getSceneManager() {
     return mSceneMgr;
-}
-
-Ogre::Entity* OgreWindow::getObject() {
-    return mObject;
 }
 
 Ogre::Vector3 OgreWindow::getInitialCameraPosition() const {

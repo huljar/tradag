@@ -1,7 +1,9 @@
 #include <TraDaG/tradagmain.h>
 
+#include <cassert>
 #include <cmath>
 #include <stdexcept>
+#include <limits>
 
 using namespace TraDaG;
 
@@ -43,29 +45,24 @@ TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgb
 
 TradagMain::TradagMain()
     : mOgreWindow(NULL)
-    , mRgbdObject(NULL)
+    , mRGBDScene(NULL)
     , mImageLabeling(NULL)
-    , mObjectScale(Defaults::ObjectScale)
-    , mObjectMustBeUpright(Defaults::ObjectMustBeUpright)
-    , mObjectCoveredFractionInterval(Defaults::ObjectCoveredFractionInterval)
-    , mObjectCastShadows(Defaults::ObjectCastShadows)
     , mMaxAttempts(Defaults::MaxAttempts)
     , mShowPreviewWindow(Defaults::ShowPreviewWindow)
     , mShowPhysicsAnimation(Defaults::ShowPhysicsAnimation)
     , mMarkInlierSet(Defaults::MarkInlierSet)
     , mDrawBulletShapes(Defaults::DrawBulletShapes)
     , mGravity(Defaults::Gravity)
-    , mObjectRestitution(Defaults::ObjectRestitution)
-    , mObjectFriction(Defaults::ObjectFriction)
-    , mPlaneRestitution(Defaults::PlaneRestitution)
-    , mPlaneFriction(Defaults::PlaneFriction)
     , mRandomEngine(std::chrono::system_clock::now().time_since_epoch().count())
 {
 }
 
 TradagMain::~TradagMain() {
+    for(ObjectVec::iterator it = mObjects.begin(); it != mObjects.end(); ++it)
+        delete *it;
+
     delete mImageLabeling;
-    delete mRgbdObject;
+    delete mRGBDScene;
     delete mOgreWindow;
 }
 
@@ -76,43 +73,72 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage,
                       const cv::Matx33f& rotation, const cv::Vec3f& translation,
                       MapMode mapMode, LabelMode labelMode) {
 
+    // Create OGRE window (hidden by default)
     mOgreWindow = new OgreWindow();
     // TODO: light position?
 
-    mRgbdObject = new RgbdObject(Ogre::String(Strings::RgbdSceneName), mOgreWindow->getSceneManager(), depthImage, rgbImage,
-                                 Ogre::Vector2(depthPrincipalPoint[0], depthPrincipalPoint[1]),
-                                 Ogre::Vector2(depthFocalLength[0], depthFocalLength[1]),
-                                 Ogre::Vector2(rgbPrincipalPoint[0], rgbPrincipalPoint[1]),
-                                 Ogre::Vector2(rgbFocalLength[0], rgbFocalLength[1]),
-                                 convertCvMatToOgreMat(rotation), Ogre::Vector3(translation[0], translation[1], translation[2]),
-                                 mapMode);
+    // Create scene from RGB and depth image
+    mRGBDScene = new RGBDScene(Ogre::String(Strings::RgbdSceneName), mOgreWindow->getSceneManager(), depthImage, rgbImage,
+                               Ogre::Vector2(depthPrincipalPoint[0], depthPrincipalPoint[1]),
+                               Ogre::Vector2(depthFocalLength[0], depthFocalLength[1]),
+                               Ogre::Vector2(rgbPrincipalPoint[0], rgbPrincipalPoint[1]),
+                               Ogre::Vector2(rgbFocalLength[0], rgbFocalLength[1]),
+                               convertCvMatToOgreMat(rotation), Ogre::Vector3(translation[0], translation[1], translation[2]),
+                               mapMode);
 
+    // Create image labeling from label image
     mImageLabeling = new ImageLabeling(labelImage, labelMap, labelMode);
 
-    mOgreWindow->setScene(mRgbdObject, true);
+    // Register the RGBD scene with OGRE
+    mOgreWindow->setScene(mRGBDScene, true);
 }
 
-void TradagMain::updateMesh() {
-    mRgbdObject->meshify();
+DroppableObject* TradagMain::createObject(const std::string& meshName) {
+    DroppableObject* obj = new DroppableObject(meshName, mOgreWindow->getSceneManager());
+    mObjects.push_back(obj);
+    return obj;
 }
 
-ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, const Auto<PlaneFitResult>& plane, const std::string& planeLabel,
-                                                 const Auto<cv::Vec3f>& initialPosition, const Auto<cv::Matx33f>& initialRotation,
-                                                 const float initialAzimuth,
-                                                 const cv::Vec3f& initialVelocity, const cv::Vec3f& initialTorque) {
+void TradagMain::destroyObject(DroppableObject* object) {
+    ObjectVec::iterator objPos = std::find(mObjects.begin(), mObjects.end(), object);
+    if(objPos != mObjects.end())
+        mObjects.erase(objPos);
 
-    // Calculate plane from labels using RANSAC
-    PlaneFitResult planeFit = plane.automate ? mImageLabeling->getPlaneForLabel(planeLabel, mRgbdObject) : plane.manualValue;
+    delete object;
+}
 
-    if(plane.automate && planeFit.status != PF_SUCCESS)
-        return ObjectDropResult(OD_PLANE_FIT_ERROR, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
+void TradagMain::destroyObject(unsigned int index) {
+    assert(index < mObjects.size());
+    delete mObjects[index];
+    mObjects.erase(mObjects.begin() + index);
 
-    // If the plane does not face the camera (i.e. the camera lies on the negative side of the plane), invert its normal (to make it face the camera)
-    Ogre::Plane groundPlane(planeFit.plane);
-    if(planeFit.plane.getDistance(mOgreWindow->getInitialCameraPosition()) < 0) {
-        groundPlane.normal = -groundPlane.normal;
-        groundPlane.d = -groundPlane.d;
-    }
+}
+
+void TradagMain::destroyAllObjects() {
+    for(ObjectVec::iterator it = mObjects.begin(); it != mObjects.end(); ++it)
+        delete *it;
+
+    mObjects.clear();
+}
+
+ObjectVec::iterator TradagMain::beginObjects() {
+    return mObjects.begin();
+}
+
+ObjectVec::const_iterator TradagMain::beginObjects() const {
+    return mObjects.cbegin();
+}
+
+ObjectVec::iterator TradagMain::endObjects() {
+    return mObjects.end();
+}
+
+ObjectVec::const_iterator TradagMain::endObjects() const {
+    return mObjects.cend();
+}
+
+ObjectDropResult TradagMain::execute() {
+    const Ogre::Plane& groundPlane = mGroundPlane.ogrePlane();
 
     // Calculate gravity vector
     Ogre::Vector3 gravity = mGravity.automate
@@ -121,41 +147,29 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
 
     // Abort if the angle between plane normal and gravity vector is too large
     if(!mGravity.automate && groundPlane.normal.angleBetween(-gravity) > Constants::MaxPlaneNormalToGravityAngle)
-        return ObjectDropResult(OD_PLANE_TOO_STEEP, cv::Mat(), 0.0, cv::Matx33f::eye(), cv::Vec3f(0, 0, 0));
+        return ObjectDropResult(OD_PLANE_TOO_STEEP, cv::Mat(), cv::Mat());
 
-    // Mark the plane inlier set if requested
-    if(mMarkInlierSet && mShowPreviewWindow) {
-        mOgreWindow->markVertices(planeFit.vertices);
+    // Calculate initial rotations
+    for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
+        Auto<cv::Matx33f> rotation = (*it)->getInitialRotation();
+        if(rotation.automate) {
+            rotation.manualValue = convertOgreMatToCvMat(computeRotation((*it)->getInitialAzimuth(), gravity));
+            (*it)->setInitialRotation(rotation);
+        }
     }
 
-    // Calculate initial rotation
-    Ogre::Matrix3 actualRotation = initialRotation.automate
-                                   ? computeRotation(initialAzimuth, gravity)
-                                   : convertCvMatToOgreMat(initialRotation.manualValue);
+    // Mark the plane inlier set if requested
+    if(mMarkInlierSet && mShowPreviewWindow)
+        mOgreWindow->markVertices(mGroundPlane.vertices());
 
-    // Set linear velocity
-    Ogre::Vector3 linearVelocity(initialVelocity[0], initialVelocity[1], initialVelocity[2]);
-
-    // If the object shall be upright, ignore any torque passed to the function (anything else wouldn't make sense... right?)
-    Ogre::Vector3 angularVelocity = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3(initialTorque[0], initialTorque[1], initialTorque[2]);
-
-    // Pass all-zero vector as angular factor to prevent random infinite object spinning
-    // (yes, this can happen if you allow yaw rotation, i.e. if you pass (0, 1, 0))
-    // To emulate yaw rotation, one can pass a random initial rotation around the y-axis to this function
-    Ogre::Vector3 angularFactor = mObjectMustBeUpright ? Ogre::Vector3::ZERO : Ogre::Vector3::UNIT_SCALE;
-
-    // Display the window to view animation
+    // If animation is requested, display the window now
     if(mShowPreviewWindow && mShowPhysicsAnimation && mOgreWindow->hidden())
         mOgreWindow->show();
 
-    // Get min/max covered fraction
-    float minCovered = mObjectCoveredFractionInterval.first;
-    float maxCovered = mObjectCoveredFractionInterval.second;
-
     // Main loop - perform simulations until the criteria are met or the maximum number of attempts was reached
-    std::pair<Ogre::Matrix3, Ogre::Vector3> bestAttemptPose(Ogre::Matrix3::IDENTITY, Ogre::Vector3::ZERO);
-    cv::Mat bestAttemptRendered;
-    float bestAttemptCovered = -1000.0;
+    cv::Mat bestAttemptDepthImage;
+    cv::Mat bestAttemptRGBImage;
+    float bestAttemptScore = std::numeric_limits<float>::max(); // TODO: weighting object for score influence?
 
     bool solutionFound = false;
     unsigned int attempt = 0;
@@ -163,58 +177,68 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
     do {
         ++attempt;
 
-        // Calculate initial position
-        Ogre::Vector3 actualPosition = initialPosition.automate
-                                       ? computePosition(planeFit.vertices, gravity)
-                                       : Ogre::Vector3(initialPosition.manualValue[0], initialPosition.manualValue[1], initialPosition.manualValue[2]);
+        // Calculate initial positions (this is done for each attempt because it contains randomization)
+        for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
+            Auto<cv::Vec3f> position = (*it)->getInitialPosition();
+            if(position.automate) {
+                Ogre::Vector3 posValue = computePosition(mGroundPlane.vertices(), gravity);
+                position.manualValue = cv::Vec3f(posValue.x, posValue.y, posValue.z);
+                (*it)->setInitialPosition(position);
+            }
+        }
 
         // Simulate (with animation only if needed)
         // This function does not return until the simulation is completed
-        SimulationResult result = mOgreWindow->startSimulation(
-                                      meshName, actualPosition, actualRotation, mObjectScale, linearVelocity, angularVelocity, angularFactor,
-                                      mObjectRestitution, mObjectFriction, 1.0, groundPlane, mPlaneRestitution, mPlaneFriction, gravity,
-                                      mObjectCastShadows, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation
-                                  );
+        SimulationResult result = mOgreWindow->startSimulation(mObjects, mGroundPlane, gravity, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation);
 
         if(result == SR_TIMEOUT)
             continue;
         else if(result == SR_ABORTED)
             break;
 
-        // Get covered fraction of the object
-        Ogre::Real covered = mOgreWindow->queryCoveredFraction();
+        // Calculate score of this result
+        float score = 0.0;
+        std::vector<float> occlusions;
+        for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
+            // TODO: check if object still on plane
 
-        // TODO: check if object on plane
+            Ogre::Real occlusion = mOgreWindow->queryObjectOcclusion(*it);
+            std::pair<float, float> desiredOcclusion = (*it)->getDesiredOcclusion();
 
-        // Check the quality of this attempt
-        float eval = distanceToInterval(covered, minCovered, maxCovered);
+            occlusions.push_back(occlusion);
+            score += distanceToInterval(occlusion, desiredOcclusion.first, desiredOcclusion.second);
+        }
 
-        if(eval < distanceToInterval(bestAttemptCovered, minCovered, maxCovered)) {
-            // Get object pose
-            Ogre::SceneNode* objectSceneNode = mOgreWindow->getObject()->getParentSceneNode();
+        if(score < bestAttemptScore) {
+            // Hide vertex markings
+            mOgreWindow->unmarkVertices();
 
-            Ogre::Matrix3 objectRot;
-            objectSceneNode->getOrientation().ToRotationMatrix(objectRot);
-
-            Ogre::Vector3 objectPos = objectSceneNode->getPosition();
-
-            // Render image
-            cv::Mat tmpRender;
-            if(!mOgreWindow->renderToImage(tmpRender))
+            // Render depth and RGB images
+            cv::Mat rgbRender;
+            if(!mOgreWindow->renderRGBImage(rgbRender)) // TODO: depth image
                 continue;
 
-            // Save this attempt
-            bestAttemptPose.first = objectRot;
-            bestAttemptPose.second = objectPos;
-            bestAttemptRendered = tmpRender;
-            bestAttemptCovered = covered;
-        }
+            // Re-mark vertices (if any were previously marked)
+            mOgreWindow->markVertices();
 
-        if(eval == 0.0) {
-            solutionFound = true;
-        }
+            // Store this attempt
+            bestAttemptRGBImage = rgbRender;
+            //bestAttemptDepthImage = ; // TODO: depth image
 
-    } while(continueLoop(solutionFound, attempt, bestAttemptCovered));
+            for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
+                Ogre::SceneNode* node = (*it)->getOgreEntity()->getParentSceneNode();
+
+                Ogre::Matrix3 rot;
+                node->getOrientation().ToRotationMatrix(rot);
+                (*it)->setFinalRotation(rot);
+                (*it)->setFinalPosition(node->getPosition());
+                (*it)->setFinalOcclusion(occlusions[std::distance(beginObjects(), it)]);
+            }
+
+            if(score <= 0.0)
+                solutionFound = true;
+        }
+    } while(!solutionFound && attempt < mMaxAttempts);
 
     // If a preview without animation was requested, display the window now
     if(mShowPreviewWindow && !mShowPhysicsAnimation && mOgreWindow->hidden())
@@ -231,19 +255,12 @@ ObjectDropResult TradagMain::dropObjectIntoScene(const std::string& meshName, co
         action = UA_KEEP;
     }
 
-    // Remove vertex markings
-    mOgreWindow->unmarkVertices();
-
-    // Convert pose
-    cv::Matx33f finalRot = convertOgreMatToCvMat(bestAttemptPose.first);
-    cv::Vec3f finalPos = cv::Vec3f(bestAttemptPose.second.x, bestAttemptPose.second.y, bestAttemptPose.second.z);
-
-    // Check rendered image
-    if(bestAttemptRendered.data) {
-        return ObjectDropResult(OD_SUCCESS, bestAttemptRendered, bestAttemptCovered, finalRot, finalPos);
+    // Check rendered images
+    if(/*bestAttemptDepthImage.data && */bestAttemptRGBImage.data) {
+        return ObjectDropResult(OD_SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
     }
 
-    return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), bestAttemptCovered, finalRot, finalPos);
+    return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), cv::Mat());
 }
 
 Ogre::Vector3 TradagMain::computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
@@ -286,17 +303,6 @@ Ogre::Matrix3 TradagMain::computeRotation(const float azimuth, const Ogre::Vecto
     return rotation;
 }
 
-bool TradagMain::continueLoop(bool solutionFound, unsigned int attempt, Ogre::Real fractionCovered) const {
-    if(solutionFound)
-        return false;
-
-    if(attempt >= mMaxAttempts)
-        return false;
-
-    return fractionCovered < mObjectCoveredFractionInterval.first ||
-           fractionCovered > mObjectCoveredFractionInterval.second;
-}
-
 float TradagMain::distanceToInterval(float value, float min, float max) const {
     if(value < min)
         return min - value;
@@ -307,58 +313,16 @@ float TradagMain::distanceToInterval(float value, float min, float max) const {
     return 0.0;
 }
 
-Ogre::Matrix3 TradagMain::convertCvMatToOgreMat(const cv::Matx33f& mat) const {
-    Ogre::Real conv[3][3];
-    for(int i = 0; i < 3; ++i) {
-        for(int j = 0; j < 3; ++j) {
-            conv[i][j] = mat(i, j);
-        }
-    }
-    return Ogre::Matrix3(conv);
+cv::Mat TradagMain::getDepthImage() const {
+    return mRGBDScene->getDepthImage();
 }
 
-cv::Matx33f TradagMain::convertOgreMatToCvMat(const Ogre::Matrix3& mat) const {
-    float conv[3][3];
-    for(int i = 0; i < 3; ++i) {
-        for(int j = 0; j < 3; ++j) {
-            conv[i][j] = mat[i][j];
-        }
-    }
-    return cv::Matx33f(&conv[0][0]);
+cv::Mat TradagMain::getRgbImage() const {
+    return mRGBDScene->getRgbImage();
 }
 
-bool TradagMain::checkFractionValid(float min, float max) const {
-    if(max < min)
-        return false;
-
-    if(min < 0.0 || max > 1.0)
-        return false;
-
-    return true;
-}
-
-cv::Mat TradagMain::getDepthImage() {
-    return mRgbdObject->getDepthImage();
-}
-
-const cv::Mat TradagMain::getDepthImage() const {
-    return mRgbdObject->getDepthImage();
-}
-
-cv::Mat TradagMain::getRgbImage() {
-    return mRgbdObject->getRgbImage();
-}
-
-const cv::Mat TradagMain::getRgbImage() const {
-    return mRgbdObject->getRgbImage();
-}
-
-cv::Mat TradagMain::getLabelImage() {
-    return cv::Mat(); // TODO: correct later
-}
-
-const cv::Mat TradagMain::getLabelImage() const {
-    return cv::Mat(); // TODO: correct later
+cv::Mat TradagMain::getLabelImage() const {
+    return mImageLabeling->getLabelImage();
 }
 
 LabelMap TradagMain::getLabelMap() const {
@@ -367,25 +331,25 @@ LabelMap TradagMain::getLabelMap() const {
 
 void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage, const LabelMap& labelMap) {
     // Get old camera parameters
-    Ogre::Vector2 tmpDPP = mRgbdObject->getDepthPrincipalPoint();
-    Ogre::Vector2 tmpDFL = mRgbdObject->getDepthFocalLength();
-    Ogre::Vector2 tmpRPP = mRgbdObject->getRgbPrincipalPoint();
-    Ogre::Vector2 tmpRFL = mRgbdObject->getRgbFocalLength();
-    Ogre::Matrix3 tmpRot = mRgbdObject->getRotation();
-    Ogre::Vector3 tmpTrans = mRgbdObject->getTranslation();
-    MapMode tmpMM = mRgbdObject->getMapMode();
+    Ogre::Vector2 tmpDPP = mRGBDScene->getDepthPrincipalPoint();
+    Ogre::Vector2 tmpDFL = mRGBDScene->getDepthFocalLength();
+    Ogre::Vector2 tmpRPP = mRGBDScene->getRgbPrincipalPoint();
+    Ogre::Vector2 tmpRFL = mRGBDScene->getRgbFocalLength();
+    Ogre::Matrix3 tmpRot = mRGBDScene->getRotation();
+    Ogre::Vector3 tmpTrans = mRGBDScene->getTranslation();
+    MapMode tmpMM = mRGBDScene->getMapMode();
     LabelMode tmpLM = mImageLabeling->getLabelMode();
 
     // Delete old scene and create a new one
-    delete mRgbdObject;
-    mRgbdObject = new RgbdObject(Strings::RgbdSceneName, mOgreWindow->getSceneManager(), depthImage, rgbImage, tmpDPP, tmpDFL, tmpRPP, tmpRFL, tmpRot, tmpTrans, tmpMM);
+    delete mRGBDScene;
+    mRGBDScene = new RGBDScene(Strings::RgbdSceneName, mOgreWindow->getSceneManager(), depthImage, rgbImage, tmpDPP, tmpDFL, tmpRPP, tmpRFL, tmpRot, tmpTrans, tmpMM);
 
     // Delete old labeling and create a new one
     delete mImageLabeling;
     mImageLabeling = new ImageLabeling(labelImage, labelMap, tmpLM);
 
     // Notify OgreWindow of the new scene
-    mOgreWindow->setScene(mRgbdObject, true);
+    mOgreWindow->setScene(mRGBDScene, true);
 }
 
 bool TradagMain::loadNewScene(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath, const LabelMap& labelMap) {
@@ -401,140 +365,19 @@ bool TradagMain::loadNewScene(const std::string& depthImagePath, const std::stri
     return false;
 }
 
-cv::Vec2f TradagMain::getDepthPrincipalPoint() const {
-    Ogre::Vector2 tmpDPP = mRgbdObject->getDepthPrincipalPoint();
-    return cv::Vec2f(tmpDPP.x, tmpDPP.y);
+GroundPlane TradagMain::getGroundPlane() const {
+    return mGroundPlane;
 }
 
-void TradagMain::setDepthPrincipalPoint(const cv::Vec2f& principalPoint) {
-    mRgbdObject->setDepthPrincipalPoint(principalPoint[0], principalPoint[1]);
-}
+void TradagMain::setGroundPlane(const GroundPlane& groundPlane) {
+    mGroundPlane = groundPlane;
 
-void TradagMain::setDepthPrincipalPoint(float x, float y) {
-    mRgbdObject->setDepthPrincipalPoint(x, y);
-}
-
-cv::Vec2f TradagMain::getDepthFocalLength() const {
-    Ogre::Vector2 tmpDFL = mRgbdObject->getDepthFocalLength();
-    return cv::Vec2f(tmpDFL.x, tmpDFL.y);
-}
-
-void TradagMain::setDepthFocalLength(const cv::Vec2f& focalLength) {
-    mRgbdObject->setDepthFocalLength(focalLength[0], focalLength[1]);
-}
-
-void TradagMain::setDepthFocalLength(float x, float y) {
-    mRgbdObject->setDepthFocalLength(x, y);
-}
-
-cv::Vec2f TradagMain::getRgbPrincipalPoint() const {
-    Ogre::Vector2 tmpRPP = mRgbdObject->getRgbPrincipalPoint();
-    return cv::Vec2f(tmpRPP.x, tmpRPP.y);
-}
-
-void TradagMain::setRgbPrincipalPoint(const cv::Vec2f& principalPoint) {
-    mRgbdObject->setRgbPrincipalPoint(principalPoint[0], principalPoint[1]);
-}
-
-void TradagMain::setRgbPrincipalPoint(float x, float y) {
-    mRgbdObject->setRgbPrincipalPoint(x, y);
-}
-
-cv::Vec2f TradagMain::getRgbFocalLength() const {
-    Ogre::Vector2 tmpRFL = mRgbdObject->getRgbFocalLength();
-    return cv::Vec2f(tmpRFL.x, tmpRFL.y);
-}
-
-void TradagMain::setRgbFocalLength(const cv::Vec2f& focalLength) {
-    mRgbdObject->setRgbFocalLength(focalLength[0], focalLength[1]);
-}
-
-void TradagMain::setRgbFocalLength(float x, float y) {
-    mRgbdObject->setRgbFocalLength(x, y);
-}
-
-cv::Matx33f TradagMain::getRotation() const {
-    Ogre::Matrix3 tmpRot = mRgbdObject->getRotation();
-    return cv::Matx33f(tmpRot[0][0], tmpRot[0][1], tmpRot[0][2],
-                       tmpRot[1][0], tmpRot[1][1], tmpRot[1][2],
-                       tmpRot[2][0], tmpRot[2][1], tmpRot[2][2]);
-}
-
-void TradagMain::setRotation(const cv::Matx33f& rotation) {
-    Ogre::Real rotationConverted[3][3];
-    for(int i = 0; i < 3; ++i) {
-        for(int j = 0; j < 3; ++j) {
-            rotationConverted[i][j] = rotation(i, j);
-        }
+    // Ensure that the camera lies on the positive side of the plane
+    Ogre::Plane& plane = mGroundPlane.ogrePlane();
+    if(plane.getDistance(mOgreWindow->getInitialCameraPosition()) < 0) {
+        plane.normal = -plane.normal;
+        plane.d = -plane.d;
     }
-    mRgbdObject->setRotation(Ogre::Matrix3(rotationConverted));
-}
-
-cv::Vec3f TradagMain::getTranslation() const {
-    Ogre::Vector3 tmpTrans = mRgbdObject->getTranslation();
-    return cv::Vec3f(tmpTrans.x, tmpTrans.y, tmpTrans.z);
-}
-
-void TradagMain::setTranslation(const cv::Vec3f& translation) {
-    mRgbdObject->setTranslation(translation[0], translation[1], translation[2]);
-}
-
-void TradagMain::setTranslation(float x, float y, float z) {
-    mRgbdObject->setTranslation(x, y, z);
-}
-
-MapMode TradagMain::getMapMode() const {
-    return mRgbdObject->getMapMode();
-}
-
-void TradagMain::setMapMode(MapMode mode) {
-    mRgbdObject->setMapMode(mode);
-}
-
-LabelMode TradagMain::getLabelMode() const {
-    return mImageLabeling->getLabelMode();
-}
-
-void TradagMain::setLabelMode(LabelMode mode) {
-    mImageLabeling->setLabelMode(mode);
-}
-
-float TradagMain::getObjectScale() const {
-    return mObjectScale;
-}
-
-void TradagMain::setObjectScale(float scale) {
-    mObjectScale = scale;
-}
-
-bool TradagMain::objectMustBeUpright() const {
-    return mObjectMustBeUpright;
-}
-
-void TradagMain::setObjectMustBeUpright(bool upright) {
-    mObjectMustBeUpright = upright;
-}
-
-std::pair<float, float> TradagMain::getObjectCoveredFractionInterval() const {
-    return mObjectCoveredFractionInterval;
-}
-
-void TradagMain::setObjectCoveredFractionInterval(const std::pair<float, float>& covered) {
-    if(checkFractionValid(covered.first, covered.second))
-        mObjectCoveredFractionInterval = covered;
-}
-
-void TradagMain::setObjectCoveredFractionInterval(float minCovered, float maxCovered) {
-    if(checkFractionValid(minCovered, maxCovered))
-        mObjectCoveredFractionInterval = std::make_pair(minCovered, maxCovered);
-}
-
-bool TradagMain::objectCastShadows() const {
-    return mObjectCastShadows;
-}
-
-void TradagMain::setObjectCastShadows(bool castShadows) {
-    mObjectCastShadows = castShadows;
 }
 
 unsigned int TradagMain::getMaxAttempts() const {
@@ -585,34 +428,14 @@ void TradagMain::setGravity(const Auto<cv::Vec3f>& gravity) {
     mGravity = gravity;
 }
 
-float TradagMain::getObjectRestitution() const {
-    return mObjectRestitution;
+OgreWindow*TradagMain::getOgreWindow() const {
+    return mOgreWindow;
 }
 
-void TradagMain::setObjectRestitution(float restitution) {
-    mObjectRestitution = restitution;
+RGBDScene*TradagMain::getRGBDScene() const {
+    return mRGBDScene;
 }
 
-float TradagMain::getObjectFriction() const {
-    return mObjectFriction;
-}
-
-void TradagMain::setObjectFriction(float friction) {
-    mObjectFriction = friction;
-}
-
-float TradagMain::getPlaneRestitution() const {
-    return mPlaneRestitution;
-}
-
-void TradagMain::setPlaneRestitution(float restitution) {
-    mPlaneRestitution = restitution;
-}
-
-float TradagMain::getPlaneFriction() const {
-    return mPlaneFriction;
-}
-
-void TradagMain::setPlaneFriction(float friction) {
-    mPlaneFriction = friction;
+ImageLabeling*TradagMain::getImageLabeling() const {
+    return mImageLabeling;
 }
