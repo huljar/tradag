@@ -10,9 +10,10 @@
 #include <OgreBites/SdkCameraMan.h>
 #include <OIS.h>
 
+#include <OgreBullet/Dynamics/OgreBulletDynamicsWorld.h>
 #include <OgreBullet/Dynamics/OgreBulletDynamicsRigidBody.h>
-#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsStaticPlaneShape.h>
-#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsConvexHullShape.h>
+#include <OgreBullet/Collisions/Debug/OgreBulletCollisionsDebugDrawer.h>
+#include <OgreBullet/Collisions/OgreBulletCollisionsShape.h>
 
 #include <vector>
 
@@ -133,6 +134,8 @@ private:
 
     void initializeBullet(const Ogre::Vector3& gravity);
     void shutDownBullet();
+
+    void loadSceneCollisionShapes(const std::vector<Ogre::Vector3>& excludeList = std::vector<Ogre::Vector3>());
 
     /**
      * This function is part of the OGRE 1.9 API documentation, but apparently not included in all packagings of OGRE 1.9

@@ -3,6 +3,10 @@
 
 #include <OgreBites/OgreRay.h>
 
+#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsStaticPlaneShape.h>
+#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsConvexHullShape.h>
+#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsSphereShape.h>
+
 #include <BulletCollision/CollisionShapes/btConvexHullShape.h>
 #include <BulletCollision/CollisionShapes/btShapeHull.h>
 
@@ -236,6 +240,52 @@ void OgreWindow::shutDownBullet() {
     }
 }
 
+void OgreWindow::loadSceneCollisionShapes(const std::vector<Ogre::Vector3>& excludeList) {
+    // Retrieve vertices of the scene
+    Ogre::ManualObject* scene = mRGBDScene->getManualObject();
+    size_t vertexCount;
+    Ogre::Vector3* vertices;
+    size_t indexCount;
+    unsigned long* indices;
+
+    OgreBites::OgreRay::GetMeshInformation(scene, vertexCount, vertices, indexCount, indices,
+                                           scene->getParentNode()->_getDerivedPosition(),
+                                           scene->getParentNode()->_getDerivedOrientation(),
+                                           scene->getParentNode()->_getDerivedScale());
+
+    // Iterate over vertices
+    mRigidBodies.reserve(vertexCount);
+    mCollisionShapes.reserve(vertexCount);
+    for(size_t i = 0; i < vertexCount; i += 10) {
+        // Check if the vertex is part of the exclude list
+        bool exclude = false;
+//        for(std::vector<Ogre::Vector3>::const_iterator it = excludeList.cbegin(); it != excludeList.cend(); ++it) {
+//            if(vertices[i].positionEquals(*it)) {
+//                exclude = true;
+//                break;
+//            }
+//        }
+
+        // Add rigid body and collision shape for this vertex
+        if(!exclude) {
+            OgreBulletDynamics::RigidBody* rigidBody = new OgreBulletDynamics::RigidBody(
+                                                               Strings::VertexRigidBodyName + std::to_string(i),
+                                                               mWorld);
+            OgreBulletCollisions::CollisionShape* collisionShape = new OgreBulletCollisions::SphereCollisionShape(50);
+
+            rigidBody->setStaticShape(collisionShape, 0.9, 0.1, vertices[i]);
+
+            // Store pointers so they can be cleaned up later
+            mRigidBodies.push_back(rigidBody);
+            mCollisionShapes.push_back(collisionShape);
+        }
+    }
+
+    // Clean up
+    delete[] vertices;
+    delete[] indices;
+}
+
 SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, const GroundPlane& plane,
                                              const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate) {
     // Initialize Bullet physics
@@ -304,6 +354,11 @@ SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, const Gro
     // Store pointers so they can be cleaned up later
     mRigidBodies.push_back(planeRigidBody);
     mCollisionShapes.push_back(planeCollisionShape);
+
+    // Register scene vertex collisions
+    std::cout << "Loading collision shapes..." << std::flush;
+    loadSceneCollisionShapes(plane.getVertices());
+    std::cout << " done!" << std::endl;
 
     // Reset timestep counts
     mIdleTime = 0;

@@ -71,7 +71,7 @@ int main(int argc, char** argv)
     tradag.setShowPreviewWindow(preview);
     tradag.setShowPhysicsAnimation(animate);
     //tradag.setDebugMarkInlierSet(true);
-    //tradag.setDebugDrawBulletShapes(true);
+    tradag.setDebugDrawBulletShapes(true);
     tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
     tradag.setMaxAttempts(5);
 
@@ -80,11 +80,12 @@ int main(int argc, char** argv)
     obj->setDesiredOcclusion(0.2, 0.4);
     obj->setInitialAzimuth(M_PI_2);
     obj->setInitialTorque(5, 5, 5);
+    obj->setInitialVelocity(400, 100, -400);
 
     // Create another object
     DroppableObject* obj2 = tradag.createObject("003.mesh");
     obj2->setDesiredOcclusion(0.0, 0.5);
-    obj2->setInitialVelocity(0, 100, 0);
+    obj2->setInitialVelocity(400, 100, -400);
     obj2->setInitialAzimuth(M_PI_2);
 
     // Compute ground plane

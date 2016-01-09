@@ -64,7 +64,6 @@ public:
     // TODO: when checking if inliers are still underneath the object, only check for the visible part of the object (underneath the covered parts is obviously no inlier)
     // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
     // TODO: setVerbose parameter, detailed log messages if enabled
-    // TODO: refactor startSimulation, split into addObject, clearObjects and simulate
     ObjectDropResult execute();
 
     cv::Mat getDepthImage() const;

@@ -85,6 +85,8 @@ namespace TraDaG {
         const std::string ObjRigidBodyName = "objectBody";
         const std::string PlaneRigidBodyName = "planeBody";
 
+        const std::string VertexRigidBodyName = "vertexBody";
+
         const std::string PreviewWindowName = "Training Data Generator Preview Window";
         const std::string RenderWindowName = "Training Data Generator Render Window";
     }

@@ -58,8 +58,7 @@ TradagMain::TradagMain()
 }
 
 TradagMain::~TradagMain() {
-    for(ObjectVec::iterator it = mObjects.begin(); it != mObjects.end(); ++it)
-        delete *it;
+    destroyAllObjects();
 
     delete mImageLabeling;
     delete mRGBDScene;
