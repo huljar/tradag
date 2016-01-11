@@ -71,21 +71,21 @@ int main(int argc, char** argv)
     tradag.setShowPreviewWindow(preview);
     tradag.setShowPhysicsAnimation(animate);
     //tradag.setDebugMarkInlierSet(true);
-    tradag.setDebugDrawBulletShapes(true);
-    tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
-    tradag.setMaxAttempts(5);
+    //tradag.setDebugDrawBulletShapes(true);
+    //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
+    tradag.setMaxAttempts(1);
 
     // Create an object
     DroppableObject* obj = tradag.createObject(meshName);
     obj->setDesiredOcclusion(0.2, 0.4);
     obj->setInitialAzimuth(M_PI_2);
     obj->setInitialTorque(5, 5, 5);
-    obj->setInitialVelocity(400, 100, -400);
+    //obj->setInitialVelocity(400, 100, -400);
 
     // Create another object
     DroppableObject* obj2 = tradag.createObject("003.mesh");
     obj2->setDesiredOcclusion(0.0, 0.5);
-    obj2->setInitialVelocity(400, 100, -400);
+    //obj2->setInitialVelocity(400, 100, -400);
     obj2->setInitialAzimuth(M_PI_2);
 
     // Compute ground plane
@@ -106,9 +106,11 @@ int main(int argc, char** argv)
                   << "Rotation: " << obj->getFinalRotation() << std::endl
                   << "Position: " << obj->getFinalPosition() << std::endl;
 
-        cv::namedWindow("Test Display Window");
-        cv::imshow("Test Display Window", result.rgbImage);
-        cv::waitKey(0);
+        cv::namedWindow("Depth");
+        cv::imshow("Depth", result.depthImage);
+        cv::namedWindow("RGB");
+        cv::imshow("RGB", result.rgbImage);
+        cv::waitKey();
     }
 
     return 0;

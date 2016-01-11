@@ -259,12 +259,12 @@ void OgreWindow::loadSceneCollisionShapes(const std::vector<Ogre::Vector3>& excl
     for(size_t i = 0; i < vertexCount; i += 10) {
         // Check if the vertex is part of the exclude list
         bool exclude = false;
-//        for(std::vector<Ogre::Vector3>::const_iterator it = excludeList.cbegin(); it != excludeList.cend(); ++it) {
-//            if(vertices[i].positionEquals(*it)) {
-//                exclude = true;
-//                break;
-//            }
-//        }
+        for(std::vector<Ogre::Vector3>::const_iterator it = excludeList.cbegin(); it != excludeList.cend(); ++it) {
+            if(vertices[i].positionEquals(*it)) {
+                exclude = true;
+                break;
+            }
+        }
 
         // Add rigid body and collision shape for this vertex
         if(!exclude) {
@@ -356,9 +356,9 @@ SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, const Gro
     mCollisionShapes.push_back(planeCollisionShape);
 
     // Register scene vertex collisions
-    std::cout << "Loading collision shapes..." << std::flush;
-    loadSceneCollisionShapes(plane.getVertices());
-    std::cout << " done!" << std::endl;
+    //std::cout << "Loading collision shapes..." << std::flush;
+    //loadSceneCollisionShapes(plane.getVertices());
+    //std::cout << " done!" << std::endl;
 
     // Reset timestep counts
     mIdleTime = 0;
@@ -409,7 +409,7 @@ UserAction OgreWindow::promptUserAction() {
     return UA_KEEP;
 }
 
-Ogre::Real OgreWindow::queryObjectOcclusion(DroppableObject* object) const {
+bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, std::vector<std::pair<Ogre::Vector3, bool>>& pixelInfo, bool& onPlane) const {
     Ogre::Entity* entity = object->getOgreEntity();
 
     if(std::find(mObjects.begin(), mObjects.end(), entity) != mObjects.end()) {
@@ -494,17 +494,14 @@ Ogre::Real OgreWindow::queryObjectOcclusion(DroppableObject* object) const {
         }
 
         // Compute and return fraction
-        return (Ogre::Real)coveredPixels / (Ogre::Real)objectImgCoords.size();
+        occlusion = (Ogre::Real)coveredPixels / (Ogre::Real)objectImgCoords.size();
+        return true;
     }
 
-    return -1.0;
+    return false;
 }
 
-bool OgreWindow::queryObjectOnPlane(DroppableObject* object) const {
-
-}
-
-bool OgreWindow::renderRGBImage(cv::Mat& result) const {
+bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject) {
     // Determine aspect ratio
     const cv::Mat depthImg = mRGBDScene->getDepthImage();
     Ogre::Vector3 topLeft = mRGBDScene->depthToWorld(0, 0, Constants::WorkPlaneDepth);
@@ -549,26 +546,72 @@ bool OgreWindow::renderRGBImage(cv::Mat& result) const {
     renderViewport->setBackgroundColour(Ogre::ColourValue::Black);
     renderViewport->setOverlaysEnabled(false);
 
-    // Render current frame
+    // Check for specific object
+    if(specificObject) {
+        // Hide all other objects
+        for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
+            if(*it != specificObject->getOgreEntity()) {
+                (*it)->setVisible(false);
+            }
+        }
+    }
+
+    // Render current frame (RGB)
     mRoot->renderOneFrame(); // ensure that we are up to date
     renderWin->update(); // necessary, otherwise the captured screenshot may contain junk data
 
-    // Allocate storage space
+    // Allocate storage space (RGB)
     Ogre::PixelFormat renderFormat = renderWin->suggestPixelFormat();
     size_t bytesPerPixel = Ogre::PixelUtil::getNumElemBytes(renderFormat);
-    unsigned char* pixelData = new unsigned char[imgWidth * imgHeight * bytesPerPixel];
+    unsigned char* pixelDataRGB = new unsigned char[imgWidth * imgHeight * bytesPerPixel];
 
-    // Get window contents
-    Ogre::PixelBox renderPixelBox(imgWidth, imgHeight, 1, renderFormat, pixelData);
-    renderWin->copyContentsToMemory(renderPixelBox);
+    // Get window contents (RGB)
+    Ogre::PixelBox pixelBoxRGB(imgWidth, imgHeight, 1, renderFormat, pixelDataRGB);
+    renderWin->copyContentsToMemory(pixelBoxRGB);
 
-    // Convert and copy to cv::Mat
-    cv::Mat renderImage(renderPixelBox.getHeight(), renderPixelBox.getWidth(), CV_8UC3);
-    for(int y = 0; y < renderImage.rows; ++y) {
-        for(int x = 0; x < renderImage.cols; ++x) {
-            Ogre::ColourValue value = renderPixelBox.getColourAt(x, y, 0);
+    // Set material for depth rendering
+    for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
+        (*it)->setMaterialName(Strings::DepthMapMaterialName);
+    }
+    mRGBDScene->getManualObject()->setMaterialName(0, Strings::DepthMapMaterialName);
+
+    // Render current frame (Depth)
+    mRoot->renderOneFrame();
+    renderWin->update();
+
+    // Allocate storage space (Depth)
+    unsigned char* pixelDataDepth = new unsigned char[imgWidth * imgHeight * bytesPerPixel];
+
+    // Get window contents (Depth)
+    Ogre::PixelBox pixelBoxDepth(imgWidth, imgHeight, 1, renderFormat, pixelDataDepth);
+    renderWin->copyContentsToMemory(pixelBoxDepth);
+
+    // Reset material to normal
+    for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
+        (*it)->setMaterialName("BaseWhiteNoLighting");
+    }
+    mRGBDScene->getManualObject()->setMaterialName(0, "BaseWhiteNoLighting");
+
+    // Reattach hidden objects
+    if(specificObject) {
+        for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
+            if(*it != specificObject->getOgreEntity()) {
+                (*it)->setVisible(true);
+            }
+        }
+    }
+
+    // Render again to update the preview window
+    mRoot->renderOneFrame();
+    mWindow->update();
+
+    // Convert and copy RGB to cv::Mat
+    cv::Mat renderImageRGB(pixelBoxRGB.getHeight(), pixelBoxRGB.getWidth(), CV_8UC3);
+    for(int y = 0; y < renderImageRGB.rows; ++y) {
+        for(int x = 0; x < renderImageRGB.cols; ++x) {
+            Ogre::ColourValue value = pixelBoxRGB.getColourAt(x, y, 0);
             // OpenCV uses BGR color channel ordering and (row, col) pixel addresses
-            renderImage.at<cv::Vec3b>(y, x) = cv::Vec3b(
+            renderImageRGB.at<cv::Vec3b>(y, x) = cv::Vec3b(
                 static_cast<unsigned char>(value.b * 255.0),
                 static_cast<unsigned char>(value.g * 255.0),
                 static_cast<unsigned char>(value.r * 255.0)
@@ -576,14 +619,25 @@ bool OgreWindow::renderRGBImage(cv::Mat& result) const {
         }
     }
 
+    // Convert and copy Depth to cv::Mat
+    cv::Mat renderImageDepth(pixelBoxDepth.getHeight(), pixelBoxDepth.getWidth(), CV_16U);
+    for(int y = 0; y < renderImageDepth.rows; ++y) {
+        for(int x = 0; x < renderImageDepth.cols; ++x) {
+            Ogre::ColourValue value = pixelBoxDepth.getColourAt(x, y, 0);
+            renderImageDepth.at<unsigned short>(y, x) = (static_cast<unsigned short>(value.g * 255.0) << 8)
+                                                        + static_cast<unsigned short>(value.b * 255.0);
+        }
+    }
+
     // Crop and resize image
-    // Cropping is necessary because the image has black borders if the principal point of the camera is not the middle of the image
+    // Cropping is necessary because the image has black borders if the principal point of the camera is not the image center
+    // TODO: what if object slided partly outside of the image? calculate cropping from principal point/camera fov angles
     cv::Mat renderImageGray;
-    cv::cvtColor(renderImage, renderImageGray, CV_BGR2GRAY);
+    cv::cvtColor(renderImageRGB, renderImageGray, CV_BGR2GRAY);
 
     // Gather all non-black points
     std::vector<cv::Point> points;
-    for (cv::Mat_<unsigned char>::iterator it = renderImageGray.begin<unsigned char>(); it != renderImageGray.end<unsigned char>(); ++it) {
+    for(cv::Mat_<unsigned char>::iterator it = renderImageGray.begin<unsigned char>(); it != renderImageGray.end<unsigned char>(); ++it) {
         if(*it) points.push_back(it.pos());
     }
 
@@ -591,10 +645,13 @@ bool OgreWindow::renderRGBImage(cv::Mat& result) const {
     cv::Rect roi = cv::boundingRect(points);
 
     // Resize the remaining area and copy to output parameter
-    cv::resize(renderImage(roi), result, cv::Size(depthImg.cols, depthImg.rows));
+    cv::Size resultSize(depthImg.cols, depthImg.rows);
+    cv::resize(renderImageDepth(roi), depthResult, resultSize);
+    cv::resize(renderImageRGB(roi), rgbResult, resultSize);
 
     // Clean up
-    delete[] pixelData;
+    delete[] pixelDataDepth;
+    delete[] pixelDataRGB;
     renderWin->removeAllViewports();
     mSceneMgr->destroyCamera(renderCam);
     mRoot->destroyRenderTarget(renderWin);

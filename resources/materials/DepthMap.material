@@ -1,0 +1,36 @@
+vertex_program TraDaG/DepthMapVP glsl
+{
+	source DepthMapVP.glsl
+
+	default_params
+	{
+		param_named_auto worldViewProj worldviewproj_matrix
+		param_named_auto texelOffsets texel_offsets
+	}
+}
+
+fragment_program TraDaG/DepthMapFP glsl
+{
+	source DepthMapFP.glsl
+
+	default_params
+	{
+	}
+}
+
+material TraDaG/DepthMap
+{
+	technique
+	{
+		pass
+		{
+			vertex_program_ref TraDaG/DepthMapVP
+			{
+			}
+
+			fragment_program_ref TraDaG/DepthMapFP
+			{
+			}
+		}
+	}
+}

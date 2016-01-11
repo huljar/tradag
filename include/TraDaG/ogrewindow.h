@@ -32,11 +32,9 @@ public:
 
     virtual UserAction promptUserAction();
 
-    virtual Ogre::Real queryObjectOcclusion(DroppableObject* object) const;
-    virtual bool queryObjectOnPlane(DroppableObject* object) const;
+    virtual bool queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, std::vector<std::pair<Ogre::Vector3, bool>>& pixelInfo, bool& onPlane) const;
 
-    // TODO: render depth image
-    virtual bool renderRGBImage(cv::Mat& result) const;
+    virtual bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = NULL);
 
     virtual void resetCamera();
 
@@ -94,9 +92,6 @@ protected:
     Ogre::Camera* mCamera;
     OgreBites::SdkCameraMan* mCameraMan;
 
-    bool mHaltRendering;
-    SimulationStatus mStatus;
-
     // OIS
     OIS::InputManager* mInputManager;
     OIS::Keyboard* mKeyboard;
@@ -122,8 +117,12 @@ protected:
     std::vector<OgreBulletDynamics::RigidBody*> mRigidBodies;
     std::vector<OgreBulletCollisions::CollisionShape*> mCollisionShapes;
 
+    // Simulation
     Ogre::Real mIdleTime;
     Ogre::Real mTotalTime;
+
+    bool mHaltRendering;
+    SimulationStatus mStatus;
 
 private:
     void initializeOgre();

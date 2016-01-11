@@ -201,7 +201,12 @@ ObjectDropResult TradagMain::execute() {
         for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
             // TODO: check if object still on plane
 
-            Ogre::Real occlusion = mOgreWindow->queryObjectOcclusion(*it);
+            Ogre::Real occlusion;
+            std::vector<std::pair<Ogre::Vector3, bool>> pixelInfo;
+            bool onPlane;
+            if(!mOgreWindow->queryObjectInfo(*it, occlusion, pixelInfo, onPlane))
+                continue;
+
             std::pair<float, float> desiredOcclusion = (*it)->getDesiredOcclusion();
 
             occlusions.push_back(occlusion);
@@ -213,16 +218,16 @@ ObjectDropResult TradagMain::execute() {
             mOgreWindow->unmarkVertices();
 
             // Render depth and RGB images
-            cv::Mat rgbRender;
-            if(!mOgreWindow->renderRGBImage(rgbRender)) // TODO: depth image
+            cv::Mat depthRender, rgbRender;
+            if(!mOgreWindow->render(depthRender, rgbRender))
                 continue;
 
             // Re-mark vertices (if any were previously marked)
             mOgreWindow->markVertices();
 
             // Store this attempt
+            bestAttemptDepthImage = depthRender;
             bestAttemptRGBImage = rgbRender;
-            //bestAttemptDepthImage = ; // TODO: depth image
 
             for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
                 Ogre::SceneNode* node = (*it)->getOgreEntity()->getParentSceneNode();
@@ -255,7 +260,7 @@ ObjectDropResult TradagMain::execute() {
     }
 
     // Check rendered images
-    if(/*bestAttemptDepthImage.data && */bestAttemptRGBImage.data) {
+    if(bestAttemptDepthImage.data && bestAttemptRGBImage.data) {
         return ObjectDropResult(OD_SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
     }
 
