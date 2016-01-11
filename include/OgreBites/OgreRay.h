@@ -23,6 +23,8 @@
 
 #include <Ogre.h>
 
+#include <cstdint>
+
 namespace OgreBites {
 
     class OgreRay
@@ -304,8 +306,8 @@ namespace OgreBites {
 
             bool use32bitindexes = (ibuf->getType() == Ogre::HardwareIndexBuffer::IT_32BIT);
 
-            unsigned long*  pLong = static_cast<unsigned long*>(ibuf->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
-            unsigned short* pShort = reinterpret_cast<unsigned short*>(pLong);
+            uint32_t* p32bit = static_cast<uint32_t*>(ibuf->lock(Ogre::HardwareBuffer::HBL_READ_ONLY));
+            uint16_t* p16bit = reinterpret_cast<uint16_t*>(p32bit);
 
 
             size_t offset = (submesh->useSharedVertices)? shared_offset : current_offset;
@@ -314,11 +316,13 @@ namespace OgreBites {
 
             if (use32bitindexes){
                 for( size_t k = index_start; k<last_index; ++k )
-                    indices[index_offset++] = pLong[k] + static_cast<unsigned long>( offset );
+                    indices[index_offset++] =
+                        static_cast<unsigned long>( p32bit[k] ) +
+                        static_cast<unsigned long>( offset );
             }else{
                 for( size_t k=index_start; k<last_index; ++k )
                     indices[ index_offset++ ] =
-                        static_cast<unsigned long>( pShort[k] ) +
+                        static_cast<unsigned long>( p16bit[k] ) +
                         static_cast<unsigned long>( offset );
             }
 
