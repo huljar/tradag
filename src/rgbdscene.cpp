@@ -101,6 +101,29 @@ Ogre::Vector2 RGBDScene::worldToRgb(const Ogre::Vector3& point, const Ogre::Matr
             std::max(0.0f, std::min((Ogre::Real)mRgbImage.rows, retV)));
 }
 
+bool RGBDScene::screenspaceCoords(const Ogre::Camera* camera, Ogre::Vector2& resultTopLeft, Ogre::Vector2& resultBottomRight) const {
+   if(!mSceneObject->isInScene())
+      return false;
+
+   Ogre::Vector3 topLeft = depthToWorld(0, 0, Constants::WorkPlaneDepth);
+   Ogre::Vector3 bottomRight = depthToWorld(mDepthImage.cols - 1, mDepthImage.rows - 1, Constants::WorkPlaneDepth);
+
+   Ogre::Plane cameraPlane = Ogre::Plane(camera->getDerivedOrientation().zAxis(), camera->getDerivedPosition());
+   if(cameraPlane.getSide(topLeft) != Ogre::Plane::NEGATIVE_SIDE || cameraPlane.getSide(bottomRight) != Ogre::Plane::NEGATIVE_SIDE)
+      return false;
+
+   topLeft = camera->getProjectionMatrix() * camera->getViewMatrix() * topLeft;
+   bottomRight = camera->getProjectionMatrix() * camera->getViewMatrix() * bottomRight;
+
+   // Transform from coordinate space [-1, 1] to screen space [0, 1]
+   resultTopLeft.x = topLeft.x / 2.0 + 0.5;
+   resultTopLeft.y = 1 - (topLeft.y / 2.0 + 0.5);
+   resultBottomRight.x = bottomRight.x / 2.0 + 0.5;
+   resultBottomRight.y = 1 - (bottomRight.y / 2.0 + 0.5);
+
+   return true;
+}
+
 void RGBDScene::createVertices() {
     for(int v = 0; v < mDepthImage.rows; ++v) {
         for(int u = 0; u < mDepthImage.cols; ++u) {

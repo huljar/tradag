@@ -505,29 +505,28 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
     // Determine aspect ratio
     const cv::Mat depthImg = mRGBDScene->getDepthImage();
     Ogre::Vector3 topLeft = mRGBDScene->depthToWorld(0, 0, Constants::WorkPlaneDepth);
-    Ogre::Vector3 topRight = mRGBDScene->depthToWorld(depthImg.cols - 1, 0, Constants::WorkPlaneDepth);
-    Ogre::Vector3 bottomLeft = mRGBDScene->depthToWorld(0, depthImg.rows - 1, Constants::WorkPlaneDepth);
+    Ogre::Vector3 bottomRight = mRGBDScene->depthToWorld(depthImg.cols - 1, depthImg.rows - 1, Constants::WorkPlaneDepth);
 
-    Ogre::Real width = topRight.x - topLeft.x;
-    Ogre::Real height = topLeft.y - bottomLeft.y;
+    Ogre::Real width = bottomRight.x - topLeft.x;
+    Ogre::Real height = topLeft.y - bottomRight.y;
     if(height == 0.0)
         return false;
 
     // Determine vertical field of view (horizontal fov is automatically adjusted according to aspect ratio)
     Ogre::Vector3 top(0, topLeft.y, topLeft.z);
-    Ogre::Vector3 bottom(0, bottomLeft.y, bottomLeft.z);
+    Ogre::Vector3 bottom(0, bottomRight.y, bottomRight.z);
     Ogre::Radian verticalFOV(std::max(
         top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
         bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
-    ) * 2.0);
+    ) * 2.0 + 0.04);
 
     // Create a hidden render window
     Ogre::NameValuePairList windowParams;
     windowParams["vsync"] = "true";
     windowParams["hidden"] = "true";
 
-    Ogre::uint32 imgWidth = depthImg.cols * 1.2; // render in larger resolution because we crop black edges later
-    Ogre::uint32 imgHeight = depthImg.rows * 1.2;
+    Ogre::uint32 imgWidth = depthImg.cols * 1.5; // render in larger resolution because we crop black edges later
+    Ogre::uint32 imgHeight = depthImg.rows * 1.5;
 
     Ogre::RenderWindow* renderWin = mRoot->createRenderWindow(Strings::RenderWindowName, imgWidth, imgHeight, false, &windowParams);
 
@@ -554,6 +553,7 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
                 (*it)->setVisible(false);
             }
         }
+        mRGBDScene->getManualObject()->setVisible(false);
     }
 
     // Render current frame (RGB)
@@ -599,6 +599,7 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
                 (*it)->setVisible(true);
             }
         }
+        mRGBDScene->getManualObject()->setVisible(true);
     }
 
     // Render again to update the preview window
@@ -629,20 +630,14 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
         }
     }
 
-    // Crop and resize image
-    // Cropping is necessary because the image has black borders if the principal point of the camera is not the image center
-    // TODO: what if object slided partly outside of the image? calculate cropping from principal point/camera fov angles
-    cv::Mat renderImageGray;
-    cv::cvtColor(renderImageRGB, renderImageGray, CV_BGR2GRAY);
+    // Get screenspace bounding box of the scene
+    Ogre::Vector2 screenTopLeft, screenBottomRight;
+    if(!mRGBDScene->screenspaceCoords(renderCam, screenTopLeft, screenBottomRight))
+        return false;
 
-    // Gather all non-black points
-    std::vector<cv::Point> points;
-    for(cv::Mat_<unsigned char>::iterator it = renderImageGray.begin<unsigned char>(); it != renderImageGray.end<unsigned char>(); ++it) {
-        if(*it) points.push_back(it.pos());
-    }
-
-    // Compute bounding rectangle of points
-    cv::Rect roi = cv::boundingRect(points);
+    // Compute region of interest
+    cv::Rect roi(cv::Point(screenTopLeft.x * renderImageDepth.cols, screenTopLeft.y * renderImageDepth.rows),
+                 cv::Point(screenBottomRight.x * renderImageDepth.cols, screenBottomRight.y * renderImageDepth.rows));
 
     // Resize the remaining area and copy to output parameter
     cv::Size resultSize(depthImg.cols, depthImg.rows);

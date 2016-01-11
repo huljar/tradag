@@ -32,6 +32,8 @@ public:
 
     virtual Ogre::Vector2 worldToRgb(const Ogre::Vector3& point, const Ogre::Matrix3& rotation, const Ogre::Vector3& translation) const;
 
+    virtual bool screenspaceCoords(const Ogre::Camera* camera, Ogre::Vector2& resultTopLeft, Ogre::Vector2& resultBottomRight) const;
+
     virtual Ogre::ManualObject* getManualObject() const;
 
     virtual cv::Mat getDepthImage() const;
