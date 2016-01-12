@@ -1,0 +1,7 @@
+TraDaG/Inputs
+{
+	type 		truetype
+	source 		OpenSans-Regular.ttf
+	size 		20
+	resolution  96
+}

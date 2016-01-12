@@ -111,7 +111,7 @@ private:
     Ogre::Vector3 computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
     Ogre::Matrix3 computeRotation(const float azimuth, const Ogre::Vector3& gravity) const;
 
-    float distanceToInterval(float value, float min, float max) const;
+    float distanceToIntervalSquared(float value, float min, float max) const;
 
     OgreWindow* mOgreWindow;
     RGBDScene* mRGBDScene;

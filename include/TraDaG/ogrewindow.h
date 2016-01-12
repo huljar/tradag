@@ -7,6 +7,7 @@
 #include <TraDaG/util.h>
 
 #include <Ogre.h>
+#include <OGRE/Overlay/OgreOverlaySystem.h>
 #include <OgreBites/SdkCameraMan.h>
 #include <OIS.h>
 
@@ -47,7 +48,9 @@ public:
     virtual void show();
     virtual void hide();
 
-    virtual Ogre::SceneManager* getSceneManager();
+    virtual Ogre::SceneManager* getSceneManager() const;
+    virtual const std::vector<Ogre::Entity*>& objectEntities() const;
+    virtual std::vector<Ogre::Entity*> getObjectEntities() const;
 
     virtual Ogre::Vector3 getInitialCameraPosition() const;
     virtual Ogre::Vector3 getInitialCameraLookAt() const;
@@ -91,6 +94,7 @@ protected:
     Ogre::SceneManager* mSceneMgr;
     Ogre::Camera* mCamera;
     OgreBites::SdkCameraMan* mCameraMan;
+    Ogre::OverlaySystem* mOverlaySystem;
 
     // OIS
     OIS::InputManager* mInputManager;
@@ -123,6 +127,9 @@ protected:
 
     bool mHaltRendering;
     SimulationStatus mStatus;
+
+    // User action
+    UserAction mActionChosen;
 
 private:
     void initializeOgre();

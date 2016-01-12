@@ -40,7 +40,7 @@ namespace TraDaG {
 
     typedef enum {
         UA_KEEP,
-        UA_RETRY,
+        UA_RESTART,
         UA_ABORT
     } UserAction;
 
@@ -48,6 +48,7 @@ namespace TraDaG {
         OD_SUCCESS,
         OD_PLANE_TOO_STEEP,
         OD_MAX_ATTEMPTS_REACHED,
+        OD_USER_ABORTED,
         OD_UNKNOWN_ERROR
     } ObjectDropStatus;
 
@@ -91,6 +92,14 @@ namespace TraDaG {
         const std::string RenderWindowName = "Training Data Generator Render Window";
 
         const std::string DepthMapMaterialName = "TraDaG/DepthMap";
+        const std::string InfoTrayMaterialName = "TraDaG/InfoTray";
+
+        const std::string UserInputPromptOverlayName = "InputPromptOverlay";
+        const std::string UserInputPromptPanelName = "InputPromptPanel";
+        const std::string UserInputPromptTextAreaName = "InputPromptTextArea";
+        const std::string UserInputPromptFontName = "TraDaG/Inputs";
+
+        const std::string UserInputPromptText = "Select an action:\n\nEnter - Accept this result\nr - Restart\nEsc - Abort";
     }
 
     namespace Defaults {

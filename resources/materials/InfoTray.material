@@ -1,0 +1,19 @@
+material TraDaG/InfoTray
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            scene_blend alpha_blend
+            depth_check off
+            
+            texture_unit
+            {
+                texture sdk_text_box.png
+                tex_address_mode clamp
+                filtering linear linear none
+            }
+        }
+    }
+}

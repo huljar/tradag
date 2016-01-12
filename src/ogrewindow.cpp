@@ -1,6 +1,11 @@
 #include <TraDaG/ogrewindow.h>
 #include <TraDaG/util.h>
 
+#include <OGRE/Overlay/OgreOverlay.h>
+#include <OGRE/Overlay/OgreOverlayManager.h>
+#include <OGRE/Overlay/OgreBorderPanelOverlayElement.h>
+#include <OGRE/Overlay/OgreTextAreaOverlayElement.h>
+
 #include <OgreBites/OgreRay.h>
 
 #include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsStaticPlaneShape.h>
@@ -21,8 +26,7 @@ OgreWindow::OgreWindow()
     , mSceneMgr(NULL)
     , mCamera(NULL)
     , mCameraMan(NULL)
-    , mHaltRendering(false)
-    , mStatus(READY)
+    , mOverlaySystem(NULL)
     , mInputManager(NULL)
     , mKeyboard(NULL)
     , mMouse(NULL)
@@ -36,6 +40,9 @@ OgreWindow::OgreWindow()
     , mBounds(Ogre::Vector3(-10000, -10000, -10000), Ogre::Vector3(10000, 10000, 10000))
     , mIdleTime(0)
     , mTotalTime(0)
+    , mHaltRendering(false)
+    , mStatus(READY)
+    , mActionChosen(UA_KEEP)
 {
     initializeOgre();
 }
@@ -109,6 +116,9 @@ void OgreWindow::initializeOgre() {
 
     mRoot->setRenderSystem(rs);
 
+    // Create overlay system (this must be done before OGRE initializes)
+    mOverlaySystem = new Ogre::OverlaySystem();
+
     // Init the render system
     mRoot->initialise(false);
 
@@ -149,9 +159,13 @@ void OgreWindow::initializeOgre() {
 
     // Add frame listener
     mRoot->addFrameListener(this);
+
+    // Register overlay system
+    mSceneMgr->addRenderQueueListener(mOverlaySystem);
 }
 
 void OgreWindow::shutDownOgre() {
+    delete mOverlaySystem;
     delete mCameraMan;
     Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, this);
     delete mRoot;
@@ -402,11 +416,63 @@ SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, const Gro
 
 UserAction OgreWindow::promptUserAction() {
     mStatus = AWAITING_USER_INPUT;
-    // TODO: show overlay, start rendering, wait for key input
-    // TODO: when window is hidden, somehow auto-select action?
+    mActionChosen = UA_KEEP;
 
+    // Create overlay
+    Ogre::OverlayManager& overlayMgr = Ogre::OverlayManager::getSingleton();
+    Ogre::Overlay* overlay = overlayMgr.create(Strings::UserInputPromptOverlayName);
+
+    // Create elements
+    Ogre::BorderPanelOverlayElement* panel = static_cast<Ogre::BorderPanelOverlayElement*>(overlayMgr.createOverlayElement("BorderPanel", Strings::UserInputPromptPanelName));
+    overlay->add2D(panel);
+
+    Ogre::TextAreaOverlayElement* textArea = static_cast<Ogre::TextAreaOverlayElement*>(overlayMgr.createOverlayElement("TextArea", Strings::UserInputPromptTextAreaName));
+    panel->addChild(textArea);
+
+    // Set properties of panel
+    panel->setMetricsMode(Ogre::GMM_PIXELS);
+    panel->setMaterialName(Strings::InfoTrayMaterialName);
+    panel->setUV(0.4, 0.4, 0.6, 0.6);
+
+    panel->setBorderMaterialName(Strings::InfoTrayMaterialName);
+    panel->setBorderSize(13, 13, 13, 13);
+    panel->setTopLeftBorderUV(0.0, 0.0, 0.4, 0.4);
+    panel->setTopBorderUV(0.4, 0.0, 0.6, 0.4);
+    panel->setTopRightBorderUV(0.6, 0.0, 1.0, 0.4);
+    panel->setLeftBorderUV(0.0, 0.4, 0.4, 0.6);
+    panel->setRightBorderUV(0.6, 0.4, 1.0, 0.6);
+    panel->setBottomLeftBorderUV(0.0, 0.6, 0.4, 1.0);
+    panel->setBottomBorderUV(0.4, 0.6, 0.6, 1.0);
+    panel->setBottomRightBorderUV(0.6, 0.6, 1.0, 1.0);
+
+    panel->setPosition(10, 10);
+    panel->setDimensions(230, 125);
+
+    // Set properties of text area
+    textArea->setMetricsMode(Ogre::GMM_PIXELS);
+    textArea->setPosition(15, 15);
+    textArea->setDimensions(200, 95);
+    textArea->setFontName(Strings::UserInputPromptFontName);
+    textArea->setCharHeight(19);
+    textArea->setSpaceWidth(6);
+    textArea->setColour(Ogre::ColourValue::Black);
+    textArea->setCaption(Strings::UserInputPromptText);
+
+    // Display overlay
+    overlay->show();
+
+    // Start rendering (key presses are parsed in rendering callbacks)
+    if(!hidden())
+        mRoot->startRendering();
+
+    // Destroy overlay
+    overlayMgr.destroyOverlayElement(textArea);
+    overlayMgr.destroyOverlayElement(panel);
+    overlayMgr.destroy(overlay);
+
+    // Return action
     mStatus = READY;
-    return UA_KEEP;
+    return mActionChosen;
 }
 
 bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, std::vector<std::pair<Ogre::Vector3, bool>>& pixelInfo, bool& onPlane) const {
@@ -488,9 +554,8 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occl
         for(std::vector<Ogre::Vector3>::iterator it = objectImgCoords.begin(); it != objectImgCoords.end(); ++it) {
             int u = (int)std::round(it->x);
             int v = (int)std::round(it->y);
-            if(it->z >= (Ogre::Real)depthImg.at<unsigned short>(v, u)) {
+            if(u >= depthImg.cols || v >= depthImg.rows || it->z >= (Ogre::Real)depthImg.at<unsigned short>(v, u))
                 ++coveredPixels;
-            }
         }
 
         // Compute and return fraction
@@ -557,8 +622,7 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
     }
 
     // Render current frame (RGB)
-    mRoot->renderOneFrame(); // ensure that we are up to date
-    renderWin->update(); // necessary, otherwise the captured screenshot may contain junk data
+    renderWin->update(); // ensure that we are up to date
 
     // Allocate storage space (RGB)
     Ogre::PixelFormat renderFormat = renderWin->suggestPixelFormat();
@@ -576,8 +640,7 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
     mRGBDScene->getManualObject()->setMaterialName(0, Strings::DepthMapMaterialName);
 
     // Render current frame (Depth)
-    mRoot->renderOneFrame();
-    renderWin->update();
+    renderWin->update(); // apply the material changes
 
     // Allocate storage space (Depth)
     unsigned char* pixelDataDepth = new unsigned char[imgWidth * imgHeight * bytesPerPixel];
@@ -601,10 +664,6 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
         }
         mRGBDScene->getManualObject()->setVisible(true);
     }
-
-    // Render again to update the preview window
-    mRoot->renderOneFrame();
-    mWindow->update();
 
     // Convert and copy RGB to cv::Mat
     cv::Mat renderImageRGB(pixelBoxRGB.getHeight(), pixelBoxRGB.getWidth(), CV_8UC3);
@@ -784,6 +843,9 @@ bool OgreWindow::windowClosing(Ogre::RenderWindow* rw) {
         mHaltRendering = true;
 
         // Adjust status
+        if(mStatus == AWAITING_USER_INPUT)
+            mActionChosen = UA_ABORT;
+
         mStatus = WINDOW_CLOSED;
 
         return false;
@@ -794,8 +856,25 @@ bool OgreWindow::windowClosing(Ogre::RenderWindow* rw) {
 
 bool OgreWindow::keyPressed(const OIS::KeyEvent& e) {
     mCameraMan->injectKeyDown(e);
-    if(e.key == OIS::KC_SPACE)
+    if(e.key == OIS::KC_SPACE) {
         resetCamera();
+    }
+
+    if(mStatus == AWAITING_USER_INPUT) {
+        if(e.key == OIS::KC_RETURN) {
+            mActionChosen = UA_KEEP;
+            mHaltRendering = true;
+        }
+        else if(e.key == OIS::KC_ESCAPE) {
+            mActionChosen = UA_ABORT;
+            mHaltRendering = true;
+        }
+        else if(e.key == OIS::KC_R) {
+            mActionChosen = UA_RESTART;
+            mHaltRendering = true;
+        }
+    }
+
     return true;
 }
 
@@ -916,10 +995,19 @@ void OgreWindow::show() {
 void OgreWindow::hide() {
     shutDownOIS();
     mWindow->setHidden(true);
+    Ogre::WindowEventUtilities::messagePump();
 }
 
-Ogre::SceneManager* OgreWindow::getSceneManager() {
+Ogre::SceneManager* OgreWindow::getSceneManager() const {
     return mSceneMgr;
+}
+
+const std::vector<Ogre::Entity*>& OgreWindow::objectEntities() const {
+    return mObjects;
+}
+
+std::vector<Ogre::Entity*> OgreWindow::getObjectEntities() const {
+    return mObjects;
 }
 
 Ogre::Vector3 OgreWindow::getInitialCameraPosition() const {

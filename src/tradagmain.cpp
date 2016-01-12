@@ -161,107 +161,130 @@ ObjectDropResult TradagMain::execute() {
     if(mMarkInlierSet && mShowPreviewWindow)
         mOgreWindow->markVertices(mGroundPlane.vertices());
 
-    // If animation is requested, display the window now
-    if(mShowPreviewWindow && mShowPhysicsAnimation && mOgreWindow->hidden())
-        mOgreWindow->show();
-
-    // Main loop - perform simulations until the criteria are met or the maximum number of attempts was reached
+    // Matrices to store the best result
     cv::Mat bestAttemptDepthImage;
     cv::Mat bestAttemptRGBImage;
-    float bestAttemptScore = std::numeric_limits<float>::max(); // TODO: weighting object for score influence?
 
-    bool solutionFound = false;
-    unsigned int attempt = 0;
-
-    do {
-        ++attempt;
-
-        // Calculate initial positions (this is done for each attempt because it contains randomization)
-        for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
-            Auto<cv::Vec3f> position = (*it)->getInitialPosition();
-            if(position.automate) {
-                Ogre::Vector3 posValue = computePosition(mGroundPlane.vertices(), gravity);
-                position.manualValue = cv::Vec3f(posValue.x, posValue.y, posValue.z);
-                (*it)->setInitialPosition(position);
-            }
-        }
-
-        // Simulate (with animation only if needed)
-        // This function does not return until the simulation is completed
-        SimulationResult result = mOgreWindow->startSimulation(mObjects, mGroundPlane, gravity, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation);
-
-        if(result == SR_TIMEOUT)
-            continue;
-        else if(result == SR_ABORTED)
-            break;
-
-        // Calculate score of this result
-        float score = 0.0;
-        std::vector<float> occlusions;
-        for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
-            // TODO: check if object still on plane
-
-            Ogre::Real occlusion;
-            std::vector<std::pair<Ogre::Vector3, bool>> pixelInfo;
-            bool onPlane;
-            if(!mOgreWindow->queryObjectInfo(*it, occlusion, pixelInfo, onPlane))
-                continue;
-
-            std::pair<float, float> desiredOcclusion = (*it)->getDesiredOcclusion();
-
-            occlusions.push_back(occlusion);
-            score += distanceToInterval(occlusion, desiredOcclusion.first, desiredOcclusion.second);
-        }
-
-        if(score < bestAttemptScore) {
-            // Hide vertex markings
-            mOgreWindow->unmarkVertices();
-
-            // Render depth and RGB images
-            cv::Mat depthRender, rgbRender;
-            if(!mOgreWindow->render(depthRender, rgbRender))
-                continue;
-
-            // Re-mark vertices (if any were previously marked)
-            mOgreWindow->markVertices();
-
-            // Store this attempt
-            bestAttemptDepthImage = depthRender;
-            bestAttemptRGBImage = rgbRender;
-
-            for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
-                Ogre::SceneNode* node = (*it)->getOgreEntity()->getParentSceneNode();
-
-                Ogre::Matrix3 rot;
-                node->getOrientation().ToRotationMatrix(rot);
-                (*it)->setFinalRotation(rot);
-                (*it)->setFinalPosition(node->getPosition());
-                (*it)->setFinalOcclusion(occlusions[std::distance(beginObjects(), it)]);
-            }
-
-            if(score <= 0.0)
-                solutionFound = true;
-        }
-    } while(!solutionFound && attempt < mMaxAttempts);
-
-    // If a preview without animation was requested, display the window now
-    if(mShowPreviewWindow && !mShowPhysicsAnimation && mOgreWindow->hidden())
-        mOgreWindow->show();
-
-    // Select an action describing what to do with the result
+    // Loop to restart if the user chooses so
     UserAction action = UA_KEEP;
-    if(!mOgreWindow->hidden()) {
-        action = mOgreWindow->promptUserAction();
-        // TODO
-    }
-    else {
-        // Auto-select action
-        action = UA_KEEP;
-    }
+    do {
+        // If animation is requested, display the window now
+        if(mShowPreviewWindow && mShowPhysicsAnimation && mOgreWindow->hidden())
+            mOgreWindow->show();
 
-    // Check rendered images
-    if(bestAttemptDepthImage.data && bestAttemptRGBImage.data) {
-        return ObjectDropResult(OD_SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
+        float bestAttemptScore = std::numeric_limits<float>::max(); // TODO: weighting object for score influence?
+
+        bool solutionFound = false;
+        unsigned int attempt = 0;
+
+        // Execution loop - perform simulations until the criteria are met or the maximum number of attempts was reached
+        do {
+            ++attempt;
+
+            // Calculate initial positions (this is done for each attempt because it contains randomization)
+            for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
+                Auto<cv::Vec3f> position = (*it)->getInitialPosition();
+                if(position.automate) {
+                    Ogre::Vector3 posValue = computePosition(mGroundPlane.vertices(), gravity);
+                    position.manualValue = cv::Vec3f(posValue.x, posValue.y, posValue.z);
+                    (*it)->setInitialPosition(position);
+                }
+            }
+
+            // Simulate (with animation only if needed)
+            // This function does not return until the simulation is completed
+            SimulationResult result = mOgreWindow->startSimulation(mObjects, mGroundPlane, gravity, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation);
+
+            if(result == SR_TIMEOUT) {
+                continue;
+            }
+            else if(result == SR_ABORTED) {
+                action = UA_ABORT;
+                break;
+            }
+
+            // Calculate score of this result
+            float score = 0.0;
+            std::vector<float> occlusions;
+            for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
+                // TODO: check if object still on plane
+
+                Ogre::Real occlusion;
+                std::vector<std::pair<Ogre::Vector3, bool>> pixelInfo;
+                bool onPlane;
+                if(!mOgreWindow->queryObjectInfo(*it, occlusion, pixelInfo, onPlane))
+                    continue;
+
+                std::pair<float, float> desiredOcclusion = (*it)->getDesiredOcclusion();
+
+                occlusions.push_back(occlusion);
+                score += distanceToIntervalSquared(occlusion, desiredOcclusion.first, desiredOcclusion.second);
+            }
+
+            if(score < bestAttemptScore) {
+                // Hide vertex markings
+                mOgreWindow->unmarkVertices();
+
+                // Render depth and RGB images
+                cv::Mat depthRender, rgbRender;
+                if(!mOgreWindow->render(depthRender, rgbRender))
+                    continue;
+
+                // Re-mark vertices (if any were previously marked)
+                mOgreWindow->markVertices();
+
+                // Store this attempt
+                bestAttemptDepthImage = depthRender;
+                bestAttemptRGBImage = rgbRender;
+                bestAttemptScore = score;
+
+                for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
+                    Ogre::SceneNode* node = (*it)->getOgreEntity()->getParentSceneNode();
+
+                    Ogre::Matrix3 rot;
+                    node->getOrientation().ToRotationMatrix(rot);
+                    (*it)->setFinalRotation(rot);
+                    (*it)->setFinalPosition(node->getPosition());
+                    (*it)->setFinalOcclusion(occlusions[std::distance(beginObjects(), it)]);
+                }
+
+                if(score <= 0.0)
+                    solutionFound = true;
+            }
+        } while(!solutionFound && attempt < mMaxAttempts);
+
+        // Restore the object poses of the best attempt found
+        const std::vector<Ogre::Entity*>& entities = mOgreWindow->objectEntities();
+        if(entities.size() != mObjects.size())
+            return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), cv::Mat());
+
+        for(size_t i = 0; i < entities.size(); ++i) {
+            Ogre::SceneNode* node = entities[i]->getParentSceneNode();
+            node->setOrientation(Ogre::Quaternion(convertCvMatToOgreMat(mObjects[i]->getFinalRotation())));
+            cv::Vec3f pos = mObjects[i]->getFinalPosition();
+            node->setPosition(pos[0], pos[1], pos[2]);
+        }
+
+        // If a preview without animation was requested, display the window now
+        if(mShowPreviewWindow && !mShowPhysicsAnimation && mOgreWindow->hidden())
+            mOgreWindow->show();
+
+        // Select an action describing what to do with the result
+        if(!mOgreWindow->hidden()) {
+            action = mOgreWindow->promptUserAction();
+            mOgreWindow->hide();
+        }
+    } while(action == UA_RESTART);
+
+    // Check user choice
+    if(action == UA_KEEP) {
+        // Check rendered images
+        if(bestAttemptDepthImage.data && bestAttemptRGBImage.data) {
+            return ObjectDropResult(OD_SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
+        }
+    }
+    else if(action == UA_ABORT) {
+        return ObjectDropResult(OD_USER_ABORTED, cv::Mat(), cv::Mat());
     }
 
     return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), cv::Mat());
@@ -307,12 +330,12 @@ Ogre::Matrix3 TradagMain::computeRotation(const float azimuth, const Ogre::Vecto
     return rotation;
 }
 
-float TradagMain::distanceToInterval(float value, float min, float max) const {
+float TradagMain::distanceToIntervalSquared(float value, float min, float max) const {
     if(value < min)
-        return min - value;
+        return std::pow(min - value, 2);
 
     if(value > max)
-        return value - max;
+        return std::pow(value - max, 2);
 
     return 0.0;
 }
