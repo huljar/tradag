@@ -475,92 +475,112 @@ UserAction OgreWindow::promptUserAction() {
     return mActionChosen;
 }
 
-bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, std::vector<std::pair<Ogre::Vector3, bool>>& pixelInfo, bool& onPlane) const {
+bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, PixelInfoVec& pixelInfo, bool& onPlane) {
     Ogre::Entity* entity = object->getOgreEntity();
 
     if(std::find(mObjects.begin(), mObjects.end(), entity) != mObjects.end()) {
-        // Find bounding box of object in image coordinates
-        const Ogre::AxisAlignedBox& boundingBox3D = entity->getWorldBoundingBox(true);
+        // Render scene (once only the object and once the whole scene)
+        cv::Mat objectDepthRender, objectRGBRender, sceneDepthRender, sceneRGBRender;
+        if(render(objectDepthRender, objectRGBRender, object) && render(sceneDepthRender, sceneRGBRender)) {
 
-        std::pair<Ogre::Vector2, Ogre::Vector2> boundingBox2D(
-            Ogre::Vector2(std::numeric_limits<Ogre::Real>::max(), std::numeric_limits<Ogre::Real>::max()),
-            Ogre::Vector2(-std::numeric_limits<Ogre::Real>::max(), -std::numeric_limits<Ogre::Real>::max())
-        );
-
-        // Iterate over all corners of the 3D box
-        for(const Ogre::Vector3* it = boundingBox3D.getAllCorners(); it < boundingBox3D.getAllCorners() + 8; ++it) {
-
-            // Project the 3D point onto the 2D plane at a specific depth
-            Ogre::Vector3 pointXYZ = (*it) * Constants::WorkPlaneDepth / std::abs(it->z);
-
-            // Transform to (u, v, d)
-            Ogre::Vector3 pointUVD = mRGBDScene->worldToDepth(pointXYZ);
-
-            // Update bounding box
-            if(pointUVD.x < boundingBox2D.first.x) boundingBox2D.first.x = pointUVD.x;
-            if(pointUVD.y < boundingBox2D.first.y) boundingBox2D.first.y = pointUVD.y;
-
-            if(pointUVD.x > boundingBox2D.second.x) boundingBox2D.second.x = pointUVD.x;
-            if(pointUVD.y > boundingBox2D.second.y) boundingBox2D.second.y = pointUVD.y;
-        }
-
-        // Round bounding box
-        boundingBox2D.first.x = std::floor(boundingBox2D.first.x);
-        boundingBox2D.first.y = std::floor(boundingBox2D.first.y);
-        boundingBox2D.second.x = std::ceil(boundingBox2D.second.x);
-        boundingBox2D.second.y = std::ceil(boundingBox2D.second.y);
-
-        // Debug start
-//        std::cout << "Bounding box: (" << boundingBox2D.first.x << ", " << boundingBox2D.first.y
-//                  << "), (" << boundingBox2D.second.x << ", " << boundingBox2D.second.y << ")" << std::endl;
-//        Ogre::ManualObject* bbObj = mSceneMgr->createManualObject();
-//        bbObj->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_LINE_STRIP);
-//        bbObj->position(mScene->depthToWorld(boundingBox2D.first.x, boundingBox2D.first.y, workPlaneDepth));
-//        bbObj->position(mScene->depthToWorld(boundingBox2D.second.x, boundingBox2D.first.y, workPlaneDepth));
-//        bbObj->position(mScene->depthToWorld(boundingBox2D.second.x, boundingBox2D.second.y, workPlaneDepth));
-//        bbObj->position(mScene->depthToWorld(boundingBox2D.first.x, boundingBox2D.second.y, workPlaneDepth));
-//        bbObj->position(mScene->depthToWorld(boundingBox2D.first.x, boundingBox2D.first.y, workPlaneDepth));
-//        bbObj->end();
-//        mSceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(bbObj);
-//        mRoot->renderOneFrame();
-        // Debug end
-
-        // Temporarily detach RGBD scene from scene manager
-        mRGBDScene->getManualObject()->detachFromParent();
-
-        // Cast rays through all pixels inside the bounding box
-        std::vector<Ogre::Vector3> objectImgCoords;
-        OgreBites::OgreRay polygonRayCaster(mSceneMgr);
-
-        for(Ogre::Real v = boundingBox2D.first.y; v <= boundingBox2D.second.y; v += 1.0) {
-            for(Ogre::Real u = boundingBox2D.first.x; u <= boundingBox2D.second.x; u += 1.0) {
-                Ogre::Vector3 result;
-                Ogre::MovableObject* objectHit;
-
-                if(polygonRayCaster.RaycastFromPoint(mInitialCameraPosition, mRGBDScene->depthToWorld(u, v, Constants::WorkPlaneDepth) - mInitialCameraPosition, result, objectHit)
-                        && objectHit == entity) {
-                    objectImgCoords.push_back(mRGBDScene->worldToDepth(result));
-                }
+            // Gather all object pixels
+            PixelInfoVec objectPixels;
+            for(cv::Mat_<unsigned short>::iterator it = objectDepthRender.begin<unsigned short>(); it != objectDepthRender.end<unsigned short>(); ++it) {
+                if(*it) objectPixels.push_back(std::make_pair(it.pos(), true));
             }
+
+            // Check object pixels for visibility in the scene
+            size_t occludedPixels = 0;
+            for(PixelInfoVec::iterator it = objectPixels.begin(); it != objectPixels.end(); ++it) {
+                //std::cout << "Object: " << objectDepthRender.at<unsigned short>(it->first) << std::endl
+                //          << "Scene:  " << sceneDepthRender.at<unsigned short>(it->first);
+                if(sceneDepthRender.at<unsigned short>(it->first) < objectDepthRender.at<unsigned short>(it->first)) {
+                //    std::cout << " ... occluded!";
+                    ++occludedPixels;
+                    it->second = false;
+                }
+                std::cout << std::endl;
+            }
+
+            // Calculate occlusion and set output parameter
+            occlusion = static_cast<Ogre::Real>(occludedPixels) / static_cast<Ogre::Real>(objectPixels.size());
+
+            // Set pixel info output parameter
+            pixelInfo = objectPixels;
+
+            // TODO: Check if object is on plane
+            onPlane = true;
+
+            return true;
         }
 
-        // Reattach the RGBD scene
-        mRGBDSceneNode->attachObject(mRGBDScene->getManualObject());
+//        // Find bounding box of object in image coordinates
+//        const Ogre::AxisAlignedBox& boundingBox3D = entity->getWorldBoundingBox(true);
 
-        // Test for all object image coordinates if the scene depth is smaller than the object depth
-        cv::Mat depthImg = mRGBDScene->getDepthImage();
-        size_t coveredPixels = 0;
+//        std::pair<Ogre::Vector2, Ogre::Vector2> boundingBox2D(
+//            Ogre::Vector2(std::numeric_limits<Ogre::Real>::max(), std::numeric_limits<Ogre::Real>::max()),
+//            Ogre::Vector2(-std::numeric_limits<Ogre::Real>::max(), -std::numeric_limits<Ogre::Real>::max())
+//        );
 
-        for(std::vector<Ogre::Vector3>::iterator it = objectImgCoords.begin(); it != objectImgCoords.end(); ++it) {
-            int u = (int)std::round(it->x);
-            int v = (int)std::round(it->y);
-            if(u >= depthImg.cols || v >= depthImg.rows || it->z >= (Ogre::Real)depthImg.at<unsigned short>(v, u))
-                ++coveredPixels;
-        }
+//        // Iterate over all corners of the 3D box
+//        for(const Ogre::Vector3* it = boundingBox3D.getAllCorners(); it < boundingBox3D.getAllCorners() + 8; ++it) {
 
-        // Compute and return fraction
-        occlusion = (Ogre::Real)coveredPixels / (Ogre::Real)objectImgCoords.size();
-        return true;
+//            // Project the 3D point onto the 2D plane at a specific depth
+//            Ogre::Vector3 pointXYZ = (*it) * Constants::WorkPlaneDepth / std::abs(it->z);
+
+//            // Transform to (u, v, d)
+//            Ogre::Vector3 pointUVD = mRGBDScene->worldToDepth(pointXYZ);
+
+//            // Update bounding box
+//            if(pointUVD.x < boundingBox2D.first.x) boundingBox2D.first.x = pointUVD.x;
+//            if(pointUVD.y < boundingBox2D.first.y) boundingBox2D.first.y = pointUVD.y;
+
+//            if(pointUVD.x > boundingBox2D.second.x) boundingBox2D.second.x = pointUVD.x;
+//            if(pointUVD.y > boundingBox2D.second.y) boundingBox2D.second.y = pointUVD.y;
+//        }
+
+//        // Round bounding box
+//        boundingBox2D.first.x = std::floor(boundingBox2D.first.x);
+//        boundingBox2D.first.y = std::floor(boundingBox2D.first.y);
+//        boundingBox2D.second.x = std::ceil(boundingBox2D.second.x);
+//        boundingBox2D.second.y = std::ceil(boundingBox2D.second.y);
+
+//        // Temporarily detach RGBD scene from scene manager
+//        mRGBDScene->getManualObject()->detachFromParent();
+
+//        // Cast rays through all pixels inside the bounding box
+//        std::vector<Ogre::Vector3> objectImgCoords;
+//        OgreBites::OgreRay polygonRayCaster(mSceneMgr);
+
+//        for(Ogre::Real v = boundingBox2D.first.y; v <= boundingBox2D.second.y; v += 1.0) {
+//            for(Ogre::Real u = boundingBox2D.first.x; u <= boundingBox2D.second.x; u += 1.0) {
+//                Ogre::Vector3 result;
+//                Ogre::MovableObject* objectHit;
+
+//                if(polygonRayCaster.RaycastFromPoint(mInitialCameraPosition, mRGBDScene->depthToWorld(u, v, Constants::WorkPlaneDepth) - mInitialCameraPosition, result, objectHit)
+//                        && objectHit == entity) {
+//                    objectImgCoords.push_back(mRGBDScene->worldToDepth(result));
+//                }
+//            }
+//        }
+
+//        // Reattach the RGBD scene
+//        mRGBDSceneNode->attachObject(mRGBDScene->getManualObject());
+
+//        // Test for all object image coordinates if the scene depth is smaller than the object depth
+//        cv::Mat depthImg = mRGBDScene->getDepthImage();
+//        size_t occludedPixels = 0;
+
+//        for(std::vector<Ogre::Vector3>::iterator it = objectImgCoords.begin(); it != objectImgCoords.end(); ++it) {
+//            int u = (int)std::round(it->x);
+//            int v = (int)std::round(it->y);
+//            if(u >= depthImg.cols || v >= depthImg.rows || it->z >= (Ogre::Real)depthImg.at<unsigned short>(v, u))
+//                ++occludedPixels;
+//        }
+
+//        // Compute and return fraction
+//        occlusion = (Ogre::Real)occludedPixels / (Ogre::Real)objectImgCoords.size();
+//        return true;
     }
 
     return false;
@@ -655,7 +675,7 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
     }
     mRGBDScene->getManualObject()->setMaterialName(0, "BaseWhiteNoLighting");
 
-    // Reattach hidden objects
+    // Show hidden objects again if they were hidden before
     if(specificObject) {
         for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
             if(*it != specificObject->getOgreEntity()) {

@@ -53,6 +53,7 @@ namespace TraDaG {
     } ObjectDropStatus;
 
     typedef std::vector<DroppableObject*> ObjectVec;
+    typedef std::vector<std::pair<cv::Point, bool>> PixelInfoVec;
     typedef std::vector<unsigned short> LabelVec;
     typedef std::map<std::string, LabelVec> LabelMap;
 

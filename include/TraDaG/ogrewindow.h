@@ -33,7 +33,7 @@ public:
 
     virtual UserAction promptUserAction();
 
-    virtual bool queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, std::vector<std::pair<Ogre::Vector3, bool>>& pixelInfo, bool& onPlane) const;
+    virtual bool queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, PixelInfoVec& pixelInfo, bool& onPlane);
 
     virtual bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = NULL);
 

@@ -102,7 +102,7 @@ int main(int argc, char** argv)
     // Evaluate result
     if(result.status == OD_SUCCESS) {
         std::cout << "Success!" << std::endl
-                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
+                  << "Occlusion: " << obj->getFinalOcclusion() << ", " << obj2->getFinalOcclusion() << std::endl
                   << "Rotation: " << obj->getFinalRotation() << std::endl
                   << "Position: " << obj->getFinalPosition() << std::endl;
 
