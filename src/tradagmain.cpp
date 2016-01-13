@@ -229,12 +229,8 @@ ObjectDropResult TradagMain::execute() {
 
                 // Render depth and RGB images
                 cv::Mat depthRender, rgbRender;
-                if(!mOgreWindow->render(depthRender, rgbRender/*, mObjects[0]*/))
+                if(!mOgreWindow->render(depthRender, rgbRender))
                     continue;
-//                for(cv::Mat_<unsigned short>::iterator it = depthRender.begin<unsigned short>(); it != depthRender.end<unsigned short>(); ++it) {
-//                    if(*it > 0 && *it < 200) *it = std::numeric_limits<unsigned short>::max();
-//                    else *it = 0;
-//                }
 
                 // Re-mark vertices (if any were previously marked)
                 mOgreWindow->markVertices();

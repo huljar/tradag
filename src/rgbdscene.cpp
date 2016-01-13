@@ -50,7 +50,7 @@ void RGBDScene::meshify() {
     if(!mMeshUpdated) {
         mSceneObject->clear();
 
-        mSceneObject->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_TRIANGLE_LIST);
+        mSceneObject->begin(Strings::StandardMaterialName, Ogre::RenderOperation::OT_TRIANGLE_LIST);
         createVertices();
         createIndices();
         mSceneObject->end();

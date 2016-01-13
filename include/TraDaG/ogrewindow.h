@@ -86,14 +86,20 @@ protected:
 
     virtual bool getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3& result);
 
+    virtual void loadSceneCollisionShapes(const std::vector<Ogre::Vector3>& excludeList = std::vector<Ogre::Vector3>());
+
     virtual OgreBulletCollisions::CollisionShape* createConvexHull(Ogre::Entity* object);
+
+    virtual void setUpRenderSettings();
+    virtual void invalidateRenderSettings();
 
     // OGRE
     Ogre::Root* mRoot;
-    Ogre::RenderWindow* mWindow;
+    Ogre::RenderWindow* mPreviewWindow;
     Ogre::SceneManager* mSceneMgr;
-    Ogre::Camera* mCamera;
-    OgreBites::SdkCameraMan* mCameraMan;
+    Ogre::Camera* mPreviewCamera;
+    OgreBites::SdkCameraMan* mPreviewCameraMan;
+
     Ogre::OverlaySystem* mOverlaySystem;
 
     // OIS
@@ -131,6 +137,15 @@ protected:
     // User action
     UserAction mActionChosen;
 
+    // Rendering
+    Ogre::RenderWindow* mRenderWindow;
+    Ogre::Camera* mRenderCamera;
+
+    Ogre::PixelBox* mRenderPixelBoxDepth;
+    unsigned char* mRenderPixelBoxDepthData;
+    Ogre::PixelBox* mRenderPixelBoxRGB;
+    unsigned char* mRenderPixelBoxRGBData;
+
 private:
     void initializeOgre();
     void shutDownOgre();
@@ -140,8 +155,6 @@ private:
 
     void initializeBullet(const Ogre::Vector3& gravity);
     void shutDownBullet();
-
-    void loadSceneCollisionShapes(const std::vector<Ogre::Vector3>& excludeList = std::vector<Ogre::Vector3>());
 
     /**
      * This function is part of the OGRE 1.9 API documentation, but apparently not included in all packagings of OGRE 1.9

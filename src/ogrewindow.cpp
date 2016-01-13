@@ -17,15 +17,16 @@
 
 #include <limits>
 #include <string>
+#include <stdexcept>
 
 using namespace TraDaG;
 
 OgreWindow::OgreWindow()
     : mRoot(NULL)
-    , mWindow(NULL)
+    , mPreviewWindow(NULL)
     , mSceneMgr(NULL)
-    , mCamera(NULL)
-    , mCameraMan(NULL)
+    , mPreviewCamera(NULL)
+    , mPreviewCameraMan(NULL)
     , mOverlaySystem(NULL)
     , mInputManager(NULL)
     , mKeyboard(NULL)
@@ -43,6 +44,12 @@ OgreWindow::OgreWindow()
     , mHaltRendering(false)
     , mStatus(READY)
     , mActionChosen(UA_KEEP)
+    , mRenderWindow(NULL)
+    , mRenderCamera(NULL)
+    , mRenderPixelBoxDepth(NULL)
+    , mRenderPixelBoxDepthData(NULL)
+    , mRenderPixelBoxRGB(NULL)
+    , mRenderPixelBoxRGBData(NULL)
 {
     initializeOgre();
 }
@@ -110,7 +117,6 @@ void OgreWindow::initializeOgre() {
         }
     }
 
-    rs->setConfigOption("Video Mode", "1024 x 768");
     rs->setConfigOption("Full Screen", "No");
     rs->setConfigOption("VSync", "Yes");
 
@@ -127,7 +133,7 @@ void OgreWindow::initializeOgre() {
     windowParams["vsync"] = "true";
     windowParams["hidden"] = "true";
 
-    mWindow = mRoot->createRenderWindow(Strings::PreviewWindowName, 1024, 768, false, &windowParams);
+    mPreviewWindow = mRoot->createRenderWindow(Strings::PreviewWindowName, 1024, 768, false, &windowParams);
 
     // Init resources
     Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
@@ -137,25 +143,25 @@ void OgreWindow::initializeOgre() {
     mSceneMgr = mRoot->createSceneManager(Ogre::ST_GENERIC);
 
     // Create camera
-    mCamera = mSceneMgr->createCamera("MainCamera");
-    mCamera->setPosition(mInitialCameraPosition);
-    mCamera->lookAt(mInitialCameraLookAt);
-    mCamera->setNearClipDistance(5.0);
-    mCamera->setFOVy(Ogre::Degree(55.0));
+    mPreviewCamera = mSceneMgr->createCamera("MainCamera");
+    mPreviewCamera->setPosition(mInitialCameraPosition);
+    mPreviewCamera->lookAt(mInitialCameraLookAt);
+    mPreviewCamera->setNearClipDistance(5.0);
+    mPreviewCamera->setFOVy(Ogre::Degree(55.0));
 
     // Create camera controller
-    mCameraMan = new OgreBites::SdkCameraMan(mCamera);
-    mCameraMan->setTopSpeed(300);
+    mPreviewCameraMan = new OgreBites::SdkCameraMan(mPreviewCamera);
+    mPreviewCameraMan->setTopSpeed(300);
 
     // Add viewport
-    Ogre::Viewport* vp = mWindow->addViewport(mCamera);
+    Ogre::Viewport* vp = mPreviewWindow->addViewport(mPreviewCamera);
     vp->setBackgroundColour(Ogre::ColourValue::Black);
 
-    mCamera->setAspectRatio(Ogre::Real(vp->getActualWidth()) / Ogre::Real(vp->getActualHeight()));
-    mCamera->setAutoAspectRatio(true);
+    mPreviewCamera->setAspectRatio(Ogre::Real(vp->getActualWidth()) / Ogre::Real(vp->getActualHeight()));
+    mPreviewCamera->setAutoAspectRatio(true);
 
     // Add window event listener
-    Ogre::WindowEventUtilities::addWindowEventListener(mWindow, this);
+    Ogre::WindowEventUtilities::addWindowEventListener(mPreviewWindow, this);
 
     // Add frame listener
     mRoot->addFrameListener(this);
@@ -165,9 +171,14 @@ void OgreWindow::initializeOgre() {
 }
 
 void OgreWindow::shutDownOgre() {
+    delete[] mRenderPixelBoxDepthData;
+    delete[] mRenderPixelBoxRGBData;
+    delete mRenderPixelBoxDepth;
+    delete mRenderPixelBoxRGB;
+
     delete mOverlaySystem;
-    delete mCameraMan;
-    Ogre::WindowEventUtilities::removeWindowEventListener(mWindow, this);
+    delete mPreviewCameraMan;
+    Ogre::WindowEventUtilities::removeWindowEventListener(mPreviewWindow, this);
     delete mRoot;
 }
 
@@ -178,7 +189,7 @@ void OgreWindow::initializeOIS() {
         size_t hWnd = 0;
         std::ostringstream hWndStr;
 
-        mWindow->getCustomAttribute("WINDOW", &hWnd);
+        mPreviewWindow->getCustomAttribute("WINDOW", &hWnd);
         hWndStr << hWnd;
         pl.insert(std::make_pair(std::string("WINDOW"), hWndStr.str()));
 
@@ -200,7 +211,7 @@ void OgreWindow::initializeOIS() {
         mMouse = static_cast<OIS::Mouse*>(mInputManager->createInputObject(OIS::OISMouse, true));
 
         // Trigger resize event to update OIS mouse area
-        windowResized(mWindow);
+        windowResized(mPreviewWindow);
 
         // Add OIS callbacks
         mKeyboard->setEventCallback(this);
@@ -252,52 +263,6 @@ void OgreWindow::shutDownBullet() {
         delete mDebugDrawer;
         mDebugDrawer = NULL;
     }
-}
-
-void OgreWindow::loadSceneCollisionShapes(const std::vector<Ogre::Vector3>& excludeList) {
-    // Retrieve vertices of the scene
-    Ogre::ManualObject* scene = mRGBDScene->getManualObject();
-    size_t vertexCount;
-    Ogre::Vector3* vertices;
-    size_t indexCount;
-    unsigned long* indices;
-
-    OgreBites::OgreRay::GetMeshInformation(scene, vertexCount, vertices, indexCount, indices,
-                                           scene->getParentNode()->_getDerivedPosition(),
-                                           scene->getParentNode()->_getDerivedOrientation(),
-                                           scene->getParentNode()->_getDerivedScale());
-
-    // Iterate over vertices
-    mRigidBodies.reserve(vertexCount);
-    mCollisionShapes.reserve(vertexCount);
-    for(size_t i = 0; i < vertexCount; i += 10) {
-        // Check if the vertex is part of the exclude list
-        bool exclude = false;
-        for(std::vector<Ogre::Vector3>::const_iterator it = excludeList.cbegin(); it != excludeList.cend(); ++it) {
-            if(vertices[i].positionEquals(*it)) {
-                exclude = true;
-                break;
-            }
-        }
-
-        // Add rigid body and collision shape for this vertex
-        if(!exclude) {
-            OgreBulletDynamics::RigidBody* rigidBody = new OgreBulletDynamics::RigidBody(
-                                                               Strings::VertexRigidBodyName + std::to_string(i),
-                                                               mWorld);
-            OgreBulletCollisions::CollisionShape* collisionShape = new OgreBulletCollisions::SphereCollisionShape(50);
-
-            rigidBody->setStaticShape(collisionShape, 0.9, 0.1, vertices[i]);
-
-            // Store pointers so they can be cleaned up later
-            mRigidBodies.push_back(rigidBody);
-            mCollisionShapes.push_back(collisionShape);
-        }
-    }
-
-    // Clean up
-    delete[] vertices;
-    delete[] indices;
 }
 
 SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, const GroundPlane& plane,
@@ -492,14 +457,10 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occl
             // Check object pixels for visibility in the scene
             size_t occludedPixels = 0;
             for(PixelInfoVec::iterator it = objectPixels.begin(); it != objectPixels.end(); ++it) {
-                //std::cout << "Object: " << objectDepthRender.at<unsigned short>(it->first) << std::endl
-                //          << "Scene:  " << sceneDepthRender.at<unsigned short>(it->first);
                 if(sceneDepthRender.at<unsigned short>(it->first) < objectDepthRender.at<unsigned short>(it->first)) {
-                //    std::cout << " ... occluded!";
                     ++occludedPixels;
                     it->second = false;
                 }
-                std::cout << std::endl;
             }
 
             // Calculate occlusion and set output parameter
@@ -513,122 +474,14 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occl
 
             return true;
         }
-
-//        // Find bounding box of object in image coordinates
-//        const Ogre::AxisAlignedBox& boundingBox3D = entity->getWorldBoundingBox(true);
-
-//        std::pair<Ogre::Vector2, Ogre::Vector2> boundingBox2D(
-//            Ogre::Vector2(std::numeric_limits<Ogre::Real>::max(), std::numeric_limits<Ogre::Real>::max()),
-//            Ogre::Vector2(-std::numeric_limits<Ogre::Real>::max(), -std::numeric_limits<Ogre::Real>::max())
-//        );
-
-//        // Iterate over all corners of the 3D box
-//        for(const Ogre::Vector3* it = boundingBox3D.getAllCorners(); it < boundingBox3D.getAllCorners() + 8; ++it) {
-
-//            // Project the 3D point onto the 2D plane at a specific depth
-//            Ogre::Vector3 pointXYZ = (*it) * Constants::WorkPlaneDepth / std::abs(it->z);
-
-//            // Transform to (u, v, d)
-//            Ogre::Vector3 pointUVD = mRGBDScene->worldToDepth(pointXYZ);
-
-//            // Update bounding box
-//            if(pointUVD.x < boundingBox2D.first.x) boundingBox2D.first.x = pointUVD.x;
-//            if(pointUVD.y < boundingBox2D.first.y) boundingBox2D.first.y = pointUVD.y;
-
-//            if(pointUVD.x > boundingBox2D.second.x) boundingBox2D.second.x = pointUVD.x;
-//            if(pointUVD.y > boundingBox2D.second.y) boundingBox2D.second.y = pointUVD.y;
-//        }
-
-//        // Round bounding box
-//        boundingBox2D.first.x = std::floor(boundingBox2D.first.x);
-//        boundingBox2D.first.y = std::floor(boundingBox2D.first.y);
-//        boundingBox2D.second.x = std::ceil(boundingBox2D.second.x);
-//        boundingBox2D.second.y = std::ceil(boundingBox2D.second.y);
-
-//        // Temporarily detach RGBD scene from scene manager
-//        mRGBDScene->getManualObject()->detachFromParent();
-
-//        // Cast rays through all pixels inside the bounding box
-//        std::vector<Ogre::Vector3> objectImgCoords;
-//        OgreBites::OgreRay polygonRayCaster(mSceneMgr);
-
-//        for(Ogre::Real v = boundingBox2D.first.y; v <= boundingBox2D.second.y; v += 1.0) {
-//            for(Ogre::Real u = boundingBox2D.first.x; u <= boundingBox2D.second.x; u += 1.0) {
-//                Ogre::Vector3 result;
-//                Ogre::MovableObject* objectHit;
-
-//                if(polygonRayCaster.RaycastFromPoint(mInitialCameraPosition, mRGBDScene->depthToWorld(u, v, Constants::WorkPlaneDepth) - mInitialCameraPosition, result, objectHit)
-//                        && objectHit == entity) {
-//                    objectImgCoords.push_back(mRGBDScene->worldToDepth(result));
-//                }
-//            }
-//        }
-
-//        // Reattach the RGBD scene
-//        mRGBDSceneNode->attachObject(mRGBDScene->getManualObject());
-
-//        // Test for all object image coordinates if the scene depth is smaller than the object depth
-//        cv::Mat depthImg = mRGBDScene->getDepthImage();
-//        size_t occludedPixels = 0;
-
-//        for(std::vector<Ogre::Vector3>::iterator it = objectImgCoords.begin(); it != objectImgCoords.end(); ++it) {
-//            int u = (int)std::round(it->x);
-//            int v = (int)std::round(it->y);
-//            if(u >= depthImg.cols || v >= depthImg.rows || it->z >= (Ogre::Real)depthImg.at<unsigned short>(v, u))
-//                ++occludedPixels;
-//        }
-
-//        // Compute and return fraction
-//        occlusion = (Ogre::Real)occludedPixels / (Ogre::Real)objectImgCoords.size();
-//        return true;
     }
 
     return false;
 }
 
 bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject) {
-    // Determine aspect ratio
-    const cv::Mat depthImg = mRGBDScene->getDepthImage();
-    Ogre::Vector3 topLeft = mRGBDScene->depthToWorld(0, 0, Constants::WorkPlaneDepth);
-    Ogre::Vector3 bottomRight = mRGBDScene->depthToWorld(depthImg.cols - 1, depthImg.rows - 1, Constants::WorkPlaneDepth);
-
-    Ogre::Real width = bottomRight.x - topLeft.x;
-    Ogre::Real height = topLeft.y - bottomRight.y;
-    if(height == 0.0)
-        return false;
-
-    // Determine vertical field of view (horizontal fov is automatically adjusted according to aspect ratio)
-    Ogre::Vector3 top(0, topLeft.y, topLeft.z);
-    Ogre::Vector3 bottom(0, bottomRight.y, bottomRight.z);
-    Ogre::Radian verticalFOV(std::max(
-        top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
-        bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
-    ) * 2.0 + 0.04);
-
-    // Create a hidden render window
-    Ogre::NameValuePairList windowParams;
-    windowParams["vsync"] = "true";
-    windowParams["hidden"] = "true";
-
-    Ogre::uint32 imgWidth = depthImg.cols * 1.5; // render in larger resolution because we crop black edges later
-    Ogre::uint32 imgHeight = depthImg.rows * 1.5;
-
-    Ogre::RenderWindow* renderWin = mRoot->createRenderWindow(Strings::RenderWindowName, imgWidth, imgHeight, false, &windowParams);
-
-    // Create camera to use for rendering
-    Ogre::Camera* renderCam = mSceneMgr->createCamera("RenderCamera");
-
-    // Set camera parameters
-    renderCam->setPosition(mInitialCameraPosition);
-    renderCam->lookAt(mInitialCameraLookAt);
-    renderCam->setNearClipDistance(5.0);
-    renderCam->setFOVy(verticalFOV);
-    renderCam->setAspectRatio(width / height);
-
-    // Add viewport
-    Ogre::Viewport* renderViewport = renderWin->addViewport(renderCam);
-    renderViewport->setBackgroundColour(Ogre::ColourValue::Black);
-    renderViewport->setOverlaysEnabled(false);
+    // Ensure that everything is set up correctly
+    setUpRenderSettings();
 
     // Check for specific object
     if(specificObject) {
@@ -642,38 +495,28 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
     }
 
     // Render current frame (RGB)
-    renderWin->update(); // ensure that we are up to date
-
-    // Allocate storage space (RGB)
-    Ogre::PixelFormat renderFormat = renderWin->suggestPixelFormat();
-    size_t bytesPerPixel = Ogre::PixelUtil::getNumElemBytes(renderFormat);
-    unsigned char* pixelDataRGB = new unsigned char[imgWidth * imgHeight * bytesPerPixel];
+    mRenderWindow->update(); // ensure that we are up to date
 
     // Get window contents (RGB)
-    Ogre::PixelBox pixelBoxRGB(imgWidth, imgHeight, 1, renderFormat, pixelDataRGB);
-    renderWin->copyContentsToMemory(pixelBoxRGB);
+    mRenderWindow->copyContentsToMemory(*mRenderPixelBoxRGB);
 
-    // Set material for depth rendering
+    // Set materials for depth rendering
     for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
         (*it)->setMaterialName(Strings::DepthMapMaterialName);
     }
     mRGBDScene->getManualObject()->setMaterialName(0, Strings::DepthMapMaterialName);
 
     // Render current frame (Depth)
-    renderWin->update(); // apply the material changes
-
-    // Allocate storage space (Depth)
-    unsigned char* pixelDataDepth = new unsigned char[imgWidth * imgHeight * bytesPerPixel];
+    mRenderWindow->update(); // apply the material changes
 
     // Get window contents (Depth)
-    Ogre::PixelBox pixelBoxDepth(imgWidth, imgHeight, 1, renderFormat, pixelDataDepth);
-    renderWin->copyContentsToMemory(pixelBoxDepth);
+    mRenderWindow->copyContentsToMemory(*mRenderPixelBoxDepth);
 
-    // Reset material to normal
+    // Reset materials to normal
     for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
-        (*it)->setMaterialName("BaseWhiteNoLighting");
+        (*it)->setMaterialName(Strings::StandardMaterialName);
     }
-    mRGBDScene->getManualObject()->setMaterialName(0, "BaseWhiteNoLighting");
+    mRGBDScene->getManualObject()->setMaterialName(0, Strings::StandardMaterialName);
 
     // Show hidden objects again if they were hidden before
     if(specificObject) {
@@ -686,10 +529,10 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
     }
 
     // Convert and copy RGB to cv::Mat
-    cv::Mat renderImageRGB(pixelBoxRGB.getHeight(), pixelBoxRGB.getWidth(), CV_8UC3);
+    cv::Mat renderImageRGB(mRenderPixelBoxRGB->getHeight(), mRenderPixelBoxRGB->getWidth(), CV_8UC3);
     for(int y = 0; y < renderImageRGB.rows; ++y) {
         for(int x = 0; x < renderImageRGB.cols; ++x) {
-            Ogre::ColourValue value = pixelBoxRGB.getColourAt(x, y, 0);
+            Ogre::ColourValue value = mRenderPixelBoxRGB->getColourAt(x, y, 0);
             // OpenCV uses BGR color channel ordering and (row, col) pixel addresses
             renderImageRGB.at<cv::Vec3b>(y, x) = cv::Vec3b(
                 static_cast<unsigned char>(value.b * 255.0),
@@ -700,10 +543,10 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
     }
 
     // Convert and copy Depth to cv::Mat
-    cv::Mat renderImageDepth(pixelBoxDepth.getHeight(), pixelBoxDepth.getWidth(), CV_16U);
+    cv::Mat renderImageDepth(mRenderPixelBoxDepth->getHeight(), mRenderPixelBoxDepth->getWidth(), CV_16U);
     for(int y = 0; y < renderImageDepth.rows; ++y) {
         for(int x = 0; x < renderImageDepth.cols; ++x) {
-            Ogre::ColourValue value = pixelBoxDepth.getColourAt(x, y, 0);
+            Ogre::ColourValue value = mRenderPixelBoxDepth->getColourAt(x, y, 0);
             renderImageDepth.at<unsigned short>(y, x) = (static_cast<unsigned short>(value.g * 255.0) << 8)
                                                         + static_cast<unsigned short>(value.b * 255.0);
         }
@@ -711,7 +554,7 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
 
     // Get screenspace bounding box of the scene
     Ogre::Vector2 screenTopLeft, screenBottomRight;
-    if(!mRGBDScene->screenspaceCoords(renderCam, screenTopLeft, screenBottomRight))
+    if(!mRGBDScene->screenspaceCoords(mRenderCamera, screenTopLeft, screenBottomRight))
         return false;
 
     // Compute region of interest
@@ -719,24 +562,19 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
                  cv::Point(screenBottomRight.x * renderImageDepth.cols, screenBottomRight.y * renderImageDepth.rows));
 
     // Resize the remaining area and copy to output parameter
+    // Use nearest neighbor interpolation to ensure no new (and incorrect) depth values are created
+    cv::Mat depthImg = mRGBDScene->getDepthImage();
     cv::Size resultSize(depthImg.cols, depthImg.rows);
-    cv::resize(renderImageDepth(roi), depthResult, resultSize);
+    cv::resize(renderImageDepth(roi), depthResult, resultSize, 0, 0, cv::INTER_NEAREST);
     cv::resize(renderImageRGB(roi), rgbResult, resultSize);
-
-    // Clean up
-    delete[] pixelDataDepth;
-    delete[] pixelDataRGB;
-    renderWin->removeAllViewports();
-    mSceneMgr->destroyCamera(renderCam);
-    mRoot->destroyRenderTarget(renderWin);
 
     return true;
 }
 
 void OgreWindow::resetCamera() {
-    if(mCamera) {
-        mCamera->setPosition(mInitialCameraPosition);
-        mCamera->lookAt(mInitialCameraLookAt);
+    if(mPreviewCamera) {
+        mPreviewCamera->setPosition(mInitialCameraPosition);
+        mPreviewCamera->lookAt(mInitialCameraLookAt);
     }
 }
 
@@ -760,8 +598,10 @@ void OgreWindow::setScene(RGBDScene* scene, bool updateCameraFOV) {
             top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
             bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
         ) * 2.0 + 0.04);
-        mCamera->setFOVy(angle);
+        mPreviewCamera->setFOVy(angle);
     }
+
+    invalidateRenderSettings();
 }
 
 void OgreWindow::markVertices(const std::vector<Ogre::Vector3>& vertices) {
@@ -801,7 +641,7 @@ void OgreWindow::unmarkVertices(bool destroy) {
 }
 
 bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
-    if(mHaltRendering || mWindow->isClosed()) {
+    if(mHaltRendering || mPreviewWindow->isClosed()) {
         mHaltRendering = false;
         return false;
     }
@@ -823,7 +663,7 @@ bool OgreWindow::frameStarted(const Ogre::FrameEvent& evt) {
 }
 
 bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt) {
-    if(mHaltRendering || mWindow->isClosed()) {
+    if(mHaltRendering || mPreviewWindow->isClosed()) {
         mHaltRendering = false;
         return false;
     }
@@ -833,7 +673,7 @@ bool OgreWindow::frameRenderingQueued(const Ogre::FrameEvent& evt) {
         mMouse->capture();
     }
 
-    mCameraMan->frameRenderingQueued(evt);
+    mPreviewCameraMan->frameRenderingQueued(evt);
     return true;
 }
 
@@ -851,7 +691,7 @@ void OgreWindow::windowResized(Ogre::RenderWindow* rw) {
 }
 
 bool OgreWindow::windowClosing(Ogre::RenderWindow* rw) {
-    if(rw == mWindow) {
+    if(rw == mPreviewWindow) {
         // Allow the window to be closed if it is hidden
         if(hidden())
             return true;
@@ -875,7 +715,7 @@ bool OgreWindow::windowClosing(Ogre::RenderWindow* rw) {
 }
 
 bool OgreWindow::keyPressed(const OIS::KeyEvent& e) {
-    mCameraMan->injectKeyDown(e);
+    mPreviewCameraMan->injectKeyDown(e);
     if(e.key == OIS::KC_SPACE) {
         resetCamera();
     }
@@ -899,22 +739,22 @@ bool OgreWindow::keyPressed(const OIS::KeyEvent& e) {
 }
 
 bool OgreWindow::keyReleased(const OIS::KeyEvent& e) {
-    mCameraMan->injectKeyUp(e);
+    mPreviewCameraMan->injectKeyUp(e);
     return true;
 }
 
 bool OgreWindow::mouseMoved(const OIS::MouseEvent& e) {
-    mCameraMan->injectMouseMove(e);
+    mPreviewCameraMan->injectMouseMove(e);
     return true;
 }
 
 bool OgreWindow::mousePressed(const OIS::MouseEvent& e, const OIS::MouseButtonID button) {
-    mCameraMan->injectMouseDown(e, button);
+    mPreviewCameraMan->injectMouseDown(e, button);
     return true;
 }
 
 bool OgreWindow::mouseReleased(const OIS::MouseEvent& e, const OIS::MouseButtonID button) {
-    mCameraMan->injectMouseUp(e, button);
+    mPreviewCameraMan->injectMouseUp(e, button);
     return true;
 }
 
@@ -961,14 +801,60 @@ bool OgreWindow::stepSimulationWithIdleCheck(Ogre::Real timeElapsed) {
 }
 
 bool OgreWindow::getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3& result) {
-    Ogre::Viewport* vp = mCamera->getViewport();
-    Ogre::Ray mouseRay = mCamera->getCameraToViewportRay(
+    Ogre::Viewport* vp = mPreviewCamera->getViewport();
+    Ogre::Ray mouseRay = mPreviewCamera->getCameraToViewportRay(
                              (Ogre::Real)mouseX / (Ogre::Real)vp->getActualWidth(),
                              (Ogre::Real)mouseY / (Ogre::Real)vp->getActualHeight());
 
     OgreBites::OgreRay polygonRayQuery(mSceneMgr);
     Ogre::MovableObject* obj;
     return polygonRayQuery.RaycastFromPoint(mouseRay.getOrigin(), mouseRay.getDirection(), result, obj);
+}
+
+void OgreWindow::loadSceneCollisionShapes(const std::vector<Ogre::Vector3>& excludeList) {
+    // Retrieve vertices of the scene
+    Ogre::ManualObject* scene = mRGBDScene->getManualObject();
+    size_t vertexCount;
+    Ogre::Vector3* vertices;
+    size_t indexCount;
+    unsigned long* indices;
+
+    OgreBites::OgreRay::GetMeshInformation(scene, vertexCount, vertices, indexCount, indices,
+                                           scene->getParentNode()->_getDerivedPosition(),
+                                           scene->getParentNode()->_getDerivedOrientation(),
+                                           scene->getParentNode()->_getDerivedScale());
+
+    // Iterate over vertices
+    mRigidBodies.reserve(vertexCount);
+    mCollisionShapes.reserve(vertexCount);
+    for(size_t i = 0; i < vertexCount; i += 10) {
+        // Check if the vertex is part of the exclude list
+        bool exclude = false;
+        for(std::vector<Ogre::Vector3>::const_iterator it = excludeList.cbegin(); it != excludeList.cend(); ++it) {
+            if(vertices[i].positionEquals(*it)) {
+                exclude = true;
+                break;
+            }
+        }
+
+        // Add rigid body and collision shape for this vertex
+        if(!exclude) {
+            OgreBulletDynamics::RigidBody* rigidBody = new OgreBulletDynamics::RigidBody(
+                                                               Strings::VertexRigidBodyName + std::to_string(i),
+                                                               mWorld);
+            OgreBulletCollisions::CollisionShape* collisionShape = new OgreBulletCollisions::SphereCollisionShape(50);
+
+            rigidBody->setStaticShape(collisionShape, 0.9, 0.1, vertices[i]);
+
+            // Store pointers so they can be cleaned up later
+            mRigidBodies.push_back(rigidBody);
+            mCollisionShapes.push_back(collisionShape);
+        }
+    }
+
+    // Clean up
+    delete[] vertices;
+    delete[] indices;
 }
 
 OgreBulletCollisions::CollisionShape* OgreWindow::createConvexHull(Ogre::Entity* object) {
@@ -1002,19 +888,95 @@ OgreBulletCollisions::CollisionShape* OgreWindow::createConvexHull(Ogre::Entity*
     return shape;
 }
 
+void OgreWindow::setUpRenderSettings() {
+    if(!mRenderWindow) {
+        // Determine aspect ratio
+        const cv::Mat depthImg = mRGBDScene->getDepthImage();
+        Ogre::Vector3 topLeft = mRGBDScene->depthToWorld(0, 0, Constants::WorkPlaneDepth);
+        Ogre::Vector3 bottomRight = mRGBDScene->depthToWorld(depthImg.cols - 1, depthImg.rows - 1, Constants::WorkPlaneDepth);
+
+        Ogre::Real width = bottomRight.x - topLeft.x;
+        Ogre::Real height = topLeft.y - bottomRight.y;
+        if(height == 0.0)
+            throw std::runtime_error("Division by zero error while setting up render settings");
+
+        // Determine vertical field of view (horizontal fov is automatically adjusted according to aspect ratio)
+        Ogre::Vector3 top(0, topLeft.y, topLeft.z);
+        Ogre::Vector3 bottom(0, bottomRight.y, bottomRight.z);
+        Ogre::Radian verticalFOV(std::max(
+            top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
+            bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
+        ) * 2.0 + 0.04);
+
+        // Create a hidden render window
+        Ogre::NameValuePairList windowParams;
+        windowParams["vsync"] = "true";
+        windowParams["hidden"] = "true";
+
+        Ogre::uint32 imgWidth = depthImg.cols * 1.1; // render in larger resolution because we crop black edges later
+        Ogre::uint32 imgHeight = depthImg.rows * 1.1;
+
+        mRenderWindow = mRoot->createRenderWindow(Strings::RenderWindowName, imgWidth, imgHeight, false, &windowParams);
+
+        // Create camera to use for rendering
+        mRenderCamera = mSceneMgr->createCamera("RenderCamera");
+
+        // Set camera parameters
+        mRenderCamera->setPosition(mInitialCameraPosition);
+        mRenderCamera->lookAt(mInitialCameraLookAt);
+        mRenderCamera->setNearClipDistance(5.0);
+        mRenderCamera->setFOVy(verticalFOV);
+        mRenderCamera->setAspectRatio(width / height);
+
+        // Add viewport
+        Ogre::Viewport* renderViewport = mRenderWindow->addViewport(mRenderCamera);
+        renderViewport->setBackgroundColour(Ogre::ColourValue::Black);
+        renderViewport->setOverlaysEnabled(false);
+
+        // Allocate storage space
+        Ogre::PixelFormat renderFormat = mRenderWindow->suggestPixelFormat();
+        size_t bytesPerPixel = Ogre::PixelUtil::getNumElemBytes(renderFormat);
+
+        mRenderPixelBoxDepthData = new unsigned char[imgWidth * imgHeight * bytesPerPixel];
+        mRenderPixelBoxRGBData = new unsigned char[imgWidth * imgHeight * bytesPerPixel];
+
+        mRenderPixelBoxDepth = new Ogre::PixelBox(imgWidth, imgHeight, 1, renderFormat, mRenderPixelBoxDepthData);
+        mRenderPixelBoxRGB = new Ogre::PixelBox(imgWidth, imgHeight, 1, renderFormat, mRenderPixelBoxRGBData);
+    }
+}
+
+void OgreWindow::invalidateRenderSettings() {
+    if(mRenderWindow) {
+        delete[] mRenderPixelBoxDepthData;
+        delete[] mRenderPixelBoxRGBData;
+        delete mRenderPixelBoxDepth;
+        delete mRenderPixelBoxRGB;
+
+        mSceneMgr->destroyCamera(mRenderCamera);
+        mRoot->destroyRenderTarget(mRenderWindow);
+
+        mRenderWindow = NULL;
+        mRenderCamera = NULL;
+        mRenderPixelBoxDepth = NULL;
+        mRenderPixelBoxDepthData = NULL;
+        mRenderPixelBoxRGB = NULL;
+        mRenderPixelBoxRGBData = NULL;
+    }
+}
+
 bool OgreWindow::hidden() const {
-    return mWindow->isHidden();
+    return mPreviewWindow->isHidden();
 }
 
 void OgreWindow::show() {
-    mWindow->setHidden(false);
+    mPreviewWindow->setHidden(false);
     Ogre::WindowEventUtilities::messagePump(); // necessary for OIS to initialize correctly
     initializeOIS();
 }
 
 void OgreWindow::hide() {
     shutDownOIS();
-    mWindow->setHidden(true);
+    mPreviewWindow->setHidden(true);
     Ogre::WindowEventUtilities::messagePump();
 }
 

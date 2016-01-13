@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     //tradag.setDebugMarkInlierSet(true);
     //tradag.setDebugDrawBulletShapes(true);
     //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
-    tradag.setMaxAttempts(1);
+    tradag.setMaxAttempts(5);
 
     // Create an object
     DroppableObject* obj = tradag.createObject(meshName);
@@ -83,10 +83,10 @@ int main(int argc, char** argv)
     //obj->setInitialVelocity(400, 100, -400);
 
     // Create another object
-    DroppableObject* obj2 = tradag.createObject("003.mesh");
-    obj2->setDesiredOcclusion(0.0, 0.5);
+    //DroppableObject* obj2 = tradag.createObject("003.mesh");
+    //obj2->setDesiredOcclusion(0.0, 0.5);
     //obj2->setInitialVelocity(400, 100, -400);
-    obj2->setInitialAzimuth(M_PI_2);
+    //obj2->setInitialAzimuth(M_PI_2);
 
     // Compute ground plane
     GroundPlane plane;
@@ -102,7 +102,7 @@ int main(int argc, char** argv)
     // Evaluate result
     if(result.status == OD_SUCCESS) {
         std::cout << "Success!" << std::endl
-                  << "Occlusion: " << obj->getFinalOcclusion() << ", " << obj2->getFinalOcclusion() << std::endl
+                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
                   << "Rotation: " << obj->getFinalRotation() << std::endl
                   << "Position: " << obj->getFinalPosition() << std::endl;
 

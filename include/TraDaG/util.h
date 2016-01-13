@@ -92,6 +92,7 @@ namespace TraDaG {
         const std::string PreviewWindowName = "Training Data Generator Preview Window";
         const std::string RenderWindowName = "Training Data Generator Render Window";
 
+        const std::string StandardMaterialName = "BaseWhiteNoLighting";
         const std::string DepthMapMaterialName = "TraDaG/DepthMap";
         const std::string InfoTrayMaterialName = "TraDaG/InfoTray";
 
