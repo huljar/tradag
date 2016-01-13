@@ -14,7 +14,9 @@ SOURCES += main.cpp \
     util.cpp \
     ImageLabeling.cpp \
     DroppableObject.cpp \
-    GroundPlane.cpp
+    GroundPlane.cpp \
+    ImageAnalyzer.cpp \
+    CVLDWrapper.cpp
 
 HEADERS += include/OgreBites/SdkCameraMan.h \
     include/OgreBites/OgreRay.h \
@@ -25,7 +27,9 @@ HEADERS += include/OgreBites/SdkCameraMan.h \
     util.h \
     ImageLabeling.h \
     DroppableObject.h \
-    GroundPlane.h
+    GroundPlane.h \
+    ImageAnalyzer.h \
+    CVLDWrapper.h
 
 # OGRE
 INCLUDEPATH += /usr/include/OGRE
@@ -56,7 +60,7 @@ else {
 }
 
 # Boost
-LIBS += -lboost_system -lboost_program_options
+LIBS += -lboost_system -lboost_program_options -lboost_filesystem
 
 # OpenCV
 LIBS += -lopencv_core -lopencv_imgproc -lopencv_highgui
