@@ -1,9 +1,9 @@
 #ifndef OGREWINDOW_H
 #define OGREWINDOW_H
 
-#include <TraDaG/rgbdscene.h>
-#include <TraDaG/droppableobject.h>
-#include <TraDaG/groundplane.h>
+#include <TraDaG/RGBDScene.h>
+#include <TraDaG/DroppableObject.h>
+#include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
 
 #include <Ogre.h>

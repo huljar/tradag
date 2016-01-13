@@ -1,11 +1,11 @@
 #ifndef TRADAGMAIN_H
 #define TRADAGMAIN_H
 
-#include <TraDaG/ogrewindow.h>
-#include <TraDaG/rgbdscene.h>
-#include <TraDaG/imagelabeling.h>
-#include <TraDaG/droppableobject.h>
-#include <TraDaG/groundplane.h>
+#include <TraDaG/OgreWindow.h>
+#include <TraDaG/RGBDScene.h>
+#include <TraDaG/ImageLabeling.h>
+#include <TraDaG/DroppableObject.h>
+#include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
 
 #include <Ogre.h>

@@ -1,8 +1,8 @@
 #ifndef IMAGELABELING_H
 #define IMAGELABELING_H
 
-#include <TraDaG/rgbdscene.h>
-#include <TraDaG/groundplane.h>
+#include <TraDaG/RGBDScene.h>
+#include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
 
 #include <Ogre.h>

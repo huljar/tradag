@@ -1,4 +1,4 @@
-#include <TraDaG/tradagmain.h>
+#include <TraDaG/TradagMain.h>
 
 #include <cassert>
 #include <cmath>

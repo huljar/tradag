@@ -1,5 +1,5 @@
-#include <TraDaG/imagelabeling.h>
-#include <TraDaG/ransac.h>
+#include <TraDaG/ImageLabeling.h>
+#include <TraDaG/Ransac.h>
 
 #include <chrono>
 #include <random>

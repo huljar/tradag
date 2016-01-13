@@ -1,4 +1,4 @@
-#include <TraDaG/droppableobject.h>
+#include <TraDaG/DroppableObject.h>
 
 #include <stdexcept>
 

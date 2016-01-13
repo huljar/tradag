@@ -1,4 +1,4 @@
-#include <TraDaG/ogrewindow.h>
+#include <TraDaG/OgreWindow.h>
 #include <TraDaG/util.h>
 
 #include <OGRE/Overlay/OgreOverlay.h>

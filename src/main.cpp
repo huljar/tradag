@@ -1,8 +1,8 @@
-#include <TraDaG/tradagmain.h>
-#include <TraDaG/ogrewindow.h>
-#include <TraDaG/rgbdscene.h>
-#include <TraDaG/droppableobject.h>
-#include <TraDaG/groundplane.h>
+#include <TraDaG/TradagMain.h>
+#include <TraDaG/OgreWindow.h>
+#include <TraDaG/RGBDScene.h>
+#include <TraDaG/DroppableObject.h>
+#include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
 
 #include <opencv2/core/core.hpp>

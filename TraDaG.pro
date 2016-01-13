@@ -8,24 +8,24 @@ VPATH += ./src \
 INCLUDEPATH += ./include
 
 SOURCES += main.cpp \
-    ogrewindow.cpp \
-    rgbdscene.cpp \
-    tradagmain.cpp \
+    OgreWindow.cpp \
+    RGBDScene.cpp \
+    TradagMain.cpp \
     util.cpp \
-    imagelabeling.cpp \
-    droppableobject.cpp \
-    src/groundplane.cpp
+    ImageLabeling.cpp \
+    DroppableObject.cpp \
+    GroundPlane.cpp
 
 HEADERS += include/OgreBites/SdkCameraMan.h \
     include/OgreBites/OgreRay.h \
-    ogrewindow.h \
-    rgbdscene.h \
-    tradagmain.h \
-    ransac.h \
+    OgreWindow.h \
+    RGBDScene.h \
+    TradagMain.h \
+    Ransac.h \
     util.h \
-    imagelabeling.h \
-    droppableobject.h \
-    include/TraDaG/groundplane.h
+    ImageLabeling.h \
+    DroppableObject.h \
+    GroundPlane.h
 
 # OGRE
 INCLUDEPATH += /usr/include/OGRE

@@ -1,4 +1,4 @@
-#include <TraDaG/rgbdscene.h>
+#include <TraDaG/RGBDScene.h>
 
 #include <stdexcept>
 

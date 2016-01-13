@@ -1,4 +1,4 @@
-#include <TraDaG/groundplane.h>
+#include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
 
 using namespace TraDaG;
