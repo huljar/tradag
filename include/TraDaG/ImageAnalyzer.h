@@ -5,7 +5,10 @@
 
 #include <boost/filesystem.hpp>
 
+#include <array>
+#include <chrono>
 #include <map>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -16,16 +19,21 @@ namespace TraDaG {
 class TraDaG::ImageAnalyzer
 {
 public:
+    typedef std::map<unsigned int, std::string> FileMap;
+    typedef std::map<unsigned int, std::array<cv::Mat, 3>> MatMap;
+
     ImageAnalyzer(const std::string& depthDirPath, const std::string& rgbDirPath, const std::string& labelDirPath,
                   unsigned int maxImages = 0);
 
-    std::vector<std::string> findScenesByLabel(const std::string& label) const;
-    std::vector<std::string> findScenesByLabel(unsigned short labelValue) const;
+    std::vector<unsigned int> findScenesByLabel(const std::string& label);
+    std::vector<unsigned int> findScenesByLabel(unsigned short labelValue);
 
-    std::vector<std::string> findScenesByPlane(const std::vector<std::string>& validLabels,
-                                               const cv::Vec3f& normal, float tolerance) const;
+    std::vector<unsigned int> findScenesByPlane(const std::vector<std::string>& validLabels,
+                                               const cv::Vec3f& normal, float tolerance);
 
-    bool readImages(const std::string& fileName, cv::Mat& depthImg, cv::Mat& rgbImg, cv::Mat& labelImg) const;
+    bool readImages(unsigned int imageID, cv::Mat& depthImg, cv::Mat& rgbImg, cv::Mat& labelImg);
+
+    std::string getFileName(unsigned int imageID) const;
 
     std::string getDepthPath() const;
     std::string getRGBPath() const;
@@ -41,7 +49,10 @@ protected:
     boost::filesystem::path mRGBPath;
     boost::filesystem::path mLabelPath;
 
-    std::map<unsigned int, std::string> mImages;
+    FileMap mImages;
+    MatMap mMats;
+
+    std::default_random_engine mRandomEngine;
 };
 
 #endif // IMAGEANALYZER_H

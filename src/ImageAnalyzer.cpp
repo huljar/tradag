@@ -1,4 +1,7 @@
 #include <TraDaG/ImageAnalyzer.h>
+#include <TraDaG/debug.h>
+
+#include <opencv2/highgui/highgui.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -13,7 +16,13 @@ ImageAnalyzer::ImageAnalyzer(const std::string& depthDirPath, const std::string&
     : mDepthPath(depthDirPath)
     , mRGBPath(rgbDirPath)
     , mLabelPath(labelDirPath)
+    , mRandomEngine(std::chrono::system_clock::now().time_since_epoch().count())
 {
+    DEBUG_OUT("Constructing ImageAnalyzer:");
+    DEBUG_OUT("    Depth path: " << depthDirPath);
+    DEBUG_OUT("    RGB path:   " << rgbDirPath);
+    DEBUG_OUT("    Label path: " << labelDirPath);
+
     // Check if the paths all exist
     if(!fs::exists(mDepthPath) || !fs::exists(mRGBPath) || !fs::exists(mLabelPath))
         throw std::invalid_argument("One or more of the specified paths do not exist");
@@ -24,7 +33,7 @@ ImageAnalyzer::ImageAnalyzer(const std::string& depthDirPath, const std::string&
 
     for(fs::directory_iterator it(mDepthPath); it != dirEnd; ++it) {
         if(fs::is_regular_file(it->status()) && boost::iequals(it->path().extension().string(), ".png")) {
-            depthImgs.push_back(it->path().filename()); // TODO: test if filename() is necessary
+            depthImgs.push_back(it->path().filename());
         }
     }
 
@@ -40,10 +49,15 @@ ImageAnalyzer::ImageAnalyzer(const std::string& depthDirPath, const std::string&
         }
     }
 
+    DEBUG_OUT("Found " << depthImgs.size() << " depth images, " << rgbImgs.size() << " RGB images and " << labelImgs.size() << " label images");
+
     // Sort entries
     std::sort(depthImgs.begin(), depthImgs.end());
     std::sort(rgbImgs.begin(), rgbImgs.end());
     std::sort(labelImgs.begin(), labelImgs.end());
+
+    // Temporary vector to hold map keys for fast lookup
+    std::vector<unsigned int> imageIDs;
 
     // Iterate over entries
     std::vector<fs::path>::iterator dit = depthImgs.begin(), dend = depthImgs.end(),
@@ -54,28 +68,90 @@ ImageAnalyzer::ImageAnalyzer(const std::string& depthDirPath, const std::string&
         // Check if the file names are equal
         if(*dit == *cit && *dit == *lit) {
             // Add image
-            mImages.insert(std::make_pair(std::distance(depthImgs.begin(), dit) + 1, dit->string()));
+            unsigned int id = std::distance(depthImgs.begin(), dit) + 1;
+            mImages.insert(std::make_pair(id, dit->string()));
+            imageIDs.push_back(id);
+
+            // Step to the next image
             ++dit;
             ++cit;
             ++lit;
         }
         else {
-            // File names are not equal, so increment the lowest iterator
+            // File names are not equal, so increment the iterator pointing to the lowest name (lexicographic comparison)
             ++tripleMin<fs::path>(dit, cit, lit);
+        }
+    }
+
+    DEBUG_OUT("Found " << mImages.size() << " matching file names");
+
+    // If we added more images than the maximum, remove random ones until reaching the maximum
+    if(maxImages > 0 && maxImages < mImages.size()) {
+        DEBUG_OUT("Selecting " << maxImages << " random images");
+
+        // Scramble the image IDs
+        std::shuffle(imageIDs.begin(), imageIDs.end(), mRandomEngine);
+
+        // Iterate over shuffled IDs
+        for(std::vector<unsigned int>::iterator it = imageIDs.begin(); it != imageIDs.end() && mImages.size() > static_cast<size_t>(maxImages); ++it) {
+            // Erase the image ID from the map
+            mImages.erase(*it);
         }
     }
 }
 
-std::vector<std::string> ImageAnalyzer::findScenesByLabel(const std::string& label) const {
+std::vector<unsigned int> ImageAnalyzer::findScenesByLabel(const std::string& label) {
     // TODO: implement
 }
 
-std::vector<std::string> ImageAnalyzer::findScenesByLabel(unsigned short labelValue) const {
+std::vector<unsigned int> ImageAnalyzer::findScenesByLabel(unsigned short labelValue) {
     // TODO: implement
 }
 
-std::vector<std::string> ImageAnalyzer::findScenesByPlane(const std::vector<std::string>& validLabels, const cv::Vec3f& normal, float tolerance) const {
+std::vector<unsigned int> ImageAnalyzer::findScenesByPlane(const std::vector<std::string>& validLabels, const cv::Vec3f& normal, float tolerance) {
 
+}
+
+bool ImageAnalyzer::readImages(unsigned int imageID, cv::Mat& depthImg, cv::Mat& rgbImg, cv::Mat& labelImg) {
+    DEBUG_OUT("Retrieving images for ID " << imageID);
+
+    MatMap::iterator matIter = mMats.find(imageID);
+    if(matIter != mMats.end()) {
+        DEBUG_OUT("Found images in cache");
+
+        depthImg = matIter->second[0];
+        rgbImg = matIter->second[1];
+        labelImg = matIter->second[2];
+        return true;
+    }
+
+    std::string fileName = getFileName(imageID);
+    if(fileName.empty()) {
+        DEBUG_OUT("Invalid image ID: " << imageID);
+        return false;
+    }
+
+    DEBUG_OUT("Didn't find images in cache, reading from disk");
+
+    fs::path fileNamePath(fileName);
+    depthImg = cv::imread((mDepthPath / fileNamePath).string(), CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
+    rgbImg = cv::imread((mRGBPath / fileNamePath).string(), CV_LOAD_IMAGE_COLOR);
+    labelImg = cv::imread((mLabelPath / fileNamePath).string(), CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
+
+    if(depthImg.data && rgbImg.data && labelImg.data) {
+        mMats.insert(std::make_pair(imageID, std::array<cv::Mat, 3>({depthImg, rgbImg, labelImg})));
+        return true;
+    }
+
+    DEBUG_OUT("Unable to read one or more images from disk");
+    return false;
+}
+
+std::string ImageAnalyzer::getFileName(unsigned int imageID) const {
+    FileMap::const_iterator fileIter = mImages.find(imageID);
+    if(fileIter != mImages.cend())
+        return fileIter->second;
+    return std::string();
 }
 
 std::string ImageAnalyzer::getDepthPath() const {

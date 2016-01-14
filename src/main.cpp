@@ -4,6 +4,7 @@
 #include <TraDaG/DroppableObject.h>
 #include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
+#include <TraDaG/ImageAnalyzer.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -65,6 +66,21 @@ int main(int argc, char** argv)
 
     bool preview = vm.count("show-preview");
     bool animate = vm.count("animate");
+
+    // Test the image analyzer
+    ImageAnalyzer ia("../resources/scenes/depth", "../resources/scenes/rgb", "../resources/scenes/label", 0);
+    cv::Mat depth, rgb, label;
+    cv::namedWindow("depth"); cv::namedWindow("rgb"); cv::namedWindow("label");
+    for(int i = 8; i < 11; ++i) {
+        if(ia.readImages(i, depth, rgb, label)) {
+            cv::imshow("depth", depth); cv::imshow("rgb", rgb); cv::imshow("label", label);
+            cv::waitKey();
+        }
+        else {
+            std::cerr << "Unable to read image " << i << std::endl;
+        }
+    }
+    return 0;
 
     // Create the TraDaG main class and set parameters
     TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, depthPrincipalPoint, depthFocalLength);

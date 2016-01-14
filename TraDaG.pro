@@ -3,6 +3,11 @@ CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
 
+# Detect debug mode
+CONFIG(debug, debug|release) {
+    DEFINES += _DEBUG
+}
+
 VPATH += ./src \
     ./include/TraDaG
 INCLUDEPATH += ./include
@@ -29,7 +34,8 @@ HEADERS += include/OgreBites/SdkCameraMan.h \
     DroppableObject.h \
     GroundPlane.h \
     ImageAnalyzer.h \
-    CVLDWrapper.h
+    CVLDWrapper.h \
+    include/TraDaG/debug.h
 
 # OGRE
 INCLUDEPATH += /usr/include/OGRE
