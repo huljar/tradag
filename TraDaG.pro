@@ -9,7 +9,8 @@ CONFIG(debug, debug|release) {
 }
 
 VPATH += ./src \
-    ./include/TraDaG
+    ./include/TraDaG \
+    ./include/CVLDWrapper
 INCLUDEPATH += ./include
 
 SOURCES += main.cpp \
@@ -35,7 +36,7 @@ HEADERS += include/OgreBites/SdkCameraMan.h \
     GroundPlane.h \
     ImageAnalyzer.h \
     CVLDWrapper.h \
-    include/TraDaG/debug.h
+    debug.h
 
 # OGRE
 INCLUDEPATH += /usr/include/OGRE
