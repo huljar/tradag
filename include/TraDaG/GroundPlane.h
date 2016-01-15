@@ -12,28 +12,27 @@ class TraDaG::GroundPlane
 public:
     explicit GroundPlane();
     explicit GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vector3>& vertices, const std::string& label);
-    virtual ~GroundPlane();
 
     virtual void leastSquaresFit();
 
-    virtual bool isPlaneDefined() const;
+    bool isPlaneDefined() const;
 
-    virtual Ogre::Plane getOgrePlane() const;
-    virtual Ogre::Plane& ogrePlane();
-    virtual void setOgrePlane(const Ogre::Plane& plane);
+    Ogre::Plane getOgrePlane() const;
+    Ogre::Plane& ogrePlane();
+    void setOgrePlane(const Ogre::Plane& plane);
 
-    virtual std::vector<Ogre::Vector3> getVertices() const;
-    virtual std::vector<Ogre::Vector3>& vertices();
-    virtual void setVertices(const std::vector<Ogre::Vector3>& vertices);
+    std::vector<Ogre::Vector3> getVertices() const;
+    std::vector<Ogre::Vector3>& vertices();
+    void setVertices(const std::vector<Ogre::Vector3>& vertices);
 
-    virtual std::string getLabel() const;
-    virtual void setLabel(const std::string& label);
+    std::string getLabel() const;
+    void setLabel(const std::string& label);
 
-    virtual float getRestitution() const;
-    virtual void setRestitution(float restitution);
+    float getRestitution() const;
+    void setRestitution(float restitution);
 
-    virtual float getFriction() const;
-    virtual void setFriction(float friction);
+    float getFriction() const;
+    void setFriction(float friction);
 
     // Model construction and evaluation functions for RANSAC
     static Ogre::Plane createPlaneFromPoints(const std::array<Ogre::Vector3, 3>& points);

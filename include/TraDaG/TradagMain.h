@@ -1,6 +1,7 @@
 #ifndef TRADAGMAIN_H
 #define TRADAGMAIN_H
 
+#include <TraDaG/CameraManager.h>
 #include <TraDaG/OgreWindow.h>
 #include <TraDaG/RGBDScene.h>
 #include <TraDaG/ImageLabeling.h>
@@ -13,7 +14,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#include <chrono>
 #include <random>
 #include <vector>
 
@@ -25,27 +25,23 @@ class TraDaG::TradagMain
 {
 public:
     // TODO: check depth/label image for single channel, check rgb image for color image
+    // Constructors
     TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage,
                const cv::Mat& labelImage, const LabelMap& labelMap,
-               const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
-               const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(320, 240), const cv::Vec2f& rgbFocalLength = cv::Vec2f(500, 500),
-               const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
-               MapMode mapMode = MM_MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LM_DEPTH_IMAGE);
+               const CameraManager& cameraParams);
 
     TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath,
                const std::string& labelImagePath, const LabelMap& labelMap,
-               const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
-               const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(320, 240), const cv::Vec2f& rgbFocalLength = cv::Vec2f(500, 500),
-               const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
-               MapMode mapMode = MM_MAPPED_RGB_TO_DEPTH, LabelMode labelMode = LM_DEPTH_IMAGE);
+               const CameraManager& cameraParams);
 
-    // no copy
-    TradagMain(const TradagMain&) = delete;
-
-    // no assign
-    TradagMain& operator=(const TradagMain&) = delete;
-
+    // Destructor
     ~TradagMain();
+
+    // Move constructor
+    TradagMain(TradagMain&& other);
+
+    // Move assignment operator
+    TradagMain& operator=(TradagMain&& other);
 
     DroppableObject* createObject(const std::string& meshName);
     void destroyObject(DroppableObject* object);
@@ -103,10 +99,7 @@ private:
     TradagMain();
     void init(const cv::Mat& depthImage, const cv::Mat& rgbImage,
               const cv::Mat& labelImage, const LabelMap& labelMap,
-              const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
-              const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
-              const cv::Matx33f& rotation, const cv::Vec3f& translation,
-              MapMode mode, LabelMode labelMode);
+              const CameraManager& cameraParams);
 
     Ogre::Vector3 computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
     Ogre::Matrix3 computeRotation(const float azimuth, const Ogre::Vector3& gravity) const;

@@ -1,31 +1,27 @@
 #include <TraDaG/TradagMain.h>
+#include <TraDaG/interop.h>
 
 #include <cassert>
 #include <cmath>
+#include <chrono>
 #include <stdexcept>
 #include <limits>
+#include <utility>
 
 using namespace TraDaG;
 
 TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage,
                        const cv::Mat& labelImage, const LabelMap& labelMap,
-                       const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
-                       const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
-                       const cv::Matx33f& rotation, const cv::Vec3f translation,
-                       MapMode mapMode, LabelMode labelMode)
+                       const CameraManager& cameraParams)
     : TradagMain()
 {
     // Perform default initialization
-    init(depthImage, rgbImage, labelImage, labelMap, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
-         rotation, translation, mapMode, labelMode);
+    init(depthImage, rgbImage, labelImage, labelMap, cameraParams);
 }
 
 TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath,
                        const std::string& labelImagePath, const LabelMap& labelMap,
-                       const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
-                       const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
-                       const cv::Matx33f& rotation, const cv::Vec3f translation,
-                       MapMode mapMode, LabelMode labelMode)
+                       const CameraManager& cameraParams)
     : TradagMain()
 {
     // Load images from specified paths
@@ -39,8 +35,7 @@ TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgb
                                  + depthImagePath + "\", \"" + rgbImagePath + "\", \"" + labelImagePath + "\"");
 
     // Continue with default initialization
-    init(depthImage, rgbImage, labelImage, labelMap, depthPrincipalPoint, depthFocalLength, rgbPrincipalPoint, rgbFocalLength,
-         rotation, translation, mapMode, labelMode);
+    init(depthImage, rgbImage, labelImage, labelMap, cameraParams);
 }
 
 TradagMain::TradagMain()
@@ -65,28 +60,76 @@ TradagMain::~TradagMain() {
     delete mOgreWindow;
 }
 
+TradagMain::TradagMain(TradagMain&& other)
+    : mOgreWindow(other.mOgreWindow)
+    , mRGBDScene(other.mRGBDScene)
+    , mImageLabeling(other.mImageLabeling)
+    , mObjects(std::move(other.mObjects))
+    , mGroundPlane(std::move(other.mGroundPlane))
+    , mMaxAttempts(other.mMaxAttempts)
+    , mShowPreviewWindow(other.mShowPreviewWindow)
+    , mShowPhysicsAnimation(other.mShowPhysicsAnimation)
+    , mMarkInlierSet(other.mMarkInlierSet)
+    , mDrawBulletShapes(other.mDrawBulletShapes)
+    , mGravity(std::move(other.mGravity))
+    , mRandomEngine(std::move(other.mRandomEngine))
+{
+    other.mOgreWindow = nullptr;
+    other.mRGBDScene = nullptr;
+    other.mImageLabeling = nullptr;
+
+    other.mObjects.clear();
+}
+
+TradagMain& TradagMain::operator=(TradagMain&& other) {
+    // Destroy this object
+    destroyAllObjects();
+
+    delete mImageLabeling;
+    delete mRGBDScene;
+    delete mOgreWindow;
+
+    // Move-assign members
+    mOgreWindow = other.mOgreWindow;
+    mRGBDScene = other.mRGBDScene;
+    mImageLabeling = other.mImageLabeling;
+
+    mObjects = std::move(other.mObjects);
+    mGroundPlane = std::move(other.mGroundPlane);
+
+    mMaxAttempts = other.mMaxAttempts;
+    mShowPreviewWindow = other.mShowPreviewWindow;
+    mShowPhysicsAnimation = other.mShowPhysicsAnimation;
+    mMarkInlierSet = other.mMarkInlierSet;
+    mDrawBulletShapes = other.mDrawBulletShapes;
+    mGravity = std::move(other.mGravity);
+
+    mRandomEngine = std::move(other.mRandomEngine);
+
+    // Make other resource-less
+    other.mOgreWindow = nullptr;
+    other.mRGBDScene = nullptr;
+    other.mImageLabeling = nullptr;
+
+    other.mObjects.clear();
+
+    return *this;
+}
+
 void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage,
                       const cv::Mat& labelImage, const LabelMap& labelMap,
-                      const cv::Vec2f& depthPrincipalPoint, const cv::Vec2f& depthFocalLength,
-                      const cv::Vec2f& rgbPrincipalPoint, const cv::Vec2f& rgbFocalLength,
-                      const cv::Matx33f& rotation, const cv::Vec3f& translation,
-                      MapMode mapMode, LabelMode labelMode) {
+                      const CameraManager& cameraParams) {
 
     // Create OGRE window (hidden by default)
     mOgreWindow = new OgreWindow();
     // TODO: light position?
 
     // Create scene from RGB and depth image
-    mRGBDScene = new RGBDScene(Ogre::String(Strings::RgbdSceneName), mOgreWindow->getSceneManager(), depthImage, rgbImage,
-                               Ogre::Vector2(depthPrincipalPoint[0], depthPrincipalPoint[1]),
-                               Ogre::Vector2(depthFocalLength[0], depthFocalLength[1]),
-                               Ogre::Vector2(rgbPrincipalPoint[0], rgbPrincipalPoint[1]),
-                               Ogre::Vector2(rgbFocalLength[0], rgbFocalLength[1]),
-                               convertCvMatToOgreMat(rotation), Ogre::Vector3(translation[0], translation[1], translation[2]),
-                               mapMode);
+    mRGBDScene = new RGBDScene(Ogre::String(Strings::RgbdSceneName), mOgreWindow->getSceneManager(),
+                               depthImage, rgbImage, cameraParams);
 
     // Create image labeling from label image
-    mImageLabeling = new ImageLabeling(labelImage, labelMap, labelMode);
+    mImageLabeling = new ImageLabeling(depthImage, labelImage, labelMap, cameraParams);
 
     // Register the RGBD scene with OGRE
     mOgreWindow->setScene(mRGBDScene, true);
@@ -152,7 +195,7 @@ ObjectDropResult TradagMain::execute() {
     for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
         Auto<cv::Matx33f> rotation = (*it)->getInitialRotation();
         if(rotation.automate) {
-            rotation.manualValue = convertOgreMatToCvMat(computeRotation((*it)->getInitialAzimuth(), gravity));
+            rotation.manualValue = ogreToCv(computeRotation((*it)->getInitialAzimuth(), gravity));
             (*it)->setInitialRotation(rotation);
         }
     }
@@ -245,8 +288,8 @@ ObjectDropResult TradagMain::execute() {
 
                     Ogre::Matrix3 rot;
                     node->getOrientation().ToRotationMatrix(rot);
-                    (*it)->setFinalRotation(rot);
-                    (*it)->setFinalPosition(node->getPosition());
+                    (*it)->setFinalRotation(ogreToCv(rot));
+                    (*it)->setFinalPosition(ogreToCv(node->getPosition()));
                     (*it)->setFinalOcclusion(occlusions[std::distance(beginObjects(), it)]);
                 }
 
@@ -262,7 +305,7 @@ ObjectDropResult TradagMain::execute() {
 
         for(size_t i = 0; i < entities.size(); ++i) {
             Ogre::SceneNode* node = entities[i]->getParentSceneNode();
-            node->setOrientation(Ogre::Quaternion(convertCvMatToOgreMat(mObjects[i]->getFinalRotation())));
+            node->setOrientation(Ogre::Quaternion(cvToOgre(mObjects[i]->getFinalRotation())));
             cv::Vec3f pos = mObjects[i]->getFinalPosition();
             node->setPosition(pos[0], pos[1], pos[2]);
         }
@@ -359,26 +402,18 @@ LabelMap TradagMain::getLabelMap() const {
 }
 
 void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage, const LabelMap& labelMap) {
-    // Get old camera parameters
-    Ogre::Vector2 tmpDPP = mRGBDScene->getDepthPrincipalPoint();
-    Ogre::Vector2 tmpDFL = mRGBDScene->getDepthFocalLength();
-    Ogre::Vector2 tmpRPP = mRGBDScene->getRgbPrincipalPoint();
-    Ogre::Vector2 tmpRFL = mRGBDScene->getRgbFocalLength();
-    Ogre::Matrix3 tmpRot = mRGBDScene->getRotation();
-    Ogre::Vector3 tmpTrans = mRGBDScene->getTranslation();
-    MapMode tmpMM = mRGBDScene->getMapMode();
-    LabelMode tmpLM = mImageLabeling->getLabelMode();
-
     // Delete old scene and create a new one
+    CameraManager camMgrScene = mRGBDScene->getCameraManager();
     delete mRGBDScene;
-    mRGBDScene = new RGBDScene(Strings::RgbdSceneName, mOgreWindow->getSceneManager(), depthImage, rgbImage, tmpDPP, tmpDFL, tmpRPP, tmpRFL, tmpRot, tmpTrans, tmpMM);
+    mRGBDScene = new RGBDScene(Strings::RgbdSceneName, mOgreWindow->getSceneManager(), depthImage, rgbImage, camMgrScene);
 
     // Delete old labeling and create a new one
+    CameraManager camMgrLabeling = mImageLabeling->getCameraManager();
     delete mImageLabeling;
-    mImageLabeling = new ImageLabeling(labelImage, labelMap, tmpLM);
+    mImageLabeling = new ImageLabeling(depthImage, labelImage, labelMap, camMgrLabeling);
 
     // Notify OgreWindow of the new scene
-    mOgreWindow->setScene(mRGBDScene, true);
+    mOgreWindow->setScene(mRGBDScene, true); // TODO: check if this causes use-after-free
 }
 
 bool TradagMain::loadNewScene(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath, const LabelMap& labelMap) {

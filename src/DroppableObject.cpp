@@ -105,10 +105,6 @@ cv::Vec3f DroppableObject::getFinalPosition() const {
     return mFinalPosition;
 }
 
-void DroppableObject::setFinalPosition(const Ogre::Vector3& finalPosition) {
-    mFinalPosition = cv::Vec3f(finalPosition.x, finalPosition.y, finalPosition.z);
-}
-
 void DroppableObject::setFinalPosition(const cv::Vec3f& finalPosition) {
     mFinalPosition = finalPosition;
 }
@@ -129,10 +125,6 @@ cv::Matx33f DroppableObject::getFinalRotation() const {
     return mFinalRotation;
 }
 
-void DroppableObject::setFinalRotation(const Ogre::Matrix3& finalRotation) {
-    mFinalRotation = convertOgreMatToCvMat(finalRotation);
-}
-
 void DroppableObject::setFinalRotation(const cv::Matx33f& finalRotation) {
     mFinalRotation = finalRotation;
 }
@@ -149,10 +141,6 @@ cv::Vec3f DroppableObject::getInitialVelocity() const {
     return mInitialVelocity;
 }
 
-void DroppableObject::setInitialVelocity(const Ogre::Vector3& initialVelocity) {
-    mInitialVelocity = cv::Vec3f(initialVelocity.x, initialVelocity.y, initialVelocity.z);
-}
-
 void DroppableObject::setInitialVelocity(const cv::Vec3f& initialVelocity) {
     mInitialVelocity = initialVelocity;
 }
@@ -163,10 +151,6 @@ void DroppableObject::setInitialVelocity(float initialVelocityX, float initialVe
 
 cv::Vec3f DroppableObject::getInitialTorque() const {
     return mInitialTorque;
-}
-
-void DroppableObject::setInitialTorque(const Ogre::Vector3& initialTorque) {
-    mInitialTorque = cv::Vec3f(initialTorque.x, initialTorque.y, initialTorque.z);
 }
 
 void DroppableObject::setInitialTorque(const cv::Vec3f& initialTorque) {

@@ -28,6 +28,10 @@ public:
     }
 
     result_type operator() (const std::vector<P>& dataPoints) {
+        // Check if there are enough data points
+        if(dataPoints.size() < d)
+            return std::make_pair(M(), std::vector<const_point_iterator>());
+
         // Initialize random number distribution
         std::uniform_int_distribution<size_t> distribution(0, dataPoints.size() - 1);
 

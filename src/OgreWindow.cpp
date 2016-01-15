@@ -1,5 +1,6 @@
 #include <TraDaG/OgreWindow.h>
 #include <TraDaG/util.h>
+#include <TraDaG/interop.h>
 
 #include <OGRE/Overlay/OgreOverlay.h>
 #include <OGRE/Overlay/OgreOverlayManager.h>
@@ -295,7 +296,7 @@ SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, const Gro
 
         Auto<cv::Vec3f> tmpPos = (*it)->getInitialPosition();
         Ogre::Vector3 position(tmpPos.manualValue[0], tmpPos.manualValue[1], tmpPos.manualValue[2]);
-        Ogre::Quaternion rotation(convertCvMatToOgreMat((*it)->getInitialRotation().manualValue));
+        Ogre::Quaternion rotation(cvToOgre((*it)->getInitialRotation().manualValue));
 
         // Register object with Bullet
         OgreBulletDynamics::RigidBody* rigidBody = new OgreBulletDynamics::RigidBody(
@@ -588,12 +589,14 @@ void OgreWindow::setScene(RGBDScene* scene, bool updateCameraFOV) {
     mRGBDSceneNode->attachObject(mRGBDScene->getManualObject());
 
     if(updateCameraFOV) {
-        const cv::Mat depthImg = mRGBDScene->getDepthImage();
-        Ogre::Vector3 topLeft = mRGBDScene->depthToWorld(0.0, 0.0, Constants::WorkPlaneDepth);
-        Ogre::Vector3 bottomLeft = mRGBDScene->depthToWorld(0.0, (Ogre::Real)(depthImg.rows - 1), Constants::WorkPlaneDepth);
+        cv::Mat depthImg = mRGBDScene->getDepthImage();
+        CameraManager& camMgr = mRGBDScene->cameraManager();
 
-        Ogre::Vector3 top(0, topLeft.y, topLeft.z);
-        Ogre::Vector3 bottom(0, bottomLeft.y, bottomLeft.z);
+        Ogre::Vector3 top = cvToOgre(camMgr.getWorldForDepth(0, 0, Constants::WorkPlaneDepth));
+        Ogre::Vector3 bottom = cvToOgre(camMgr.getWorldForDepth(0, depthImg.rows - 1, Constants::WorkPlaneDepth));
+        top.x = 0.0;
+        bottom.x = 0.0;
+
         Ogre::Radian angle(std::max(
             top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
             bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
@@ -892,8 +895,10 @@ void OgreWindow::setUpRenderSettings() {
     if(!mRenderWindow) {
         // Determine aspect ratio
         const cv::Mat depthImg = mRGBDScene->getDepthImage();
-        Ogre::Vector3 topLeft = mRGBDScene->depthToWorld(0, 0, Constants::WorkPlaneDepth);
-        Ogre::Vector3 bottomRight = mRGBDScene->depthToWorld(depthImg.cols - 1, depthImg.rows - 1, Constants::WorkPlaneDepth);
+        CameraManager& camMgr = mRGBDScene->cameraManager();
+
+        Ogre::Vector3 topLeft = cvToOgre(camMgr.getWorldForDepth(0, 0, Constants::WorkPlaneDepth));
+        Ogre::Vector3 bottomRight = cvToOgre(camMgr.getWorldForDepth(depthImg.cols - 1, depthImg.rows - 1, Constants::WorkPlaneDepth));
 
         Ogre::Real width = bottomRight.x - topLeft.x;
         Ogre::Real height = topLeft.y - bottomRight.y;

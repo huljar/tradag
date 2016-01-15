@@ -21,13 +21,7 @@ namespace TraDaG {
     } MapMode;
 
     typedef enum {
-        LM_DEPTH_IMAGE,
-        LM_RGB_IMAGE
-    } LabelMode;
-
-    typedef enum {
         PF_SUCCESS,
-        PF_DIFFERENT_DIMENSIONS,
         PF_INVALID_LABEL,
         PF_LABEL_NOT_IN_IMAGE
     } PlaneFitStatus;
@@ -137,11 +131,11 @@ namespace TraDaG {
         const Ogre::Vector3 DefaultCameraPosition = Ogre::Vector3::ZERO;
         const Ogre::Vector3 DefaultCameraLookAt = Ogre::Vector3::NEGATIVE_UNIT_Z;
 
-        const float WorkPlaneDepth = 50.0;
+        const unsigned short WorkPlaneDepth = 50;
     }
 
     namespace Labels {
-        const LabelMap NyuDepthV1({
+        const LabelMap NYUDepthV1({
             {"floor", {
                 423,  // 'floor'
                 424,  // 'floor mat'
@@ -172,7 +166,7 @@ namespace TraDaG {
             }}
         });
 
-        const LabelMap NyuDepthV2({
+        const LabelMap NYUDepthV2({
             {"floor", {
                 11,   // 'floor'
                 143,  // 'floor mat'
@@ -201,9 +195,6 @@ namespace TraDaG {
             }}
         });
     }
-
-    Ogre::Matrix3 convertCvMatToOgreMat(const cv::Matx33f& mat);
-    cv::Matx33f convertOgreMatToCvMat(const Ogre::Matrix3& mat);
 
 }
 

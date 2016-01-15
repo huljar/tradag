@@ -17,12 +17,12 @@ SOURCES += main.cpp \
     OgreWindow.cpp \
     RGBDScene.cpp \
     TradagMain.cpp \
-    util.cpp \
     ImageLabeling.cpp \
     DroppableObject.cpp \
     GroundPlane.cpp \
-    ImageAnalyzer.cpp \
-    CVLDWrapper.cpp
+    SceneAnalyzer.cpp \
+    CVLDWrapper.cpp \
+    CameraManager.cpp
 
 HEADERS += include/OgreBites/SdkCameraMan.h \
     include/OgreBites/OgreRay.h \
@@ -34,9 +34,11 @@ HEADERS += include/OgreBites/SdkCameraMan.h \
     ImageLabeling.h \
     DroppableObject.h \
     GroundPlane.h \
-    ImageAnalyzer.h \
+    SceneAnalyzer.h \
     CVLDWrapper.h \
-    debug.h
+    CameraManager.h \
+    debug.h \
+    interop.h
 
 # OGRE
 INCLUDEPATH += /usr/include/OGRE

@@ -4,7 +4,7 @@
 #include <TraDaG/DroppableObject.h>
 #include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
-#include <TraDaG/ImageAnalyzer.h>
+#include <TraDaG/SceneAnalyzer.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -54,7 +54,7 @@ int main(int argc, char** argv)
     std::string labelFile = vm["label-file"].as<std::string>();
 
     // Get label map
-    LabelMap labelMap = Labels::NyuDepthV1;
+    LabelMap labelMap = Labels::NYUDepthV1;
 
     // Get camera data
     cv::Vec2f depthPrincipalPoint(3.2442516903961865e+02, 2.3584766381177013e+02);
@@ -67,12 +67,15 @@ int main(int argc, char** argv)
     bool preview = vm.count("show-preview");
     bool animate = vm.count("animate");
 
-    // Test the image analyzer
-    ImageAnalyzer ia("../resources/scenes/depth", "../resources/scenes/rgb", "../resources/scenes/label", 0);
+    // Create camera manager
+    CameraManager camManager(depthPrincipalPoint, depthFocalLength, depthPrincipalPoint, depthFocalLength);
+
+    // Test the scene analyzer
+    SceneAnalyzer sa("../resources/scenes/depth", "../resources/scenes/rgb", "../resources/scenes/label", camManager, labelMap);
     cv::Mat depth, rgb, label;
     cv::namedWindow("depth"); cv::namedWindow("rgb"); cv::namedWindow("label");
     for(int i = 8; i < 11; ++i) {
-        if(ia.readImages(i, depth, rgb, label)) {
+        if(sa.readImages(i, depth, rgb, label)) {
             cv::imshow("depth", depth); cv::imshow("rgb", rgb); cv::imshow("label", label);
             cv::waitKey();
         }
@@ -83,7 +86,7 @@ int main(int argc, char** argv)
     return 0;
 
     // Create the TraDaG main class and set parameters
-    TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, depthPrincipalPoint, depthFocalLength);
+    TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, camManager);
     tradag.setShowPreviewWindow(preview);
     tradag.setShowPhysicsAnimation(animate);
     //tradag.setDebugMarkInlierSet(true);
@@ -106,7 +109,7 @@ int main(int argc, char** argv)
 
     // Compute ground plane
     GroundPlane plane;
-    if(tradag.getImageLabeling()->computePlaneForLabel(labelName, tradag.getRGBDScene(), plane) != PF_SUCCESS) {
+    if(tradag.getImageLabeling()->computePlaneForLabel(labelName, plane) != PF_SUCCESS) {
         std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
         return 1;
     }

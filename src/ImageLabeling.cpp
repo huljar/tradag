@@ -1,33 +1,30 @@
 #include <TraDaG/ImageLabeling.h>
 #include <TraDaG/Ransac.h>
+#include <TraDaG/interop.h>
 
 #include <chrono>
-#include <random>
 #include <queue>
 #include <map>
+#include <stdexcept>
 
 using namespace TraDaG;
 
-ImageLabeling::ImageLabeling(const cv::Mat& labelImage, const LabelMap& labelMap, LabelMode labelMode)
-    : mLabelImage(labelImage)
+ImageLabeling::ImageLabeling(const cv::Mat& depthImage, const cv::Mat& labelImage, const LabelMap& labelMap, const CameraManager& cameraParams)
+    : mDepthImage(depthImage)
+    , mLabelImage(labelImage)
     , mLabelMap(labelMap)
-    , mLabelMode(labelMode)
+    , mCameraManager(cameraParams)
+    , mRandomEngine(std::chrono::system_clock::now().time_since_epoch().count())
 {
+    if(depthImage.rows != labelImage.rows || depthImage.cols != labelImage.cols)
+        throw std::invalid_argument("Depth image and label image do not have the same dimensions");
 }
 
 ImageLabeling::~ImageLabeling() {
 
 }
 
-PlaneFitStatus ImageLabeling::computePlaneForLabel(const std::string& label, const RGBDScene* scene, GroundPlane& result) const {
-    // Get depth image from scene
-    const cv::Mat depthImage = scene->getDepthImage();
-
-    // Check if the depth image has the same dimensions as the label image
-    // TODO: what to do if the labels are defined on RGB image?
-    if(depthImage.rows != mLabelImage.rows || depthImage.cols != mLabelImage.cols)
-        return PF_DIFFERENT_DIMENSIONS;
-
+PlaneFitStatus ImageLabeling::computePlaneForLabel(const std::string& label, GroundPlane& result) {
     // Check if the label is contained in the label map
     LabelMap::const_iterator entry = mLabelMap.find(label);
     if(entry == mLabelMap.end())
@@ -38,14 +35,19 @@ PlaneFitStatus ImageLabeling::computePlaneForLabel(const std::string& label, con
     // Check which actual labels are contained within the image
     LabelVec actualLabels;
     for(LabelVec::iterator it = labelValues.begin(); it != labelValues.end(); ++it) {
+        // We need at least 3 pixels with this label for it to be considered
+        unsigned int numPx = 0;
+
         // Iterate over all pixels
         bool next = false;
         for(int y = 0; y < mLabelImage.rows && !next; ++y) {
             for(int x = 0; x < mLabelImage.cols && !next; ++x) {
-                // If the label is found at a pixel, save it and continue with next label
+                // If the label is found at a pixel, save it
                 if(mLabelImage.at<unsigned short>(y, x) == *it) {
-                    actualLabels.push_back(*it);
-                    next = true;
+                    if(++numPx >= 3) {
+                        actualLabels.push_back(*it);
+                        next = true;
+                    }
                 }
             }
         }
@@ -57,19 +59,16 @@ PlaneFitStatus ImageLabeling::computePlaneForLabel(const std::string& label, con
 
     // Select a random valid label
     // TODO: random?
-    std::default_random_engine generator(std::chrono::system_clock::now().time_since_epoch().count());
     std::uniform_int_distribution<size_t> distribution(0, actualLabels.size() - 1);
-
-    unsigned short actualLabel = actualLabels[distribution(generator)];
+    unsigned short actualLabel = actualLabels[distribution(mRandomEngine)];
 
     // Gather vertices underneath the label
-    // TODO: consider labels defined on rgb image (unmapped)
     std::vector<Ogre::Vector3> points;
     std::vector<cv::Vec2i> pixels;
     for(int y = 0; y < mLabelImage.rows; ++y) {
         for(int x = 0; x < mLabelImage.cols; ++x) {
             if(mLabelImage.at<unsigned short>(y, x) == actualLabel) {
-                points.push_back(scene->depthToWorld(x, y, depthImage.at<unsigned short>(y, x)));
+                points.push_back(cvToOgre(mCameraManager.getWorldForDepth(x, y, mDepthImage.at<unsigned short>(y, x))));
                 pixels.push_back(cv::Vec2i(y, x));
             }
         }
@@ -163,11 +162,11 @@ PlaneFitStatus ImageLabeling::computePlaneForLabel(const std::string& label, con
     return PF_SUCCESS;
 }
 
-cv::Mat ImageLabeling::getLabelImage() {
-    return mLabelImage;
+cv::Mat ImageLabeling::getDepthImage() const {
+    return mDepthImage;
 }
 
-const cv::Mat ImageLabeling::getLabelImage() const {
+cv::Mat ImageLabeling::getLabelImage() const {
     return mLabelImage;
 }
 
@@ -175,14 +174,6 @@ LabelMap ImageLabeling::getLabelMap() const {
     return mLabelMap;
 }
 
-void ImageLabeling::setLabelMap(const LabelMap& labelMap) {
-    mLabelMap = labelMap;
-}
-
-LabelMode ImageLabeling::getLabelMode() const {
-    return mLabelMode;
-}
-
-void ImageLabeling::setLabelMode(LabelMode mode) {
-    mLabelMode = mode;
+CameraManager ImageLabeling::getCameraManager() const {
+    return mCameraManager;
 }

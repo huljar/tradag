@@ -19,65 +19,61 @@ public:
     DroppableObject(const std::string& meshName, Ogre::SceneManager* sceneManager);
     virtual ~DroppableObject();
 
-    virtual Ogre::Entity* getOgreEntity() const;
+    Ogre::Entity* getOgreEntity() const;
 
-    virtual std::pair<float, float> getDesiredOcclusion() const;
-    virtual void setDesiredOcclusion(const std::pair<float, float>& occlusion);
-    virtual void setDesiredOcclusion(float minOcclusion, float maxOcclusion);
+    std::pair<float, float> getDesiredOcclusion() const;
+    void setDesiredOcclusion(const std::pair<float, float>& occlusion);
+    void setDesiredOcclusion(float minOcclusion, float maxOcclusion);
 
-    virtual float getFinalOcclusion() const;
-    virtual void setFinalOcclusion(float finalOcclusion);
+    float getFinalOcclusion() const;
+    void setFinalOcclusion(float finalOcclusion);
 
-    virtual bool getMustBeUpright() const;
-    virtual void setMustBeUpright(bool mustBeUpright);
+    bool getMustBeUpright() const;
+    void setMustBeUpright(bool mustBeUpright);
 
-    virtual bool getCastShadows() const;
-    virtual void setCastShadows(bool castShadows);
+    bool getCastShadows() const;
+    void setCastShadows(bool castShadows);
 
-    virtual cv::Vec3f getScale() const;
-    virtual void setScale(const cv::Vec3f& scale);
-    virtual void setScale(float scaleX, float scaleY, float scaleZ);
-    virtual void setScale(float scale);
+    cv::Vec3f getScale() const;
+    void setScale(const cv::Vec3f& scale);
+    void setScale(float scaleX, float scaleY, float scaleZ);
+    void setScale(float scale);
 
-    virtual Auto<cv::Vec3f> getInitialPosition() const;
-    virtual void setInitialPosition(const Auto<cv::Vec3f>& initialPosition);
+    Auto<cv::Vec3f> getInitialPosition() const;
+    void setInitialPosition(const Auto<cv::Vec3f>& initialPosition);
 
-    virtual cv::Vec3f getFinalPosition() const;
-    virtual void setFinalPosition(const Ogre::Vector3& finalPosition);
-    virtual void setFinalPosition(const cv::Vec3f& finalPosition);
-    virtual void setFinalPosition(float finalPositionX, float finalPositionY, float finalPositionZ);
+    cv::Vec3f getFinalPosition() const;
+    void setFinalPosition(const cv::Vec3f& finalPosition);
+    void setFinalPosition(float finalPositionX, float finalPositionY, float finalPositionZ);
 
-    virtual Auto<cv::Matx33f> getInitialRotation() const;
-    virtual void setInitialRotation(const Auto<cv::Matx33f>& initialRotation);
+    Auto<cv::Matx33f> getInitialRotation() const;
+    void setInitialRotation(const Auto<cv::Matx33f>& initialRotation);
 
-    virtual cv::Matx33f getFinalRotation() const;
-    virtual void setFinalRotation(const Ogre::Matrix3& finalRotation);
-    virtual void setFinalRotation(const cv::Matx33f& finalRotation);
+    cv::Matx33f getFinalRotation() const;
+    void setFinalRotation(const cv::Matx33f& finalRotation);
 
-    virtual float getInitialAzimuth() const;
-    virtual void setInitialAzimuth(float initialAzimuth);
+    float getInitialAzimuth() const;
+    void setInitialAzimuth(float initialAzimuth);
 
-    virtual cv::Vec3f getInitialVelocity() const;
-    virtual void setInitialVelocity(const Ogre::Vector3& initialVelocity);
-    virtual void setInitialVelocity(const cv::Vec3f& initialVelocity);
-    virtual void setInitialVelocity(float initialVelocityX, float initialVelocityY, float initialVelocityZ);
+    cv::Vec3f getInitialVelocity() const;
+    void setInitialVelocity(const cv::Vec3f& initialVelocity);
+    void setInitialVelocity(float initialVelocityX, float initialVelocityY, float initialVelocityZ);
 
-    virtual cv::Vec3f getInitialTorque() const;
-    virtual void setInitialTorque(const Ogre::Vector3& initialTorque);
-    virtual void setInitialTorque(const cv::Vec3f& initialTorque);
-    virtual void setInitialTorque(float initialTorqueX, float initialTorqueY, float initialTorqueZ);
+    cv::Vec3f getInitialTorque() const;
+    void setInitialTorque(const cv::Vec3f& initialTorque);
+    void setInitialTorque(float initialTorqueX, float initialTorqueY, float initialTorqueZ);
 
-    virtual float getRestitution() const;
-    virtual void setRestitution(float restitution);
+    float getRestitution() const;
+    void setRestitution(float restitution);
 
-    virtual float getFriction() const;
-    virtual void setFriction(float friction);
+    float getFriction() const;
+    void setFriction(float friction);
 
-    virtual float getMass() const;
-    virtual void setMass(float mass);
+    float getMass() const;
+    void setMass(float mass);
 
 protected:
-    virtual bool checkIntervalValid(float min, float max) const;
+    bool checkIntervalValid(float min, float max) const;
 
     Ogre::SceneManager* mSceneMgr;
     Ogre::Entity* mEntity;

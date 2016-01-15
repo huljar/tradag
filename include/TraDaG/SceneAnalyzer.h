@@ -1,0 +1,81 @@
+#ifndef IMAGEANALYZER_H
+#define IMAGEANALYZER_H
+
+#include <TraDaG/CameraManager.h>
+#include <TraDaG/GroundPlane.h>
+#include <TraDaG/TradagMain.h>
+#include <TraDaG/util.h>
+
+#include <opencv2/core/core.hpp>
+
+#include <boost/filesystem.hpp>
+
+#include <array>
+#include <limits>
+#include <map>
+#include <random>
+#include <string>
+#include <vector>
+
+namespace TraDaG {
+    class SceneAnalyzer;
+}
+
+class TraDaG::SceneAnalyzer
+{
+public:
+    typedef std::map<unsigned int, std::string> FileMap;
+    typedef std::map<unsigned int, std::array<cv::Mat, 3>> MatMap;
+
+    SceneAnalyzer(const std::string& depthDirPath, const std::string& rgbDirPath, const std::string& labelDirPath,
+                  const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxImages = 0);
+
+    std::vector<unsigned int> findScenesByLabel(const std::vector<std::string>& labels);
+    std::vector<unsigned int> findScenesByLabel(const std::string& label);
+    std::vector<unsigned int> findScenesByLabel(unsigned short labelValue);
+
+    std::map<unsigned int, GroundPlane> findScenesByPlane(const std::vector<std::string>& labels,
+                                                          const cv::Vec3f& normal, float tolerance,
+                                                          unsigned short minDistance = 0,
+                                                          unsigned short maxDistance = std::numeric_limits<unsigned short>::max());
+
+    std::map<unsigned int, GroundPlane> findScenesByPlane(const std::string& label,
+                                                          const cv::Vec3f& normal, float tolerance,
+                                                          unsigned short minDistance = 0,
+                                                          unsigned short maxDistance = std::numeric_limits<unsigned short>::max());
+
+    bool readImages(unsigned int imageID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage);
+
+    TradagMain createSimulator(unsigned int imageID);
+
+    std::string getFileName(unsigned int imageID) const;
+
+    std::string getDepthPath() const;
+    std::string getRGBPath() const;
+    std::string getLabelPath() const;
+
+    CameraManager getCameraManager() const;
+
+    LabelMap getLabelMap() const;
+
+protected:
+    template<typename T>
+    typename T::iterator& tripleMin(typename T::iterator& first,
+                                    typename T::iterator& second,
+                                    typename T::iterator& third) const;
+
+    boost::filesystem::path mDepthPath;
+    boost::filesystem::path mRGBPath;
+    boost::filesystem::path mLabelPath;
+
+    CameraManager mCameraManager;
+
+    LabelMap mLabelMap;
+
+    FileMap mImages;
+    MatMap mMats;
+
+    std::default_random_engine mRandomEngine;
+};
+
+#endif // IMAGEANALYZER_H

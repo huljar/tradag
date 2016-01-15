@@ -28,32 +28,32 @@ public:
     OgreWindow();
     virtual ~OgreWindow();
 
-    virtual SimulationResult startSimulation(const ObjectVec& objects, const GroundPlane& plane,
+    SimulationResult startSimulation(const ObjectVec& objects, const GroundPlane& plane,
                                              const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate);
 
-    virtual UserAction promptUserAction();
+    UserAction promptUserAction();
 
-    virtual bool queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, PixelInfoVec& pixelInfo, bool& onPlane);
+    bool queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, PixelInfoVec& pixelInfo, bool& onPlane);
 
-    virtual bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = NULL);
+    bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = NULL);
 
-    virtual void resetCamera();
+    void resetCamera();
 
-    virtual void setScene(RGBDScene* scene, bool updateCameraFOV = false);
+    void setScene(RGBDScene* scene, bool updateCameraFOV = false);
 
-    virtual void markVertices(const std::vector<Ogre::Vector3>& vertices = std::vector<Ogre::Vector3>());
-    virtual void unmarkVertices(bool destroy = false);
+    void markVertices(const std::vector<Ogre::Vector3>& vertices = std::vector<Ogre::Vector3>());
+    void unmarkVertices(bool destroy = false);
 
-    virtual bool hidden() const;
-    virtual void show();
-    virtual void hide();
+    bool hidden() const;
+    void show();
+    void hide();
 
-    virtual Ogre::SceneManager* getSceneManager() const;
-    virtual const std::vector<Ogre::Entity*>& objectEntities() const;
-    virtual std::vector<Ogre::Entity*> getObjectEntities() const;
+    Ogre::SceneManager* getSceneManager() const;
+    const std::vector<Ogre::Entity*>& objectEntities() const;
+    std::vector<Ogre::Entity*> getObjectEntities() const;
 
-    virtual Ogre::Vector3 getInitialCameraPosition() const;
-    virtual Ogre::Vector3 getInitialCameraLookAt() const;
+    Ogre::Vector3 getInitialCameraPosition() const;
+    Ogre::Vector3 getInitialCameraLookAt() const;
 
     // FrameListener methods
     virtual bool frameStarted(const Ogre::FrameEvent& evt);

@@ -1,7 +1,7 @@
 #ifndef IMAGELABELING_H
 #define IMAGELABELING_H
 
-#include <TraDaG/RGBDScene.h>
+#include <TraDaG/CameraManager.h>
 #include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
 
@@ -10,6 +10,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include <array>
+#include <random>
 
 namespace TraDaG {
     class ImageLabeling;
@@ -18,26 +19,25 @@ namespace TraDaG {
 class TraDaG::ImageLabeling
 {
 public:
-    ImageLabeling(const cv::Mat& labelImage, const LabelMap& labelMap, LabelMode labelMode);
+    ImageLabeling(const cv::Mat& depthImage, const cv::Mat& labelImage, const LabelMap& labelMap, const CameraManager& cameraParams);
     virtual ~ImageLabeling();
 
-    virtual PlaneFitStatus computePlaneForLabel(const std::string& label, const RGBDScene* scene, GroundPlane& result) const;
+    virtual PlaneFitStatus computePlaneForLabel(const std::string& label, GroundPlane& result);
 
-    virtual cv::Mat getLabelImage();
-    virtual const cv::Mat getLabelImage() const;
-
-    virtual LabelMap getLabelMap() const;
-    virtual void setLabelMap(const LabelMap& labelMap);
-
-    virtual LabelMode getLabelMode() const;
-    virtual void setLabelMode(LabelMode mode);
+    cv::Mat getDepthImage() const;
+    cv::Mat getLabelImage() const;
+    LabelMap getLabelMap() const;
+    CameraManager getCameraManager() const;
 
 protected:
     typedef std::map<cv::Vec2i, Ogre::Vector3, bool(*)(const cv::Vec2i&, const cv::Vec2i&)> InlierMap;
 
+    cv::Mat mDepthImage;
     cv::Mat mLabelImage;
     LabelMap mLabelMap;
-    LabelMode mLabelMode;
+    CameraManager mCameraManager;
+
+    std::default_random_engine mRandomEngine;
 };
 
 #endif // IMAGELABELING_H

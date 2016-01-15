@@ -20,13 +20,9 @@ GroundPlane::GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vecto
     if(!mPlane.normal.isZeroLength()) mPlane.normalise();
 }
 
-GroundPlane::~GroundPlane() {
-
-}
-
 void GroundPlane::leastSquaresFit() {
     if(mVertices.size() >= 3) {
-        // TODO
+        // TODO: implement
     }
 }
 
@@ -90,7 +86,7 @@ Ogre::Plane GroundPlane::createPlaneFromPoints(const std::array<Ogre::Vector3, 3
 
 float GroundPlane::pointEvaluation(const Ogre::Vector3& point, const Ogre::Plane& plane) {
     // Check for invalid plane first (this can occur, probably when the RANSAC sampled points
-    // lie on a line and no unique plane can be created)
+    // lie on a line and no unique plane can be created, or when the same point was sampled twice)
     if(plane.normal == Ogre::Vector3::ZERO)
         return 1.0; // treat every point as outlier so this model will be discarded
 
