@@ -18,7 +18,7 @@ using namespace TraDaG;
 namespace fs = boost::filesystem;
 
 SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string& rgbDirPath, const std::string& labelDirPath,
-                             const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxImages)
+                             const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxScenes)
     : mDepthPath(depthDirPath)
     , mRGBPath(rgbDirPath)
     , mLabelPath(labelDirPath)
@@ -26,7 +26,7 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
     , mCameraManager(cameraParams)
     , mRandomEngine(std::chrono::system_clock::now().time_since_epoch().count())
 {
-    DEBUG_OUT("Constructing ImageAnalyzer:");
+    DEBUG_OUT("Constructing SceneAnalyzer:");
     DEBUG_OUT("    Depth path: " << depthDirPath);
     DEBUG_OUT("    RGB path:   " << rgbDirPath);
     DEBUG_OUT("    Label path: " << labelDirPath);
@@ -65,7 +65,7 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
     std::sort(labelImgs.begin(), labelImgs.end());
 
     // Temporary vector to hold map keys for fast lookup
-    std::vector<unsigned int> imageIDs;
+    std::vector<unsigned int> sceneIDs;
 
     // Iterate over entries
     std::vector<fs::path>::iterator dit = depthImgs.begin(), dend = depthImgs.end(),
@@ -75,12 +75,12 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
     while(dit != dend && cit != cend && lit != lend) {
         // Check if the file names are equal
         if(*dit == *cit && *dit == *lit) {
-            // Add image
+            // Add scene
             unsigned int id = std::distance(depthImgs.begin(), dit) + 1;
-            mImages.insert(std::make_pair(id, dit->string()));
-            imageIDs.push_back(id);
+            mScenes.insert(std::make_pair(id, dit->string()));
+            sceneIDs.push_back(id);
 
-            // Step to the next image
+            // Step to the next scene
             ++dit;
             ++cit;
             ++lit;
@@ -91,19 +91,19 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
         }
     }
 
-    DEBUG_OUT("Found " << mImages.size() << " matching file names");
+    DEBUG_OUT("Found " << mScenes.size() << " matching file names");
 
-    // If we added more images than the maximum, remove random ones until reaching the maximum
-    if(maxImages > 0 && maxImages < mImages.size()) {
-        DEBUG_OUT("Selecting " << maxImages << " random images");
+    // If we added more scenes than the maximum, remove random ones until reaching the maximum
+    if(maxScenes > 0 && maxScenes < mScenes.size()) {
+        DEBUG_OUT("Selecting " << maxScenes << " random scenes");
 
-        // Scramble the image IDs
-        std::shuffle(imageIDs.begin(), imageIDs.end(), mRandomEngine);
+        // Scramble the scene IDs
+        std::shuffle(sceneIDs.begin(), sceneIDs.end(), mRandomEngine);
 
         // Iterate over shuffled IDs
-        for(std::vector<unsigned int>::iterator it = imageIDs.begin(); it != imageIDs.end() && mImages.size() > static_cast<size_t>(maxImages); ++it) {
-            // Erase the image ID from the map
-            mImages.erase(*it);
+        for(std::vector<unsigned int>::iterator it = sceneIDs.begin(); it != sceneIDs.end() && mScenes.size() > static_cast<size_t>(maxScenes); ++it) {
+            // Erase the scene ID from the map
+            mScenes.erase(*it);
         }
     }
 }
@@ -134,7 +134,7 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
     Ogre::Radian toleranceOgre(Ogre::Degree(tolerance).valueRadians());
 
     // Iterate over all scenes
-    for(FileMap::iterator it = mImages.begin(); it != mImages.end(); ++it) {
+    for(FileMap::iterator it = mScenes.begin(); it != mScenes.end(); ++it) {
         // Get images
         cv::Mat depthImg, rgbImg, labelImg;
         if(!readImages(it->first, depthImg, rgbImg, labelImg))
@@ -196,10 +196,10 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
     return findScenesByPlane(std::vector<std::string>({label}), normal, tolerance, minDistance, maxDistance);
 }
 
-bool SceneAnalyzer::readImages(unsigned int imageID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage) {
-    DEBUG_OUT("Retrieving images for ID " << imageID);
+bool SceneAnalyzer::readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage) {
+    DEBUG_OUT("Retrieving images for scene ID " << sceneID);
 
-    MatMap::iterator matIter = mMats.find(imageID);
+    MatMap::iterator matIter = mMats.find(sceneID);
     if(matIter != mMats.end()) {
         DEBUG_OUT("Found images in cache");
 
@@ -209,9 +209,9 @@ bool SceneAnalyzer::readImages(unsigned int imageID, cv::Mat& depthImage, cv::Ma
         return true;
     }
 
-    std::string fileName = getFileName(imageID);
+    std::string fileName = getFileName(sceneID);
     if(fileName.empty()) {
-        DEBUG_OUT("Invalid image ID: " << imageID);
+        DEBUG_OUT("Invalid scene ID: " << sceneID);
         return false;
     }
 
@@ -223,7 +223,7 @@ bool SceneAnalyzer::readImages(unsigned int imageID, cv::Mat& depthImage, cv::Ma
     labelImage = cv::imread((mLabelPath / fileNamePath).string(), CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
 
     if(depthImage.data && rgbImage.data && labelImage.data) {
-        mMats.insert(std::make_pair(imageID, std::array<cv::Mat, 3>({depthImage, rgbImage, labelImage})));
+        mMats.insert(std::make_pair(sceneID, std::array<cv::Mat, 3>({depthImage, rgbImage, labelImage})));
         return true;
     }
 
@@ -231,17 +231,20 @@ bool SceneAnalyzer::readImages(unsigned int imageID, cv::Mat& depthImage, cv::Ma
     return false;
 }
 
-TradagMain SceneAnalyzer::createSimulator(unsigned int imageID) {
+TradagMain SceneAnalyzer::createSimulator(unsigned int sceneID) {
+    DEBUG_OUT("Creating Simulator for scene with ID " << sceneID);
+
     cv::Mat depthImg, rgbImg, labelImg;
-    if(!readImages(imageID, depthImg, rgbImg, labelImg))
-        throw std::runtime_error("Couldn't create simulator, one or more images for ID " + boost::lexical_cast<std::string>(imageID) + " are unreadable");
+    if(!readImages(sceneID, depthImg, rgbImg, labelImg))
+        throw std::runtime_error("Unable to load images for ID " + boost::lexical_cast<std::string>(sceneID)
+                                 + " (" + getFileName(sceneID) + ")");
 
     return TradagMain(depthImg, rgbImg, labelImg, mLabelMap, mCameraManager);
 }
 
-std::string SceneAnalyzer::getFileName(unsigned int imageID) const {
-    FileMap::const_iterator fileIter = mImages.find(imageID);
-    if(fileIter != mImages.cend())
+std::string SceneAnalyzer::getFileName(unsigned int sceneID) const {
+    FileMap::const_iterator fileIter = mScenes.find(sceneID);
+    if(fileIter != mScenes.cend())
         return fileIter->second;
     return std::string();
 }

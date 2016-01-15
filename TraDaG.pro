@@ -10,7 +10,7 @@ CONFIG(debug, debug|release) {
 
 VPATH += ./src \
     ./include/TraDaG \
-    ./include/CVLDWrapper
+    ./include/TraDaG/CVLDWrapper
 INCLUDEPATH += ./include
 
 SOURCES += main.cpp \

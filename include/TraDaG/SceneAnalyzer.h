@@ -28,7 +28,7 @@ public:
     typedef std::map<unsigned int, std::array<cv::Mat, 3>> MatMap;
 
     SceneAnalyzer(const std::string& depthDirPath, const std::string& rgbDirPath, const std::string& labelDirPath,
-                  const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxImages = 0);
+                  const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxScenes = 0);
 
     std::vector<unsigned int> findScenesByLabel(const std::vector<std::string>& labels);
     std::vector<unsigned int> findScenesByLabel(const std::string& label);
@@ -44,11 +44,11 @@ public:
                                                           unsigned short minDistance = 0,
                                                           unsigned short maxDistance = std::numeric_limits<unsigned short>::max());
 
-    bool readImages(unsigned int imageID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage);
+    bool readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage);
 
-    TradagMain createSimulator(unsigned int imageID);
+    TradagMain createSimulator(unsigned int sceneID);
 
-    std::string getFileName(unsigned int imageID) const;
+    std::string getFileName(unsigned int sceneID) const;
 
     std::string getDepthPath() const;
     std::string getRGBPath() const;
@@ -72,7 +72,7 @@ protected:
 
     LabelMap mLabelMap;
 
-    FileMap mImages;
+    FileMap mScenes;
     MatMap mMats;
 
     std::default_random_engine mRandomEngine;

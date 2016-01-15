@@ -8,6 +8,8 @@ DroppableObject::DroppableObject(const std::string& meshName, Ogre::SceneManager
     : mSceneMgr(sceneManager)
     , mDesiredOcclusion(Defaults::ObjectDesiredOcclusion)
     , mFinalOcclusion(0)
+    , mDesiredDistance(Defaults::ObjectDesiredDistance)
+    , mFinalDistance(0)
     , mMustBeUpright(Defaults::ObjectMustBeUpright)
     , mCastShadows(Defaults::ObjectCastShadows)
     , mScale(Defaults::ObjectScale)
@@ -27,7 +29,6 @@ DroppableObject::DroppableObject(const std::string& meshName, Ogre::SceneManager
 DroppableObject::~DroppableObject() {
     mEntity->detachFromParent();
     mSceneMgr->destroyEntity(mEntity);
-    std::cout << "Destroying entity" << std::endl;
 }
 
 Ogre::Entity* DroppableObject::getOgreEntity() const {
@@ -58,6 +59,26 @@ void DroppableObject::setFinalOcclusion(float finalOcclusion) {
         throw std::invalid_argument("Occlusion must lie in [0, 1] range");
 
     mFinalOcclusion = finalOcclusion;
+}
+
+std::pair<unsigned short, unsigned short> DroppableObject::getDesiredDistance() const {
+    return mDesiredDistance;
+}
+
+void DroppableObject::setDesiredDistance(const std::pair<unsigned short, unsigned short>& distance) {
+    mDesiredDistance = distance;
+}
+
+void DroppableObject::setDesiredDistance(unsigned short minDistance, unsigned short maxDistance) {
+    mDesiredDistance = std::make_pair(minDistance, maxDistance);
+}
+
+unsigned short DroppableObject::getFinalDistance() const {
+    return mFinalDistance;
+}
+
+void DroppableObject::setFinalDistance(unsigned short finalDistance) {
+    mFinalDistance = finalDistance;
 }
 
 bool DroppableObject::getMustBeUpright() const {

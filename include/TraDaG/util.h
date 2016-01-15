@@ -5,6 +5,7 @@
 
 #include <opencv2/core/core.hpp>
 
+#include <limits>
 #include <string>
 #include <map>
 #include <vector>
@@ -46,8 +47,9 @@ namespace TraDaG {
         OD_UNKNOWN_ERROR
     } ObjectDropStatus;
 
+    typedef std::pair<cv::Point, unsigned short> DepthPixel;
     typedef std::vector<DroppableObject*> ObjectVec;
-    typedef std::vector<std::pair<cv::Point, bool>> PixelInfoVec;
+    typedef std::map<cv::Point, std::pair<cv::Vec3s, bool>, bool(*)(const cv::Point&, const cv::Point&)> PixelInfoMap;
     typedef std::vector<unsigned short> LabelVec;
     typedef std::map<std::string, LabelVec> LabelMap;
 
@@ -74,6 +76,7 @@ namespace TraDaG {
     };
 
     namespace Strings {
+        const std::string LogfilePath = "Ogre.log";
         const std::string ResourcesCfgPath = "../config/resources.cfg";
         const std::string PluginsCfgPath = "../config/plugins.cfg";
 
@@ -99,26 +102,29 @@ namespace TraDaG {
     }
 
     namespace Defaults {
-        const bool ObjectMustBeUpright = false;
         const std::pair<float, float> ObjectDesiredOcclusion(0.0, 0.95);
-        const bool ObjectCastShadows = true;
-        const unsigned int MaxAttempts = 100;
-        const bool ShowPreviewWindow = false;
-        const bool ShowPhysicsAnimation = false;
-        const bool MarkInlierSet = false;
-        const bool DrawBulletShapes = false;
+        const std::pair<unsigned short, unsigned short> ObjectDesiredDistance(0, std::numeric_limits<unsigned short>::max());
         const Auto<cv::Vec3f> ObjectInitialPosition(true);
         const Auto<cv::Matx33f> ObjectInitialRotation(true);
         const float ObjectInitialAzimuth = 0.0;
         const cv::Vec3f ObjectInitialVelocity(0, 0, 0);
         const cv::Vec3f ObjectInitialTorque(0, 0, 0);
-        const Auto<cv::Vec3f> Gravity(true, cv::Vec3f(0, -9810, 0));
+        const bool ObjectMustBeUpright = false;
+        const bool ObjectCastShadows = true;
         const float ObjectRestitution = 0.4;
         const float ObjectFriction = 0.7;
         const float ObjectMass = 1.0;
+        const cv::Vec3f ObjectScale(1000, 1000, 1000);
+
         const float PlaneRestitution = 0.1;
         const float PlaneFriction = 0.9;
-        const cv::Vec3f ObjectScale(1000, 1000, 1000);
+
+        const unsigned int MaxAttempts = 100;
+        const bool ShowPreviewWindow = false;
+        const bool ShowPhysicsAnimation = false;
+        const bool MarkInlierSet = false;
+        const bool DrawBulletShapes = false;
+        const Auto<cv::Vec3f> Gravity(true, cv::Vec3f(0, -9810, 0));
     }
 
     namespace Constants {
@@ -127,6 +133,9 @@ namespace TraDaG {
         const float RansacConfidenceInterval = 18.0;
         const float IdleTimeThreshold = 1.0; // in seconds
         const float TimeoutTimeThreshold = 12.0; // in seconds
+
+        const float ScoreOcclusionWeight = 15.0;
+        const float ScoreDistanceWeight = 0.01;
 
         const Ogre::Vector3 DefaultCameraPosition = Ogre::Vector3::ZERO;
         const Ogre::Vector3 DefaultCameraLookAt = Ogre::Vector3::NEGATIVE_UNIT_Z;

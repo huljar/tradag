@@ -28,12 +28,20 @@ public:
     OgreWindow();
     virtual ~OgreWindow();
 
+    // no copy, assign, move
+    OgreWindow(const OgreWindow& other) = delete;
+    OgreWindow& operator=(const OgreWindow& other) = delete;
+
+    OgreWindow(OgreWindow&& other) = delete;
+    OgreWindow& operator=(OgreWindow&& other) = delete;
+
     SimulationResult startSimulation(const ObjectVec& objects, const GroundPlane& plane,
-                                             const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate);
+                                     const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate);
 
     UserAction promptUserAction();
 
-    bool queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, PixelInfoVec& pixelInfo, bool& onPlane);
+    bool queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, unsigned short& distance,
+                         PixelInfoMap& pixelInfo, bool& onPlane);
 
     bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = NULL);
 
@@ -100,6 +108,7 @@ protected:
     Ogre::Camera* mPreviewCamera;
     OgreBites::SdkCameraMan* mPreviewCameraMan;
 
+    Ogre::LogManager* mLogManager;
     Ogre::OverlaySystem* mOverlaySystem;
 
     // OIS

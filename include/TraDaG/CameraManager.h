@@ -22,6 +22,9 @@ public:
     cv::Vec2i getDepthForWorld(const cv::Vec3f& xyz) const;
     cv::Vec2i getDepthForWorld(float x, float y, float z) const;
 
+    DepthPixel getActualDepthForWorld(const cv::Vec3f& xyz) const;
+    DepthPixel getActualDepthForWorld(float x, float y, float z) const;
+
     cv::Vec2i getRGBForWorld(const cv::Vec3f& xyz) const;
     cv::Vec2i getRGBForWorld(float x, float y, float z) const;
 

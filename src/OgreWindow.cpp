@@ -1,5 +1,6 @@
 #include <TraDaG/OgreWindow.h>
 #include <TraDaG/util.h>
+#include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
 
 #include <OGRE/Overlay/OgreOverlay.h>
@@ -28,6 +29,7 @@ OgreWindow::OgreWindow()
     , mSceneMgr(NULL)
     , mPreviewCamera(NULL)
     , mPreviewCameraMan(NULL)
+    , mLogManager(NULL)
     , mOverlaySystem(NULL)
     , mInputManager(NULL)
     , mKeyboard(NULL)
@@ -62,6 +64,10 @@ OgreWindow::~OgreWindow() {
 }
 
 void OgreWindow::initializeOgre() {
+    // Create logger that logs to a file and not to console
+    mLogManager = new Ogre::LogManager();
+    mLogManager->createLog(Strings::LogfilePath, true, false, false);
+
     // Create Ogre Root object
     mRoot = new Ogre::Root(Strings::PluginsCfgPath);
 
@@ -181,6 +187,7 @@ void OgreWindow::shutDownOgre() {
     delete mPreviewCameraMan;
     Ogre::WindowEventUtilities::removeWindowEventListener(mPreviewWindow, this);
     delete mRoot;
+    delete mLogManager;
 }
 
 void OgreWindow::initializeOIS() {
@@ -441,8 +448,11 @@ UserAction OgreWindow::promptUserAction() {
     return mActionChosen;
 }
 
-bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, PixelInfoVec& pixelInfo, bool& onPlane) {
+bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, unsigned short& distance,
+                                 PixelInfoMap& pixelInfo, bool& onPlane) {
+
     Ogre::Entity* entity = object->getOgreEntity();
+    Ogre::SceneNode* node = entity->getParentSceneNode();
 
     if(std::find(mObjects.begin(), mObjects.end(), entity) != mObjects.end()) {
         // Render scene (once only the object and once the whole scene)
@@ -450,25 +460,35 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occl
         if(render(objectDepthRender, objectRGBRender, object) && render(sceneDepthRender, sceneRGBRender)) {
 
             // Gather all object pixels
-            PixelInfoVec objectPixels;
+            PixelInfoMap objectPixels(
+                [] (const cv::Point& lhs, const cv::Point& rhs) -> bool {
+                    return lhs.y == rhs.y ? lhs.x < rhs.x : lhs.y < rhs.y;
+                }
+            );
             for(cv::Mat_<unsigned short>::iterator it = objectDepthRender.begin<unsigned short>(); it != objectDepthRender.end<unsigned short>(); ++it) {
-                if(*it) objectPixels.push_back(std::make_pair(it.pos(), true));
+                // TODO: Calculate object coordinates for this pixel
+                cv::Vec3s objCoords(0, 0, 0);
+                if(*it) objectPixels.insert(std::make_pair(it.pos(), std::make_pair(objCoords, true)));
             }
 
             // Check object pixels for visibility in the scene
             size_t occludedPixels = 0;
-            for(PixelInfoVec::iterator it = objectPixels.begin(); it != objectPixels.end(); ++it) {
+            for(PixelInfoMap::iterator it = objectPixels.begin(); it != objectPixels.end(); ++it) {
                 if(sceneDepthRender.at<unsigned short>(it->first) < objectDepthRender.at<unsigned short>(it->first)) {
                     ++occludedPixels;
-                    it->second = false;
+                    it->second.second = false;
                 }
             }
 
             // Calculate occlusion and set output parameter
             occlusion = static_cast<Ogre::Real>(occludedPixels) / static_cast<Ogre::Real>(objectPixels.size());
 
+            // Calculate distance of object center to camera plane and set output parameter
+            DepthPixel depthPx = mRGBDScene->cameraManager().getActualDepthForWorld(ogreToCv(node->getPosition()));
+            distance = depthPx.second;
+
             // Set pixel info output parameter
-            pixelInfo = objectPixels;
+            pixelInfo = std::move(objectPixels);
 
             // TODO: Check if object is on plane
             onPlane = true;

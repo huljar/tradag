@@ -1,5 +1,6 @@
 #include <TraDaG/ImageLabeling.h>
 #include <TraDaG/Ransac.h>
+#include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
 
 #include <chrono>
@@ -21,10 +22,15 @@ ImageLabeling::ImageLabeling(const cv::Mat& depthImage, const cv::Mat& labelImag
 }
 
 ImageLabeling::~ImageLabeling() {
+}
+
+std::vector<unsigned short> ImageLabeling::findValidLabelValues(const std::string& label) {
 
 }
 
 PlaneFitStatus ImageLabeling::computePlaneForLabel(const std::string& label, GroundPlane& result) {
+    DEBUG_OUT("Computing plane for label \"" << label << "\"");
+
     // Check if the label is contained in the label map
     LabelMap::const_iterator entry = mLabelMap.find(label);
     if(entry == mLabelMap.end())
@@ -53,12 +59,14 @@ PlaneFitStatus ImageLabeling::computePlaneForLabel(const std::string& label, Gro
         }
     }
 
-    // If none of the labels is contained in the image, abort
-    if(actualLabels.size() == 0)
+    // If none of the labels is contained (with at least 3 pixels) in the image, abort
+    if(actualLabels.size() == 0) {
+        DEBUG_OUT("Label \"" << label << "\" is not present in the image");
         return PF_LABEL_NOT_IN_IMAGE;
+    }
 
     // Select a random valid label
-    // TODO: random?
+    // TODO: don't random it when we have a specific normal/distance requirement
     std::uniform_int_distribution<size_t> distribution(0, actualLabels.size() - 1);
     unsigned short actualLabel = actualLabels[distribution(mRandomEngine)];
 

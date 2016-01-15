@@ -20,6 +20,10 @@ public:
               const CameraManager& cameraParams, bool autoCreateMesh = true);
     virtual ~RGBDScene();
 
+    // Move semantics (defining those automatically prevents generation of default copy constructor and copy assignment operator)
+    RGBDScene(RGBDScene&& other);
+    RGBDScene& operator=(RGBDScene&& other);
+
     void meshify();
 
     bool screenspaceCoords(const Ogre::Camera* camera, Ogre::Vector2& resultTopLeft, Ogre::Vector2& resultBottomRight) const;
@@ -34,20 +38,20 @@ public:
 
 protected:
     Ogre::ManualObject* mSceneObject;
-    bool mMeshUpdated;
-
     Ogre::SceneManager* mSceneMgr;
 
     cv::Mat mDepthImage;
-    cv::Mat mRgbImage;
+    cv::Mat mRGBImage;
 
     CameraManager mCameraManager;
+
+    bool mMeshUpdated;
 
 private:
     void createVertices();
     void createIndices();
 
-    inline Ogre::uint32 pixelToIndex(int x, int y) const { return y * mRgbImage.cols + x; }
+    inline Ogre::uint32 pixelToIndex(int x, int y) const { return y * mRGBImage.cols + x; }
 };
 
 #endif // RGBDSCENE_H

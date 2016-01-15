@@ -28,6 +28,13 @@ public:
     float getFinalOcclusion() const;
     void setFinalOcclusion(float finalOcclusion);
 
+    std::pair<unsigned short, unsigned short> getDesiredDistance() const;
+    void setDesiredDistance(const std::pair<unsigned short, unsigned short>& distance);
+    void setDesiredDistance(unsigned short minDistance, unsigned short maxDistance);
+
+    unsigned short getFinalDistance() const;
+    void setFinalDistance(unsigned short finalDistance);
+
     bool getMustBeUpright() const;
     void setMustBeUpright(bool mustBeUpright);
 
@@ -80,6 +87,9 @@ protected:
 
     std::pair<float, float> mDesiredOcclusion;
     float mFinalOcclusion;
+
+    std::pair<unsigned short, unsigned short> mDesiredDistance;
+    unsigned short mFinalDistance;
 
     bool mMustBeUpright;
     bool mCastShadows;

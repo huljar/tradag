@@ -2,20 +2,21 @@
 #include <TraDaG/interop.h>
 
 #include <stdexcept>
+#include <utility>
 
 using namespace TraDaG;
 
 RGBDScene::RGBDScene(const Ogre::String& name, Ogre::SceneManager* sceneManager,
                      const cv::Mat& depthImage, const cv::Mat& rgbImage,
                      const CameraManager& cameraParams, bool autoCreateMesh)
-    : mMeshUpdated(false)
-    , mDepthImage(depthImage)
-    , mRgbImage(rgbImage)
+    : mDepthImage(depthImage)
+    , mRGBImage(rgbImage)
     , mCameraManager(cameraParams)
+    , mMeshUpdated(false)
 {
     // Check if Depth and RGB image have the same dimensions
-    if(!(mDepthImage.cols == mRgbImage.cols && mDepthImage.rows == mRgbImage.rows))
-        throw std::runtime_error("Depth and RGB image do not have the same dimensions");
+    if(!(mDepthImage.cols == mRGBImage.cols && mDepthImage.rows == mRGBImage.rows))
+        throw std::invalid_argument("Depth and RGB image do not have the same dimensions");
 
     // Check scene manager for null pointer
     if(!sceneManager)
@@ -32,10 +33,44 @@ RGBDScene::RGBDScene(const Ogre::String& name, Ogre::SceneManager* sceneManager,
 }
 
 RGBDScene::~RGBDScene() {
-    // If our object was attached to a scene node at some point, it has to be detached before being destroyed
+    if(mSceneObject && mSceneMgr) {
+        // If our object was attached to a scene node at some point, it has to be detached before being destroyed
+        mSceneObject->detachFromParent();
+        // Use the scene manager to do the cleanup
+        mSceneMgr->destroyManualObject(mSceneObject);
+    }
+}
+
+RGBDScene::RGBDScene(RGBDScene&& other)
+    : mSceneObject(other.mSceneObject)
+    , mSceneMgr(other.mSceneMgr)
+    , mDepthImage(std::move(other.mDepthImage))
+    , mRGBImage(std::move(other.mRGBImage))
+    , mCameraManager(std::move(other.mCameraManager))
+    , mMeshUpdated(other.mMeshUpdated)
+{
+    other.mSceneObject = nullptr;
+    other.mSceneMgr = nullptr;
+}
+
+RGBDScene& RGBDScene::operator=(RGBDScene&& other) {
+    // Destroy this object
     mSceneObject->detachFromParent();
-    // Use the scene manager to do the cleanup
     mSceneMgr->destroyManualObject(mSceneObject);
+
+    // Move-assign members
+    mSceneObject = other.mSceneObject;
+    mSceneMgr = other.mSceneMgr;
+
+    mDepthImage = std::move(other.mDepthImage);
+    mRGBImage = std::move(other.mRGBImage);
+    mCameraManager = std::move(other.mCameraManager);
+
+    mMeshUpdated = other.mMeshUpdated;
+
+    // Make other resource-less
+    other.mSceneObject = nullptr;
+    other.mSceneMgr = nullptr;
 }
 
 void RGBDScene::meshify() {
@@ -83,7 +118,7 @@ void RGBDScene::createVertices() {
 
             // Retrieve corresponding RGB pixel
             cv::Vec2i rgbPx = mCameraManager.getRGBForDepth(u, v, mDepthImage.at<unsigned short>(v, u));
-            cv::Vec3b rgbColor = mRgbImage.at<cv::Vec3b>(rgbPx[1], rgbPx[0]);
+            cv::Vec3b rgbColor = mRGBImage.at<cv::Vec3b>(rgbPx[1], rgbPx[0]);
 
             // Ogre uses RGB and OpenCV uses BGR, hence the reversed indexing
             mSceneObject->colour(static_cast<float>(rgbColor[2]) / 255.0f,
@@ -117,7 +152,7 @@ cv::Mat RGBDScene::getDepthImage() const {
 }
 
 cv::Mat RGBDScene::getRgbImage() const {
-    return mRgbImage;
+    return mRGBImage;
 }
 
 CameraManager RGBDScene::getCameraManager() const {

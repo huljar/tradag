@@ -22,6 +22,8 @@ public:
     ImageLabeling(const cv::Mat& depthImage, const cv::Mat& labelImage, const LabelMap& labelMap, const CameraManager& cameraParams);
     virtual ~ImageLabeling();
 
+    std::vector<unsigned short> findValidLabelValues(const std::string& label);
+
     virtual PlaneFitStatus computePlaneForLabel(const std::string& label, GroundPlane& result);
 
     cv::Mat getDepthImage() const;

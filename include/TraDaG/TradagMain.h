@@ -26,13 +26,11 @@ class TraDaG::TradagMain
 public:
     // TODO: check depth/label image for single channel, check rgb image for color image
     // Constructors
-    TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage,
-               const cv::Mat& labelImage, const LabelMap& labelMap,
-               const CameraManager& cameraParams);
+    TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
+               const LabelMap& labelMap, const CameraManager& cameraParams);
 
-    TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath,
-               const std::string& labelImagePath, const LabelMap& labelMap,
-               const CameraManager& cameraParams);
+    TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath,
+               const LabelMap& labelMap, const CameraManager& cameraParams);
 
     // Destructor
     ~TradagMain();

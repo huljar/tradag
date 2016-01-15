@@ -3,7 +3,7 @@
 
 #ifdef _DEBUG
     #include <iostream>
-    #define DEBUG_OUT(x) do { std::cout << "DEBUG: " << x << std::endl; } while(false)
+    #define DEBUG_OUT(x) do { std::cout << __FILE__ << ": " << x << std::endl; } while(false)
 #else
     #define DEBUG_OUT(x) do { } while(false)
 #endif

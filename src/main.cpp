@@ -22,9 +22,9 @@ int main(int argc, char** argv)
     // Parse command line using Boost Program Options library
     po::options_description argDesc("Available options");
     argDesc.add_options()
-            ("depth-file,d", po::value<std::string>(), "Depth input file")
-            ("rgb-file,c", po::value<std::string>(), "RGB (color) input file")
-            ("label-file,l", po::value<std::string>(), "Label input file")
+            ("depth-path,d", po::value<std::string>(), "Depth input path")
+            ("rgb-path,c", po::value<std::string>(), "RGB (color) input path")
+            ("label-path,l", po::value<std::string>(), "Label input path")
             ("mesh-name,m", po::value<std::string>(), "Object mesh name")
             ("label-name,n", po::value<std::string>(), "Label name")
             ("show-preview,p", "Display a preview window")
@@ -37,7 +37,8 @@ int main(int argc, char** argv)
     po::notify(vm);
 
     // If the help option was given (or no options), display available options and exit
-    if(vm.size() == 0 || vm.count("help")) {
+    if(vm.size() == 0 || vm.count("help") || !vm.count("depth-path") || !vm.count("rgb-path") || !vm.count("label-path")
+            || !vm.count("mesh-name") || !vm.count("label-name")) {
         std::cout << argDesc << std::endl;
         return 0;
     }
@@ -49,9 +50,9 @@ int main(int argc, char** argv)
     }
 
     // Get file paths
-    std::string depthFile = vm["depth-file"].as<std::string>();
-    std::string rgbFile = vm["rgb-file"].as<std::string>();
-    std::string labelFile = vm["label-file"].as<std::string>();
+    std::string depthPath = vm["depth-path"].as<std::string>();
+    std::string rgbPath = vm["rgb-path"].as<std::string>();
+    std::string labelPath = vm["label-path"].as<std::string>();
 
     // Get label map
     LabelMap labelMap = Labels::NYUDepthV1;
@@ -70,23 +71,11 @@ int main(int argc, char** argv)
     // Create camera manager
     CameraManager camManager(depthPrincipalPoint, depthFocalLength, depthPrincipalPoint, depthFocalLength);
 
-    // Test the scene analyzer
-    SceneAnalyzer sa("../resources/scenes/depth", "../resources/scenes/rgb", "../resources/scenes/label", camManager, labelMap);
-    cv::Mat depth, rgb, label;
-    cv::namedWindow("depth"); cv::namedWindow("rgb"); cv::namedWindow("label");
-    for(int i = 8; i < 11; ++i) {
-        if(sa.readImages(i, depth, rgb, label)) {
-            cv::imshow("depth", depth); cv::imshow("rgb", rgb); cv::imshow("label", label);
-            cv::waitKey();
-        }
-        else {
-            std::cerr << "Unable to read image " << i << std::endl;
-        }
-    }
-    return 0;
+    // --- BEGIN TESTING --- //
+    SceneAnalyzer sa(depthPath, rgbPath, labelPath, camManager, labelMap);
 
-    // Create the TraDaG main class and set parameters
-    TradagMain tradag(depthFile, rgbFile, labelFile, labelMap, camManager);
+    TradagMain tradag = sa.createSimulator(11);
+
     tradag.setShowPreviewWindow(preview);
     tradag.setShowPhysicsAnimation(animate);
     //tradag.setDebugMarkInlierSet(true);

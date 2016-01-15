@@ -1,29 +1,38 @@
 #include <TraDaG/TradagMain.h>
+#include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
+
+#include <boost/lexical_cast.hpp>
 
 #include <cassert>
 #include <cmath>
 #include <chrono>
 #include <stdexcept>
+#include <string>
 #include <limits>
 #include <utility>
 
 using namespace TraDaG;
 
-TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage,
-                       const cv::Mat& labelImage, const LabelMap& labelMap,
-                       const CameraManager& cameraParams)
+TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
+                       const LabelMap& labelMap, const CameraManager& cameraParams)
     : TradagMain()
 {
+    DEBUG_OUT("Constructing Simulator with OpenCV matrices");
+
     // Perform default initialization
     init(depthImage, rgbImage, labelImage, labelMap, cameraParams);
 }
 
-TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath,
-                       const std::string& labelImagePath, const LabelMap& labelMap,
-                       const CameraManager& cameraParams)
+TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath,
+                       const LabelMap& labelMap, const CameraManager& cameraParams)
     : TradagMain()
 {
+    DEBUG_OUT("Constructing Simulator with image paths:");
+    DEBUG_OUT("    Depth image: " << depthImagePath);
+    DEBUG_OUT("    RGB image:   " << rgbImagePath);
+    DEBUG_OUT("    Label image: " << labelImagePath);
+
     // Load images from specified paths
     cv::Mat depthImage = cv::imread(depthImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
     cv::Mat rgbImage = cv::imread(rgbImagePath, CV_LOAD_IMAGE_COLOR);
@@ -120,6 +129,12 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage,
                       const cv::Mat& labelImage, const LabelMap& labelMap,
                       const CameraManager& cameraParams) {
 
+    if(!(depthImage.rows == rgbImage.rows && depthImage.cols == rgbImage.cols
+            && depthImage.rows == labelImage.rows && depthImage.cols == labelImage.cols))
+        throw std::invalid_argument("Supplied images do not have the same dimensions");
+
+    DEBUG_OUT("Image resolution is " << depthImage.cols << "x" << depthImage.rows);
+
     // Create OGRE window (hidden by default)
     mOgreWindow = new OgreWindow();
     // TODO: light position?
@@ -180,12 +195,23 @@ ObjectVec::const_iterator TradagMain::endObjects() const {
 }
 
 ObjectDropResult TradagMain::execute() {
+    DEBUG_OUT("Executing simulation with the following parameters:");
+    DEBUG_OUT("    Number of objects: " << mObjects.size());
+    DEBUG_OUT("    Plane normal: " << mGroundPlane.ogrePlane().normal);
+    DEBUG_OUT("    Number of plane vertices: " << mGroundPlane.vertices().size());
+    DEBUG_OUT("    Max attempts: " << mMaxAttempts);
+    DEBUG_OUT("    Gravity: " << (mGravity.automate
+                                  ? std::string("auto")
+                                  : std::string("[") + boost::lexical_cast<std::string>(mGravity.manualValue[0]) + ", "
+                                                     + boost::lexical_cast<std::string>(mGravity.manualValue[1]) + ", "
+                                                     + boost::lexical_cast<std::string>(mGravity.manualValue[2]) + "]"));
+
     const Ogre::Plane& groundPlane = mGroundPlane.ogrePlane();
 
     // Calculate gravity vector
     Ogre::Vector3 gravity = mGravity.automate
                             ? groundPlane.normal.normalisedCopy() * Defaults::Gravity.manualValue[1]
-                            : Ogre::Vector3(mGravity.manualValue[0], mGravity.manualValue[1], mGravity.manualValue[2]);
+                            : cvToOgre(mGravity.manualValue);
 
     // Abort if the angle between plane normal and gravity vector is too large
     if(!mGravity.automate && groundPlane.normal.angleBetween(-gravity) > Constants::MaxPlaneNormalToGravityAngle)
@@ -223,6 +249,7 @@ ObjectDropResult TradagMain::execute() {
         // Execution loop - perform simulations until the criteria are met or the maximum number of attempts was reached
         do {
             ++attempt;
+            DEBUG_OUT("Starting attempt " << attempt);
 
             // Calculate initial positions (this is done for each attempt because it contains randomization)
             for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
@@ -239,6 +266,7 @@ ObjectDropResult TradagMain::execute() {
             SimulationResult result = mOgreWindow->startSimulation(mObjects, mGroundPlane, gravity, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation);
 
             if(result == SR_TIMEOUT) {
+                DEBUG_OUT("Simulation timed out");
                 continue;
             }
             else if(result == SR_ABORTED) {
@@ -252,28 +280,44 @@ ObjectDropResult TradagMain::execute() {
             for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
 
                 Ogre::Real occlusion;
-                PixelInfoVec pixelInfo;
+                unsigned short distance;
+                PixelInfoMap pixelInfo;
                 bool onPlane;
-                if(!mOgreWindow->queryObjectInfo(*it, occlusion, pixelInfo, onPlane))
-                    continue;
+                if(!mOgreWindow->queryObjectInfo(*it, occlusion, distance, pixelInfo, onPlane)) {
+                    score = std::numeric_limits<float>::max();
+                    break;
+                }
 
-                if(!onPlane)
-                    continue;
+                if(!onPlane) {
+                    score = std::numeric_limits<float>::max();
+                    break;
+                }
 
+                // Add score value for occlusion
                 std::pair<float, float> desiredOcclusion = (*it)->getDesiredOcclusion();
+                score += Constants::ScoreOcclusionWeight * distanceToIntervalSquared(occlusion, desiredOcclusion.first, desiredOcclusion.second);
+
+                // Add score value for distance
+                std::pair<unsigned short, unsigned short> desiredDistance = (*it)->getDesiredDistance();
+                score += Constants::ScoreDistanceWeight * distanceToIntervalSquared(distance, desiredDistance.first, desiredDistance.second);
 
                 occlusions.push_back(occlusion);
-                score += distanceToIntervalSquared(occlusion, desiredOcclusion.first, desiredOcclusion.second);
             }
 
+            DEBUG_OUT("Score of this simulation: " << score);
+
             if(score < bestAttemptScore) {
+                DEBUG_OUT("Score is better than the previous best, registering current attempt as new best");
+
                 // Hide vertex markings
                 mOgreWindow->unmarkVertices();
 
                 // Render depth and RGB images
                 cv::Mat depthRender, rgbRender;
-                if(!mOgreWindow->render(depthRender, rgbRender))
+                if(!mOgreWindow->render(depthRender, rgbRender)) {
+                    DEBUG_OUT("Unable to render current attempt, skipping to next");
                     continue;
+                }
 
                 // Re-mark vertices (if any were previously marked)
                 mOgreWindow->markVertices();
@@ -293,10 +337,17 @@ ObjectDropResult TradagMain::execute() {
                     (*it)->setFinalOcclusion(occlusions[std::distance(beginObjects(), it)]);
                 }
 
-                if(score <= 0.0)
+                if(score <= 0.0) {
+                    DEBUG_OUT("Found an optimal solution");
                     solutionFound = true;
+                }
             }
         } while(!solutionFound && attempt < mMaxAttempts);
+
+        DEBUG_OUT("Finished simulation with the following result:");
+        DEBUG_OUT("    Result\'s score: " << bestAttemptScore);
+        DEBUG_OUT("    Result is optimal: " << std::boolalpha << solutionFound << std::noboolalpha);
+        DEBUG_OUT("    Simulations performed: " << attempt);
 
         // Restore the object poses of the best attempt found
         const std::vector<Ogre::Entity*>& entities = mOgreWindow->objectEntities();
@@ -325,13 +376,16 @@ ObjectDropResult TradagMain::execute() {
     if(action == UA_KEEP) {
         // Check rendered images
         if(bestAttemptDepthImage.data && bestAttemptRGBImage.data) {
+            DEBUG_OUT("Simulation was successful");
             return ObjectDropResult(OD_SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
         }
     }
     else if(action == UA_ABORT) {
+        DEBUG_OUT("Simulation was canceled by the user");
         return ObjectDropResult(OD_USER_ABORTED, cv::Mat(), cv::Mat());
     }
 
+    DEBUG_OUT("An unknown error occurred");
     return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), cv::Mat());
 }
 
@@ -402,6 +456,13 @@ LabelMap TradagMain::getLabelMap() const {
 }
 
 void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage, const LabelMap& labelMap) {
+    if(!(depthImage.rows == rgbImage.rows && depthImage.cols == rgbImage.cols
+            && depthImage.rows == labelImage.rows && depthImage.cols == labelImage.cols))
+        throw std::invalid_argument("Supplied images do not have the same dimensions");
+
+    DEBUG_OUT("Registering new images and rebuilding the scene");
+    DEBUG_OUT("Image resolution is " << depthImage.cols << "x" << depthImage.rows);
+
     // Delete old scene and create a new one
     CameraManager camMgrScene = mRGBDScene->getCameraManager();
     delete mRGBDScene;
@@ -417,6 +478,11 @@ void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage,
 }
 
 bool TradagMain::loadNewScene(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath, const LabelMap& labelMap) {
+    DEBUG_OUT("Loading new images:");
+    DEBUG_OUT("    Depth image: " << depthImagePath);
+    DEBUG_OUT("    RGB image:   " << rgbImagePath);
+    DEBUG_OUT("    Label image: " << labelImagePath);
+
     cv::Mat depthImage = cv::imread(depthImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
     cv::Mat rgbImage = cv::imread(rgbImagePath, CV_LOAD_IMAGE_COLOR);
     cv::Mat labelImage = cv::imread(labelImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
@@ -425,6 +491,8 @@ bool TradagMain::loadNewScene(const std::string& depthImagePath, const std::stri
         setNewScene(depthImage, rgbImage, labelImage, labelMap);
         return true;
     }
+
+    DEBUG_OUT("Unable to load at least one of the supplied images");
 
     return false;
 }
@@ -492,14 +560,14 @@ void TradagMain::setGravity(const Auto<cv::Vec3f>& gravity) {
     mGravity = gravity;
 }
 
-OgreWindow*TradagMain::getOgreWindow() const {
+OgreWindow* TradagMain::getOgreWindow() const {
     return mOgreWindow;
 }
 
-RGBDScene*TradagMain::getRGBDScene() const {
+RGBDScene* TradagMain::getRGBDScene() const {
     return mRGBDScene;
 }
 
-ImageLabeling*TradagMain::getImageLabeling() const {
+ImageLabeling* TradagMain::getImageLabeling() const {
     return mImageLabeling;
 }
