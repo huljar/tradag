@@ -202,9 +202,9 @@ ObjectDropResult TradagMain::execute() {
     DEBUG_OUT("    Max attempts: " << mMaxAttempts);
     DEBUG_OUT("    Gravity: " << (mGravity.automate
                                   ? std::string("auto")
-                                  : std::string("[") + boost::lexical_cast<std::string>(mGravity.manualValue[0]) + ", "
-                                                     + boost::lexical_cast<std::string>(mGravity.manualValue[1]) + ", "
-                                                     + boost::lexical_cast<std::string>(mGravity.manualValue[2]) + "]"));
+                                  : "[" + boost::lexical_cast<std::string>(mGravity.manualValue[0]) + ", "
+                                        + boost::lexical_cast<std::string>(mGravity.manualValue[1]) + ", "
+                                        + boost::lexical_cast<std::string>(mGravity.manualValue[2]) + "]"));
 
     const Ogre::Plane& groundPlane = mGroundPlane.ogrePlane();
 

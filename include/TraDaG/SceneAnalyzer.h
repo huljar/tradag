@@ -32,7 +32,6 @@ public:
 
     std::vector<unsigned int> findScenesByLabel(const std::vector<std::string>& labels);
     std::vector<unsigned int> findScenesByLabel(const std::string& label);
-    std::vector<unsigned int> findScenesByLabel(unsigned short labelValue);
 
     std::map<unsigned int, GroundPlane> findScenesByPlane(const std::vector<std::string>& labels,
                                                           const cv::Vec3f& normal, float tolerance,

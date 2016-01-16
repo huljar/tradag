@@ -109,29 +109,49 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
 }
 
 std::vector<unsigned int> SceneAnalyzer::findScenesByLabel(const std::vector<std::string>& labels) {
+    DEBUG_OUT("Searching for scenes with the given labels");
+    DEBUG_OUT("    Number of input labels: " << labels.size());
 
+    std::vector<unsigned int> ret;
+
+    // Iterate over all scenes
+    for(FileMap::iterator it = mScenes.begin(); it != mScenes.end(); ++it) {
+        // Get images
+        cv::Mat depthImg, rgbImg, labelImg;
+        if(!readImages(it->first, depthImg, rgbImg, labelImg))
+            continue;
+
+        // Create image labeling for this scene
+        ImageLabeling labeling(depthImg, labelImg, mLabelMap, mCameraManager);
+
+        // Iterate over given labels
+        for(std::vector<std::string>::const_iterator jt = labels.cbegin(); jt != labels.cend(); ++jt) {
+            // Check if it contains the label
+            if(labeling.containsLabel(*jt)) {
+                DEBUG_OUT("Scene \"" << it->second << "\" contains label \"" << *jt << "\"");
+
+                ret.push_back(it->first);
+                break;
+            }
+        }
+    }
+
+    return ret;
 }
 
 std::vector<unsigned int> SceneAnalyzer::findScenesByLabel(const std::string& label) {
     return findScenesByLabel(std::vector<std::string>({label}));
 }
 
-std::vector<unsigned int> SceneAnalyzer::findScenesByLabel(unsigned short labelValue) {
-    // TODO: implement
-}
-
 std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::vector<std::string>& labels,
                                                                      const cv::Vec3f& normal, float tolerance,
                                                                      unsigned short minDistance, unsigned short maxDistance) {
 
-    DEBUG_OUT("Searching for scenes with valid labels and");
-    DEBUG_OUT("    Plane normal: " << normal << ", tolerance: " << tolerance);
+    DEBUG_OUT("Searching for scenes with valid labels that meet the following constraints:");
+    DEBUG_OUT("    Plane normal: " << normal << ", tolerance: " << tolerance << "°");
     DEBUG_OUT("    Distance to camera: [" << minDistance << ", " << maxDistance << "]");
 
     std::map<unsigned int, GroundPlane> ret;
-
-    Ogre::Vector3 normalOgre = cvToOgre(normal);
-    Ogre::Radian toleranceOgre(Ogre::Degree(tolerance).valueRadians());
 
     // Iterate over all scenes
     for(FileMap::iterator it = mScenes.begin(); it != mScenes.end(); ++it) {
@@ -146,41 +166,20 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
 
         // Iterate over given labels
         bool sceneIsGood = false;
-        for(std::vector<std::string>::const_iterator jt = labels.cbegin(); jt != labels.cend() && !sceneIsGood; ++jt) {
+        for(std::vector<std::string>::const_iterator jt = labels.cbegin(); jt != labels.cend(); ++jt) {
             // Try to get a plane for this label
-            PlaneFitStatus result = labeling.computePlaneForLabel(*jt, plane);
+            PlaneFitStatus result = labeling.findPlaneForLabel(*jt, plane, normal, tolerance, minDistance, maxDistance);
 
             if(result == PF_SUCCESS) {
-                // Check if the plane normal is within the given tolerance
-                if(plane.ogrePlane().normal.angleBetween(normalOgre) <= toleranceOgre) {
-
-                    // Check if any plane vertices lie within the distance interval
-                    // Use reverse iterator so it stays valid when elements are removed
-                    std::vector<Ogre::Vector3>& vertices = plane.vertices();
-                    for(std::vector<Ogre::Vector3>::reverse_iterator kt = vertices.rbegin(); kt != vertices.rend(); ++kt) {
-                        // Get depth to camera
-                        cv::Vec2i depthPx = mCameraManager.getDepthForWorld(kt->x, kt->y, kt->z);
-                        unsigned short depth = depthImg.at<unsigned short>(depthPx[1], depthPx[0]);
-
-                        // Check if depth is within interval
-                        if(depth >= minDistance && depth <= maxDistance) {
-                            // We have found a plane meeting the criteria
-                            sceneIsGood = true;
-                        }
-                        else {
-                            // Remove this vertex efficiently
-                            std::swap(*kt, vertices.back());
-                            vertices.pop_back();
-                        }
-                    }
-                }
+                sceneIsGood = true;
+                break;
             }
         }
 
         if(sceneIsGood) {
             DEBUG_OUT("Found plane for scene \"" << it->second << "\" and label \"" << plane.getLabel() << "\"");
             DEBUG_OUT("    Plane normal: " << plane.ogrePlane().normal);
-            DEBUG_OUT("    Valid plane vertices: " << plane.vertices().size());
+            DEBUG_OUT("    Plane vertices: " << plane.vertices().size());
 
             ret.insert(std::make_pair(it->first, plane));
         }

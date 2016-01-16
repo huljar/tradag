@@ -10,6 +10,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include <array>
+#include <limits>
 #include <random>
 
 namespace TraDaG {
@@ -22,9 +23,14 @@ public:
     ImageLabeling(const cv::Mat& depthImage, const cv::Mat& labelImage, const LabelMap& labelMap, const CameraManager& cameraParams);
     virtual ~ImageLabeling();
 
-    std::vector<unsigned short> findValidLabelValues(const std::string& label);
+    bool containsLabel(const std::string& label);
 
-    virtual PlaneFitStatus computePlaneForLabel(const std::string& label, GroundPlane& result);
+    LabelVec findValidLabelValues(const std::string& label);
+
+    virtual PlaneFitStatus findPlaneForLabel(const std::string& label, GroundPlane& result,
+                                             const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0,
+                                             unsigned short minDistance = 0,
+                                             unsigned short maxDistance = std::numeric_limits<unsigned short>::max());
 
     cv::Mat getDepthImage() const;
     cv::Mat getLabelImage() const;
@@ -32,8 +38,6 @@ public:
     CameraManager getCameraManager() const;
 
 protected:
-    typedef std::map<cv::Vec2i, Ogre::Vector3, bool(*)(const cv::Vec2i&, const cv::Vec2i&)> InlierMap;
-
     cv::Mat mDepthImage;
     cv::Mat mLabelImage;
     LabelMap mLabelMap;

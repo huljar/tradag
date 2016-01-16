@@ -24,7 +24,7 @@ namespace TraDaG {
     typedef enum {
         PF_SUCCESS,
         PF_INVALID_LABEL,
-        PF_LABEL_NOT_IN_IMAGE
+        PF_NO_GOOD_PLANE
     } PlaneFitStatus;
 
     typedef enum {
@@ -49,6 +49,7 @@ namespace TraDaG {
 
     typedef std::pair<cv::Point, unsigned short> DepthPixel;
     typedef std::vector<DroppableObject*> ObjectVec;
+    typedef std::map<cv::Vec2i, Ogre::Vector3, bool(*)(const cv::Vec2i&, const cv::Vec2i&)> PixelWorldMap;
     typedef std::map<cv::Point, std::pair<cv::Vec3s, bool>, bool(*)(const cv::Point&, const cv::Point&)> PixelInfoMap;
     typedef std::vector<unsigned short> LabelVec;
     typedef std::map<std::string, LabelVec> LabelMap;
@@ -130,12 +131,15 @@ namespace TraDaG {
     namespace Constants {
         const float ObjectDropDistance = 500.0;
         const Ogre::Degree MaxPlaneNormalToGravityAngle(25);
+        const unsigned int MinLabelPixelsToBeValid = 10;
+
         const float RansacConfidenceInterval = 18.0;
+
         const float IdleTimeThreshold = 1.0; // in seconds
         const float TimeoutTimeThreshold = 12.0; // in seconds
 
-        const float ScoreOcclusionWeight = 15.0;
-        const float ScoreDistanceWeight = 0.01;
+        const float ScoreOcclusionWeight = 150.0;
+        const float ScoreDistanceWeight = 0.1;
 
         const Ogre::Vector3 DefaultCameraPosition = Ogre::Vector3::ZERO;
         const Ogre::Vector3 DefaultCameraLookAt = Ogre::Vector3::NEGATIVE_UNIT_Z;
