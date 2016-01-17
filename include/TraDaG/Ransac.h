@@ -39,7 +39,7 @@ public:
         float e = 0.9; // Outlier probability (start with large value)
 
         M bestModel; // Store best current model here
-        float bestModelEval = std::numeric_limits<float>::max(); // Store evaluation result of best current model here
+        float bestModelEval = std::numeric_limits<float>::infinity(); // Store evaluation result of best current model here
 
         std::vector<const_point_iterator> bestModelInliers; // Store inliers of the best current model here
 

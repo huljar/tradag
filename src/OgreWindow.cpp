@@ -23,6 +23,20 @@
 
 using namespace TraDaG;
 
+OgreWindow* OgreWindow::msSingleton = nullptr;
+
+OgreWindow& OgreWindow::getSingleton() {
+    if(!msSingleton)
+        msSingleton = new OgreWindow();
+    return *msSingleton;
+}
+
+OgreWindow* OgreWindow::getSingletonPtr() {
+    if(!msSingleton)
+        msSingleton = new OgreWindow();
+    return msSingleton;
+}
+
 OgreWindow::OgreWindow()
     : mRoot(NULL)
     , mPreviewWindow(NULL)
@@ -37,6 +51,7 @@ OgreWindow::OgreWindow()
     , mRGBDScene(NULL)
     , mRGBDSceneNode(NULL)
     , mVertexMarkings(NULL)
+    , mVertexMarkingsNode(NULL)
     , mInitialCameraPosition(Constants::DefaultCameraPosition)
     , mInitialCameraLookAt(Constants::DefaultCameraLookAt)
     , mWorld(NULL)
@@ -273,8 +288,38 @@ void OgreWindow::shutDownBullet() {
     }
 }
 
-SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, const GroundPlane& plane,
+SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, RGBDScene* scene, const GroundPlane& plane,
                                              const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate) {
+
+    // Ensure that we have a scene node for our scene
+    if(!mRGBDSceneNode)
+        mRGBDSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+
+    // Set the new scene if necessary
+    if(mRGBDScene != scene) {
+        mRGBDSceneNode->detachAllObjects();
+        mRGBDSceneNode->attachObject(scene->getManualObject());
+        mRGBDScene = scene;
+
+        // Adjust FOV of preview camera to view the whole scene
+        cv::Mat depthImg = mRGBDScene->getDepthImage();
+        CameraManager& camMgr = mRGBDScene->cameraManager();
+
+        Ogre::Vector3 top = cvToOgre(camMgr.getWorldForDepth(0, 0, Constants::WorkPlaneDepth));
+        Ogre::Vector3 bottom = cvToOgre(camMgr.getWorldForDepth(0, depthImg.rows - 1, Constants::WorkPlaneDepth));
+        top.x = 0.0;
+        bottom.x = 0.0;
+
+        Ogre::Radian angle(std::max(
+            top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
+            bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
+        ) * 2.0 + 0.04);
+        mPreviewCamera->setFOVy(angle);
+
+        // Ensure that the render settings are recreated on the next call to render()
+        invalidateRenderSettings();
+    }
+
     // Initialize Bullet physics
     initializeBullet(gravity);
 
@@ -330,7 +375,6 @@ SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, const Gro
         mRigidBodies.push_back(rigidBody);
         mCollisionShapes.push_back(collisionShape);
     }
-    // TODO: when initializing Ogre, set stencil shadow type (and ambient light)
 
     // Register plane with Bullet
     OgreBulletDynamics::RigidBody* planeRigidBody = new OgreBulletDynamics::RigidBody(Strings::PlaneRigidBodyName, mWorld);
@@ -592,6 +636,35 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
     return true;
 }
 
+void OgreWindow::invalidate(const ObjectVec& objects, const RGBDScene* scene) {
+    for(ObjectVec::const_iterator it = objects.cbegin(); it != objects.cend(); ++it) {
+        invalidate(*it);
+    }
+
+    invalidate(scene);
+}
+
+void OgreWindow::invalidate(const DroppableObject* object) {
+    // Check if the invalidated object is stored here
+    std::vector<Ogre::Entity*>::iterator pos = std::find(mObjects.begin(), mObjects.end(), object->getOgreEntity());
+    if(pos != mObjects.end()) {
+        Ogre::SceneNode* node = (*pos)->getParentSceneNode();
+        if(node) {
+            node->detachAllObjects();
+            mSceneMgr->destroySceneNode(node);
+        }
+        mObjects.erase(pos);
+    }
+}
+
+void OgreWindow::invalidate(const RGBDScene* scene) {
+    // Check if the invalidated scene is active
+    if(scene && mRGBDScene == scene) {
+        mRGBDScene = nullptr;
+        unmarkVertices(true);
+    }
+}
+
 void OgreWindow::resetCamera() {
     if(mPreviewCamera) {
         mPreviewCamera->setPosition(mInitialCameraPosition);
@@ -599,57 +672,29 @@ void OgreWindow::resetCamera() {
     }
 }
 
-void OgreWindow::setScene(RGBDScene* scene, bool updateCameraFOV) {
-    if(!mRGBDSceneNode)
-        mRGBDSceneNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
-    else if(mRGBDScene)
-        mRGBDScene->getManualObject()->detachFromParent();
-
-    mRGBDScene = scene;
-    mRGBDSceneNode->attachObject(mRGBDScene->getManualObject());
-
-    if(updateCameraFOV) {
-        cv::Mat depthImg = mRGBDScene->getDepthImage();
-        CameraManager& camMgr = mRGBDScene->cameraManager();
-
-        Ogre::Vector3 top = cvToOgre(camMgr.getWorldForDepth(0, 0, Constants::WorkPlaneDepth));
-        Ogre::Vector3 bottom = cvToOgre(camMgr.getWorldForDepth(0, depthImg.rows - 1, Constants::WorkPlaneDepth));
-        top.x = 0.0;
-        bottom.x = 0.0;
-
-        Ogre::Radian angle(std::max(
-            top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
-            bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
-        ) * 2.0 + 0.04);
-        mPreviewCamera->setFOVy(angle);
-    }
-
-    invalidateRenderSettings();
-}
-
 void OgreWindow::markVertices(const std::vector<Ogre::Vector3>& vertices) {
-    if(mRGBDSceneNode && mRGBDScene) {
-        if(vertices.size() == 0) {
-            if(mVertexMarkings && !mVertexMarkings->isAttached()) {
-                mRGBDSceneNode->attachObject(mVertexMarkings);
-            }
+    if(!mVertexMarkingsNode)
+        mVertexMarkingsNode = mSceneMgr->getRootSceneNode()->createChildSceneNode();
+
+    if(vertices.size() == 0) {
+        if(mVertexMarkings && !mVertexMarkings->isAttached()) {
+            mVertexMarkingsNode->attachObject(mVertexMarkings);
         }
-        else {
-            if(mVertexMarkings) {
-                mVertexMarkings->detachFromParent();
-                mSceneMgr->destroyManualObject(mVertexMarkings);
-            }
-
-            mVertexMarkings = mSceneMgr->createManualObject();
-
-            mVertexMarkings->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
-            for(std::vector<Ogre::Vector3>::const_iterator it = vertices.cbegin(); it != vertices.cend(); ++it) {
-                mVertexMarkings->position(*it);
-            }
-            mVertexMarkings->end();
-
-            mRGBDSceneNode->attachObject(mVertexMarkings);
+    }
+    else {
+        if(mVertexMarkings) {
+            unmarkVertices(true);
         }
+
+        mVertexMarkings = mSceneMgr->createManualObject();
+
+        mVertexMarkings->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_POINT_LIST);
+        for(std::vector<Ogre::Vector3>::const_iterator it = vertices.cbegin(); it != vertices.cend(); ++it) {
+            mVertexMarkings->position(*it);
+        }
+        mVertexMarkings->end();
+
+        mVertexMarkingsNode->attachObject(mVertexMarkings);
     }
 }
 
@@ -1007,14 +1052,6 @@ void OgreWindow::hide() {
 
 Ogre::SceneManager* OgreWindow::getSceneManager() const {
     return mSceneMgr;
-}
-
-const std::vector<Ogre::Entity*>& OgreWindow::objectEntities() const {
-    return mObjects;
-}
-
-std::vector<Ogre::Entity*> OgreWindow::getObjectEntities() const {
-    return mObjects;
 }
 
 Ogre::Vector3 OgreWindow::getInitialCameraPosition() const {

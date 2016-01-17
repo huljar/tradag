@@ -6,8 +6,7 @@
 
 using namespace TraDaG;
 
-RGBDScene::RGBDScene(const Ogre::String& name, Ogre::SceneManager* sceneManager,
-                     const cv::Mat& depthImage, const cv::Mat& rgbImage,
+RGBDScene::RGBDScene(Ogre::SceneManager* sceneManager, const cv::Mat& depthImage, const cv::Mat& rgbImage,
                      const CameraManager& cameraParams, bool autoCreateMesh)
     : mDepthImage(depthImage)
     , mRGBImage(rgbImage)
@@ -25,7 +24,7 @@ RGBDScene::RGBDScene(const Ogre::String& name, Ogre::SceneManager* sceneManager,
     mSceneMgr = sceneManager;
 
     // Create the underlying ManualObject that will contain the mesh
-    mSceneObject = sceneManager->createManualObject(name);
+    mSceneObject = sceneManager->createManualObject();
 
     // Create the mesh from the images if requested
     if(autoCreateMesh)
@@ -71,6 +70,8 @@ RGBDScene& RGBDScene::operator=(RGBDScene&& other) {
     // Make other resource-less
     other.mSceneObject = nullptr;
     other.mSceneMgr = nullptr;
+
+    return *this;
 }
 
 void RGBDScene::meshify() {

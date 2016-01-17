@@ -26,11 +26,9 @@ class TraDaG::TradagMain
 public:
     // TODO: check depth/label image for single channel, check rgb image for color image
     // Constructors
-    TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
-               const LabelMap& labelMap, const CameraManager& cameraParams);
+    TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams);
 
-    TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath,
-               const LabelMap& labelMap, const CameraManager& cameraParams);
+    TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const CameraManager& cameraParams);
 
     // Destructor
     ~TradagMain();
@@ -59,14 +57,7 @@ public:
     // TODO: setVerbose parameter, detailed log messages if enabled
     ObjectDropResult execute();
 
-    cv::Mat getDepthImage() const;
-    cv::Mat getRgbImage() const;
-    cv::Mat getLabelImage() const;
-
-    LabelMap getLabelMap() const;
-
-    void setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage, const LabelMap& labelMap);
-    bool loadNewScene(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath, const LabelMap& labelMap);
+    RGBDScene* getRGBDScene() const;
 
     GroundPlane getGroundPlane() const;
     void setGroundPlane(const GroundPlane& groundPlane);
@@ -89,24 +80,16 @@ public:
     Auto<cv::Vec3f> getGravity() const;
     void setGravity(const Auto<cv::Vec3f>& gravity);
 
-    OgreWindow* getOgreWindow() const;
-    RGBDScene* getRGBDScene() const;
-    ImageLabeling* getImageLabeling() const;
-
 private:
     TradagMain();
-    void init(const cv::Mat& depthImage, const cv::Mat& rgbImage,
-              const cv::Mat& labelImage, const LabelMap& labelMap,
-              const CameraManager& cameraParams);
+    void init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams);
 
     Ogre::Vector3 computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
     Ogre::Matrix3 computeRotation(const float azimuth, const Ogre::Vector3& gravity) const;
 
     float distanceToIntervalSquared(float value, float min, float max) const;
 
-    OgreWindow* mOgreWindow;
     RGBDScene* mRGBDScene;
-    ImageLabeling* mImageLabeling;
 
     ObjectVec mObjects;
     GroundPlane mGroundPlane;

@@ -14,43 +14,37 @@
 
 using namespace TraDaG;
 
-TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage,
-                       const LabelMap& labelMap, const CameraManager& cameraParams)
+TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams)
     : TradagMain()
 {
     DEBUG_OUT("Constructing Simulator with OpenCV matrices");
 
     // Perform default initialization
-    init(depthImage, rgbImage, labelImage, labelMap, cameraParams);
+    init(depthImage, rgbImage, cameraParams);
 }
 
-TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath,
-                       const LabelMap& labelMap, const CameraManager& cameraParams)
+TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const CameraManager& cameraParams)
     : TradagMain()
 {
     DEBUG_OUT("Constructing Simulator with image paths:");
     DEBUG_OUT("    Depth image: " << depthImagePath);
     DEBUG_OUT("    RGB image:   " << rgbImagePath);
-    DEBUG_OUT("    Label image: " << labelImagePath);
 
     // Load images from specified paths
     cv::Mat depthImage = cv::imread(depthImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
     cv::Mat rgbImage = cv::imread(rgbImagePath, CV_LOAD_IMAGE_COLOR);
-    cv::Mat labelImage = cv::imread(labelImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
 
     // Throw an exception if any of the images was not loaded correctly
-    if(!depthImage.data || !rgbImage.data || !labelImage.data)
+    if(!depthImage.data || !rgbImage.data)
         throw std::runtime_error("Unable to load at least one of the following images: \""
-                                 + depthImagePath + "\", \"" + rgbImagePath + "\", \"" + labelImagePath + "\"");
+                                 + depthImagePath + "\", \"" + rgbImagePath + "\"");
 
     // Continue with default initialization
-    init(depthImage, rgbImage, labelImage, labelMap, cameraParams);
+    init(depthImage, rgbImage, cameraParams);
 }
 
 TradagMain::TradagMain()
-    : mOgreWindow(NULL)
-    , mRGBDScene(NULL)
-    , mImageLabeling(NULL)
+    : mRGBDScene(NULL)
     , mMaxAttempts(Defaults::MaxAttempts)
     , mShowPreviewWindow(Defaults::ShowPreviewWindow)
     , mShowPhysicsAnimation(Defaults::ShowPhysicsAnimation)
@@ -63,16 +57,12 @@ TradagMain::TradagMain()
 
 TradagMain::~TradagMain() {
     destroyAllObjects();
-
-    delete mImageLabeling;
+    OgreWindow::getSingletonPtr()->invalidate(mRGBDScene);
     delete mRGBDScene;
-    delete mOgreWindow;
 }
 
 TradagMain::TradagMain(TradagMain&& other)
-    : mOgreWindow(other.mOgreWindow)
-    , mRGBDScene(other.mRGBDScene)
-    , mImageLabeling(other.mImageLabeling)
+    : mRGBDScene(other.mRGBDScene)
     , mObjects(std::move(other.mObjects))
     , mGroundPlane(std::move(other.mGroundPlane))
     , mMaxAttempts(other.mMaxAttempts)
@@ -83,26 +73,18 @@ TradagMain::TradagMain(TradagMain&& other)
     , mGravity(std::move(other.mGravity))
     , mRandomEngine(std::move(other.mRandomEngine))
 {
-    other.mOgreWindow = nullptr;
     other.mRGBDScene = nullptr;
-    other.mImageLabeling = nullptr;
-
     other.mObjects.clear();
 }
 
 TradagMain& TradagMain::operator=(TradagMain&& other) {
-    // Destroy this object
+    // Destroy self
     destroyAllObjects();
-
-    delete mImageLabeling;
+    OgreWindow::getSingletonPtr()->invalidate(mRGBDScene);
     delete mRGBDScene;
-    delete mOgreWindow;
 
     // Move-assign members
-    mOgreWindow = other.mOgreWindow;
     mRGBDScene = other.mRGBDScene;
-    mImageLabeling = other.mImageLabeling;
-
     mObjects = std::move(other.mObjects);
     mGroundPlane = std::move(other.mGroundPlane);
 
@@ -116,42 +98,25 @@ TradagMain& TradagMain::operator=(TradagMain&& other) {
     mRandomEngine = std::move(other.mRandomEngine);
 
     // Make other resource-less
-    other.mOgreWindow = nullptr;
     other.mRGBDScene = nullptr;
-    other.mImageLabeling = nullptr;
-
     other.mObjects.clear();
 
     return *this;
 }
 
-void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage,
-                      const cv::Mat& labelImage, const LabelMap& labelMap,
-                      const CameraManager& cameraParams) {
-
-    if(!(depthImage.rows == rgbImage.rows && depthImage.cols == rgbImage.cols
-            && depthImage.rows == labelImage.rows && depthImage.cols == labelImage.cols))
+void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams) {
+    if(!(depthImage.rows == rgbImage.rows && depthImage.cols == rgbImage.cols))
         throw std::invalid_argument("Supplied images do not have the same dimensions");
 
     DEBUG_OUT("Image resolution is " << depthImage.cols << "x" << depthImage.rows);
 
-    // Create OGRE window (hidden by default)
-    mOgreWindow = new OgreWindow();
-    // TODO: light position?
-
     // Create scene from RGB and depth image
-    mRGBDScene = new RGBDScene(Ogre::String(Strings::RgbdSceneName), mOgreWindow->getSceneManager(),
+    mRGBDScene = new RGBDScene(OgreWindow::getSingletonPtr()->getSceneManager(),
                                depthImage, rgbImage, cameraParams);
-
-    // Create image labeling from label image
-    mImageLabeling = new ImageLabeling(depthImage, labelImage, labelMap, cameraParams);
-
-    // Register the RGBD scene with OGRE
-    mOgreWindow->setScene(mRGBDScene, true);
 }
 
 DroppableObject* TradagMain::createObject(const std::string& meshName) {
-    DroppableObject* obj = new DroppableObject(meshName, mOgreWindow->getSceneManager());
+    DroppableObject* obj = new DroppableObject(meshName, OgreWindow::getSingletonPtr()->getSceneManager());
     mObjects.push_back(obj);
     return obj;
 }
@@ -161,17 +126,20 @@ void TradagMain::destroyObject(DroppableObject* object) {
     if(objPos != mObjects.end())
         mObjects.erase(objPos);
 
+    OgreWindow::getSingletonPtr()->invalidate(object);
     delete object;
 }
 
 void TradagMain::destroyObject(unsigned int index) {
     assert(index < mObjects.size());
+    OgreWindow::getSingletonPtr()->invalidate(mObjects[index]);
     delete mObjects[index];
     mObjects.erase(mObjects.begin() + index);
-
 }
 
 void TradagMain::destroyAllObjects() {
+    OgreWindow::getSingletonPtr()->invalidate(mObjects, nullptr);
+
     for(ObjectVec::iterator it = mObjects.begin(); it != mObjects.end(); ++it)
         delete *it;
 
@@ -206,6 +174,7 @@ ObjectDropResult TradagMain::execute() {
                                         + boost::lexical_cast<std::string>(mGravity.manualValue[1]) + ", "
                                         + boost::lexical_cast<std::string>(mGravity.manualValue[2]) + "]"));
 
+    OgreWindow& ogreWindow = OgreWindow::getSingleton();
     const Ogre::Plane& groundPlane = mGroundPlane.ogrePlane();
 
     // Calculate gravity vector
@@ -228,7 +197,9 @@ ObjectDropResult TradagMain::execute() {
 
     // Mark the plane inlier set if requested
     if(mMarkInlierSet && mShowPreviewWindow)
-        mOgreWindow->markVertices(mGroundPlane.vertices());
+        ogreWindow.markVertices(mGroundPlane.vertices());
+    else
+        ogreWindow.unmarkVertices(true);
 
     // Matrices to store the best result
     cv::Mat bestAttemptDepthImage;
@@ -238,10 +209,10 @@ ObjectDropResult TradagMain::execute() {
     UserAction action = UA_KEEP;
     do {
         // If animation is requested, display the window now
-        if(mShowPreviewWindow && mShowPhysicsAnimation && mOgreWindow->hidden())
-            mOgreWindow->show();
+        if(mShowPreviewWindow && mShowPhysicsAnimation && ogreWindow.hidden())
+            ogreWindow.show();
 
-        float bestAttemptScore = std::numeric_limits<float>::max(); // TODO: weighting object for score influence?
+        float bestAttemptScore = std::numeric_limits<float>::infinity(); // TODO: weighting object for score influence?
 
         bool solutionFound = false;
         unsigned int attempt = 0;
@@ -263,7 +234,7 @@ ObjectDropResult TradagMain::execute() {
 
             // Simulate (with animation only if needed)
             // This function does not return until the simulation is completed
-            SimulationResult result = mOgreWindow->startSimulation(mObjects, mGroundPlane, gravity, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation);
+            SimulationResult result = ogreWindow.startSimulation(mObjects, mRGBDScene, mGroundPlane, gravity, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation);
 
             if(result == SR_TIMEOUT) {
                 DEBUG_OUT("Simulation timed out");
@@ -283,7 +254,7 @@ ObjectDropResult TradagMain::execute() {
                 unsigned short distance;
                 PixelInfoMap pixelInfo;
                 bool onPlane;
-                if(!mOgreWindow->queryObjectInfo(*it, occlusion, distance, pixelInfo, onPlane)) {
+                if(!ogreWindow.queryObjectInfo(*it, occlusion, distance, pixelInfo, onPlane)) {
                     score = std::numeric_limits<float>::max();
                     break;
                 }
@@ -310,17 +281,17 @@ ObjectDropResult TradagMain::execute() {
                 DEBUG_OUT("Score is better than the previous best, registering current attempt as new best");
 
                 // Hide vertex markings
-                mOgreWindow->unmarkVertices();
+                ogreWindow.unmarkVertices();
 
                 // Render depth and RGB images
                 cv::Mat depthRender, rgbRender;
-                if(!mOgreWindow->render(depthRender, rgbRender)) {
+                if(!ogreWindow.render(depthRender, rgbRender)) {
                     DEBUG_OUT("Unable to render current attempt, skipping to next");
                     continue;
                 }
 
                 // Re-mark vertices (if any were previously marked)
-                mOgreWindow->markVertices();
+                ogreWindow.markVertices();
 
                 // Store this attempt
                 bestAttemptDepthImage = depthRender;
@@ -350,25 +321,20 @@ ObjectDropResult TradagMain::execute() {
         DEBUG_OUT("    Simulations performed: " << attempt);
 
         // Restore the object poses of the best attempt found
-        const std::vector<Ogre::Entity*>& entities = mOgreWindow->objectEntities();
-        if(entities.size() != mObjects.size())
-            return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), cv::Mat());
-
-        for(size_t i = 0; i < entities.size(); ++i) {
-            Ogre::SceneNode* node = entities[i]->getParentSceneNode();
-            node->setOrientation(Ogre::Quaternion(cvToOgre(mObjects[i]->getFinalRotation())));
-            cv::Vec3f pos = mObjects[i]->getFinalPosition();
-            node->setPosition(pos[0], pos[1], pos[2]);
+        for(ObjectVec::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
+            Ogre::SceneNode* node = (*it)->getOgreEntity()->getParentSceneNode();
+            node->setOrientation(Ogre::Quaternion(cvToOgre((*it)->getFinalRotation())));
+            node->setPosition(cvToOgre((*it)->getFinalPosition()));
         }
 
         // If a preview without animation was requested, display the window now
-        if(mShowPreviewWindow && !mShowPhysicsAnimation && mOgreWindow->hidden())
-            mOgreWindow->show();
+        if(mShowPreviewWindow && !mShowPhysicsAnimation && ogreWindow.hidden())
+            ogreWindow.show();
 
         // Select an action describing what to do with the result
-        if(!mOgreWindow->hidden()) {
-            action = mOgreWindow->promptUserAction();
-            mOgreWindow->hide();
+        if(!ogreWindow.hidden()) {
+            action = ogreWindow.promptUserAction();
+            ogreWindow.hide();
         }
     } while(action == UA_RESTART);
 
@@ -439,62 +405,8 @@ float TradagMain::distanceToIntervalSquared(float value, float min, float max) c
     return 0.0;
 }
 
-cv::Mat TradagMain::getDepthImage() const {
-    return mRGBDScene->getDepthImage();
-}
-
-cv::Mat TradagMain::getRgbImage() const {
-    return mRGBDScene->getRgbImage();
-}
-
-cv::Mat TradagMain::getLabelImage() const {
-    return mImageLabeling->getLabelImage();
-}
-
-LabelMap TradagMain::getLabelMap() const {
-    return mImageLabeling->getLabelMap();
-}
-
-void TradagMain::setNewScene(const cv::Mat& depthImage, const cv::Mat& rgbImage, const cv::Mat& labelImage, const LabelMap& labelMap) {
-    if(!(depthImage.rows == rgbImage.rows && depthImage.cols == rgbImage.cols
-            && depthImage.rows == labelImage.rows && depthImage.cols == labelImage.cols))
-        throw std::invalid_argument("Supplied images do not have the same dimensions");
-
-    DEBUG_OUT("Registering new images and rebuilding the scene");
-    DEBUG_OUT("Image resolution is " << depthImage.cols << "x" << depthImage.rows);
-
-    // Delete old scene and create a new one
-    CameraManager camMgrScene = mRGBDScene->getCameraManager();
-    delete mRGBDScene;
-    mRGBDScene = new RGBDScene(Strings::RgbdSceneName, mOgreWindow->getSceneManager(), depthImage, rgbImage, camMgrScene);
-
-    // Delete old labeling and create a new one
-    CameraManager camMgrLabeling = mImageLabeling->getCameraManager();
-    delete mImageLabeling;
-    mImageLabeling = new ImageLabeling(depthImage, labelImage, labelMap, camMgrLabeling);
-
-    // Notify OgreWindow of the new scene
-    mOgreWindow->setScene(mRGBDScene, true); // TODO: check if this causes use-after-free
-}
-
-bool TradagMain::loadNewScene(const std::string& depthImagePath, const std::string& rgbImagePath, const std::string& labelImagePath, const LabelMap& labelMap) {
-    DEBUG_OUT("Loading new images:");
-    DEBUG_OUT("    Depth image: " << depthImagePath);
-    DEBUG_OUT("    RGB image:   " << rgbImagePath);
-    DEBUG_OUT("    Label image: " << labelImagePath);
-
-    cv::Mat depthImage = cv::imread(depthImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
-    cv::Mat rgbImage = cv::imread(rgbImagePath, CV_LOAD_IMAGE_COLOR);
-    cv::Mat labelImage = cv::imread(labelImagePath, CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR);
-
-    if(depthImage.data && rgbImage.data && labelImage.data) {
-        setNewScene(depthImage, rgbImage, labelImage, labelMap);
-        return true;
-    }
-
-    DEBUG_OUT("Unable to load at least one of the supplied images");
-
-    return false;
+RGBDScene* TradagMain::getRGBDScene() const {
+    return mRGBDScene;
 }
 
 GroundPlane TradagMain::getGroundPlane() const {
@@ -506,7 +418,7 @@ void TradagMain::setGroundPlane(const GroundPlane& groundPlane) {
 
     // Ensure that the camera lies on the positive side of the plane
     Ogre::Plane& plane = mGroundPlane.ogrePlane();
-    if(plane.getDistance(mOgreWindow->getInitialCameraPosition()) < 0) {
+    if(plane.getDistance(OgreWindow::getSingletonPtr()->getInitialCameraPosition()) < 0) {
         plane.normal = -plane.normal;
         plane.d = -plane.d;
     }
@@ -558,16 +470,4 @@ Auto<cv::Vec3f> TradagMain::getGravity() const {
 
 void TradagMain::setGravity(const Auto<cv::Vec3f>& gravity) {
     mGravity = gravity;
-}
-
-OgreWindow* TradagMain::getOgreWindow() const {
-    return mOgreWindow;
-}
-
-RGBDScene* TradagMain::getRGBDScene() const {
-    return mRGBDScene;
-}
-
-ImageLabeling* TradagMain::getImageLabeling() const {
-    return mImageLabeling;
 }

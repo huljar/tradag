@@ -238,7 +238,7 @@ TradagMain SceneAnalyzer::createSimulator(unsigned int sceneID) {
         throw std::runtime_error("Unable to load images for ID " + boost::lexical_cast<std::string>(sceneID)
                                  + " (" + getFileName(sceneID) + ")");
 
-    return TradagMain(depthImg, rgbImg, labelImg, mLabelMap, mCameraManager);
+    return TradagMain(depthImg, rgbImg, mCameraManager);
 }
 
 std::string SceneAnalyzer::getFileName(unsigned int sceneID) const {

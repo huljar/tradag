@@ -90,7 +90,7 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, Ground
 
     // Convert normal and tolerance
     Ogre::Vector3 normalOgre = cvToOgre(normal);
-    Ogre::Radian toleranceOgre(Ogre::Degree(tolerance).valueRadians());
+    Ogre::Degree toleranceOgre(tolerance);
 
     // Iterate over label values
     Ogre::Plane finalPlane;

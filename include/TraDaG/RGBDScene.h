@@ -15,8 +15,7 @@ namespace TraDaG {
 class TraDaG::RGBDScene
 {
 public:
-    RGBDScene(const Ogre::String& name, Ogre::SceneManager* sceneManager,
-              const cv::Mat& depthImage, const cv::Mat& rgbImage,
+    RGBDScene(Ogre::SceneManager* sceneManager, const cv::Mat& depthImage, const cv::Mat& rgbImage,
               const CameraManager& cameraParams, bool autoCreateMesh = true);
     virtual ~RGBDScene();
 

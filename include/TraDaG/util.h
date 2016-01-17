@@ -81,7 +81,6 @@ namespace TraDaG {
         const std::string ResourcesCfgPath = "../config/resources.cfg";
         const std::string PluginsCfgPath = "../config/plugins.cfg";
 
-        const std::string RgbdSceneName = "rgbdSceneEntity";
         const std::string ObjRigidBodyName = "objectBody";
         const std::string PlaneRigidBodyName = "planeBody";
 

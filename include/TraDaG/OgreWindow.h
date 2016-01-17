@@ -25,7 +25,9 @@ namespace TraDaG {
 class TraDaG::OgreWindow : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
 {
 public:
-    OgreWindow();
+    static OgreWindow& getSingleton();
+    static OgreWindow* getSingletonPtr();
+
     virtual ~OgreWindow();
 
     // no copy, assign, move
@@ -35,7 +37,7 @@ public:
     OgreWindow(OgreWindow&& other) = delete;
     OgreWindow& operator=(OgreWindow&& other) = delete;
 
-    SimulationResult startSimulation(const ObjectVec& objects, const GroundPlane& plane,
+    SimulationResult startSimulation(const ObjectVec& objects, RGBDScene* scene, const GroundPlane& plane,
                                      const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate);
 
     UserAction promptUserAction();
@@ -45,9 +47,11 @@ public:
 
     bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = NULL);
 
-    void resetCamera();
+    void invalidate(const ObjectVec& objects, const RGBDScene* scene);
+    void invalidate(const DroppableObject* object);
+    void invalidate(const RGBDScene* scene);
 
-    void setScene(RGBDScene* scene, bool updateCameraFOV = false);
+    void resetCamera();
 
     void markVertices(const std::vector<Ogre::Vector3>& vertices = std::vector<Ogre::Vector3>());
     void unmarkVertices(bool destroy = false);
@@ -57,8 +61,6 @@ public:
     void hide();
 
     Ogre::SceneManager* getSceneManager() const;
-    const std::vector<Ogre::Entity*>& objectEntities() const;
-    std::vector<Ogre::Entity*> getObjectEntities() const;
 
     Ogre::Vector3 getInitialCameraPosition() const;
     Ogre::Vector3 getInitialCameraLookAt() const;
@@ -90,16 +92,16 @@ protected:
         AWAITING_USER_INPUT
     } SimulationStatus;
 
-    virtual bool stepSimulationWithIdleCheck(Ogre::Real timeElapsed);
+    bool stepSimulationWithIdleCheck(Ogre::Real timeElapsed);
 
-    virtual bool getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3& result);
+    bool getSceneIntersectionPoint(int mouseX, int mouseY, Ogre::Vector3& result);
 
-    virtual void loadSceneCollisionShapes(const std::vector<Ogre::Vector3>& excludeList = std::vector<Ogre::Vector3>());
+    void loadSceneCollisionShapes(const std::vector<Ogre::Vector3>& excludeList = std::vector<Ogre::Vector3>());
 
-    virtual OgreBulletCollisions::CollisionShape* createConvexHull(Ogre::Entity* object);
+    OgreBulletCollisions::CollisionShape* createConvexHull(Ogre::Entity* object);
 
-    virtual void setUpRenderSettings();
-    virtual void invalidateRenderSettings();
+    void setUpRenderSettings();
+    void invalidateRenderSettings();
 
     // OGRE
     Ogre::Root* mRoot;
@@ -122,7 +124,9 @@ protected:
     // Scene
     RGBDScene* mRGBDScene;
     Ogre::SceneNode* mRGBDSceneNode;
+
     Ogre::ManualObject* mVertexMarkings;
+    Ogre::SceneNode* mVertexMarkingsNode;
 
     // Camera
     Ogre::Vector3 mInitialCameraPosition;
@@ -156,6 +160,10 @@ protected:
     unsigned char* mRenderPixelBoxRGBData;
 
 private:
+    static OgreWindow* msSingleton;
+
+    OgreWindow();
+
     void initializeOgre();
     void shutDownOgre();
 

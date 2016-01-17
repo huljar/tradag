@@ -101,8 +101,13 @@ int main(int argc, char** argv)
         //obj2->setInitialAzimuth(M_PI_2);
 
         // Compute ground plane
+        // TODO: sa.createImageLabeling(ID)
+        cv::Mat depthImg, rgbImg, labelImg;
+        sa.readImages(*it, depthImg, rgbImg, labelImg);
+
+        ImageLabeling labeling(depthImg, labelImg, labelMap, camManager);
         GroundPlane plane;
-        if(tradag.getImageLabeling()->findPlaneForLabel(labelName, plane) != PF_SUCCESS) {
+        if(labeling.findPlaneForLabel(labelName, plane) != PF_SUCCESS) {
             std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
             return 1;
         }
