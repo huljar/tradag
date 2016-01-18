@@ -3,7 +3,7 @@
 
 #include <TraDaG/CameraManager.h>
 #include <TraDaG/GroundPlane.h>
-#include <TraDaG/TradagMain.h>
+#include <TraDaG/Simulator.h>
 #include <TraDaG/util.h>
 
 #include <opencv2/core/core.hpp>
@@ -45,7 +45,7 @@ public:
 
     bool readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage);
 
-    TradagMain createSimulator(unsigned int sceneID);
+    Simulator createSimulator(unsigned int sceneID);
 
     std::string getFileName(unsigned int sceneID) const;
 

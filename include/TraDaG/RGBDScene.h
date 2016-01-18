@@ -30,7 +30,7 @@ public:
     Ogre::ManualObject* getManualObject() const;
 
     cv::Mat getDepthImage() const;
-    cv::Mat getRgbImage() const;
+    cv::Mat getRGBImage() const;
 
     CameraManager getCameraManager() const;
     CameraManager& cameraManager();

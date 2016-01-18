@@ -16,7 +16,7 @@ INCLUDEPATH += ./include
 SOURCES += main.cpp \
     OgreWindow.cpp \
     RGBDScene.cpp \
-    TradagMain.cpp \
+    Simulator.cpp \
     ImageLabeling.cpp \
     DroppableObject.cpp \
     GroundPlane.cpp \
@@ -28,7 +28,7 @@ HEADERS += include/OgreBites/SdkCameraMan.h \
     include/OgreBites/OgreRay.h \
     OgreWindow.h \
     RGBDScene.h \
-    TradagMain.h \
+    Simulator.h \
     Ransac.h \
     util.h \
     ImageLabeling.h \

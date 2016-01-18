@@ -1,4 +1,4 @@
-#include <TraDaG/TradagMain.h>
+#include <TraDaG/Simulator.h>
 #include <TraDaG/OgreWindow.h>
 #include <TraDaG/RGBDScene.h>
 #include <TraDaG/DroppableObject.h>
@@ -74,61 +74,143 @@ int main(int argc, char** argv)
     // --- BEGIN TESTING --- //
     SceneAnalyzer sa(depthPath, rgbPath, labelPath, camManager, labelMap);
 
-    std::vector<unsigned int> floorIDs = sa.findScenesByLabel("floor");
+    std::vector<unsigned int> ids = sa.findScenesByLabel(labelName);
 
-    for(std::vector<unsigned int>::iterator it = floorIDs.begin(); it != floorIDs.end(); ++it) {
-        std::cout << "Simulating for ID " << *it << std::endl;
-        TradagMain tradag = sa.createSimulator(*it);
+    Simulator tradag = sa.createSimulator(ids[0]);
+    Simulator tradag2 = sa.createSimulator(ids[1]);
 
-        tradag.setShowPreviewWindow(preview);
-        tradag.setShowPhysicsAnimation(animate);
-        //tradag.setDebugMarkInlierSet(true);
-        //tradag.setDebugDrawBulletShapes(true);
-        //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
-        tradag.setMaxAttempts(5);
+    tradag.setShowPreviewWindow(preview);
+    tradag.setShowPhysicsAnimation(animate);
+    //tradag.setDebugMarkInlierSet(true);
+    //tradag.setDebugDrawBulletShapes(true);
+    //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
+    tradag.setMaxAttempts(5);
 
-        // Create an object
-        DroppableObject* obj = tradag.createObject(meshName);
-        obj->setDesiredOcclusion(0.2, 0.4);
-        obj->setInitialAzimuth(M_PI_2);
-        obj->setInitialTorque(5, 5, 5);
-        //obj->setInitialVelocity(400, 100, -400);
+    // Create an object
+    DroppableObject* obj = tradag.createObject(meshName);
+    obj->setDesiredOcclusion(0.2, 0.4);
+    obj->setInitialAzimuth(M_PI_2);
+    obj->setInitialTorque(5, 5, 5);
+    //obj->setInitialVelocity(400, 100, -400);
 
-        // Create another object
-        DroppableObject* obj2 = tradag.createObject("003.mesh");
-        obj2->setDesiredOcclusion(0.0, 0.5);
-        //obj2->setInitialVelocity(400, 100, -400);
-        //obj2->setInitialAzimuth(M_PI_2);
+    tradag2.setShowPreviewWindow(preview);
+    tradag2.setShowPhysicsAnimation(animate);
 
-        // Compute ground plane
-        // TODO: sa.createImageLabeling(ID)
-        cv::Mat depthImg, rgbImg, labelImg;
-        sa.readImages(*it, depthImg, rgbImg, labelImg);
+    // Create another object
+    DroppableObject* obj2 = tradag2.createObject("003.mesh");
+    obj2->setDesiredOcclusion(0.0, 0.5);
+    //obj2->setInitialVelocity(400, 100, -400);
+    obj2->setInitialAzimuth(M_PI_2);
+    obj2->setInitialVelocity(0, 500, 0);
+    obj2->setInitialTorque(8, 8 ,8);
 
-        ImageLabeling labeling(depthImg, labelImg, labelMap, camManager);
-        GroundPlane plane;
-        if(labeling.findPlaneForLabel(labelName, plane) != PF_SUCCESS) {
-            std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
-            return 1;
-        }
-        tradag.setGroundPlane(plane);
+    // TODO: sa.createImageLabeling(ID)
 
-        // Execute simulation
-        ObjectDropResult result = tradag.execute();
+    // Compute ground plane
+    cv::Mat depthImg, rgbImg, labelImg;
+    sa.readImages(ids[0], depthImg, rgbImg, labelImg);
 
-        // Evaluate result
-        if(result.status == OD_SUCCESS) {
-            std::cout << "Success!" << std::endl
-                      << "Occlusion: " << obj->getFinalOcclusion() << std::endl
-                      << "Rotation: " << obj->getFinalRotation() << std::endl
-                      << "Position: " << obj->getFinalPosition() << std::endl;
+    ImageLabeling labeling(depthImg, labelImg, labelMap, camManager);
+    GroundPlane plane;
+    if(labeling.findPlaneForLabel(labelName, plane) != PF_SUCCESS) {
+        std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
+        return 1;
+    }
+    tradag.setGroundPlane(plane);
 
-            cv::namedWindow("Depth");
-            cv::imshow("Depth", result.depthImage);
-            cv::namedWindow("RGB");
-            cv::imshow("RGB", result.rgbImage);
-            cv::waitKey();
-        }
+    // Compute ground plane
+    sa.readImages(ids[1], depthImg, rgbImg, labelImg);
+
+    labeling = ImageLabeling(depthImg, labelImg, labelMap, camManager);
+    if(labeling.findPlaneForLabel(labelName, plane) != PF_SUCCESS) {
+        std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
+        return 1;
+    }
+    tradag2.setGroundPlane(plane);
+
+    // Execute simulation
+    ObjectDropResult result = tradag.execute();
+
+    // Evaluate result
+    if(result.status == OD_SUCCESS) {
+        std::cout << "Success!" << std::endl
+                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
+                  << "Rotation: " << obj->getFinalRotation() << std::endl
+                  << "Position: " << obj->getFinalPosition() << std::endl;
+
+        cv::namedWindow("Depth");
+        cv::imshow("Depth", result.depthImage);
+        cv::namedWindow("RGB");
+        cv::imshow("RGB", result.rgbImage);
+        cv::waitKey();
+    }
+
+    // Execute simulation
+    result = tradag2.execute();
+
+    // Evaluate result
+    if(result.status == OD_SUCCESS) {
+        std::cout << "Success!" << std::endl
+                  << "Occlusion: " << obj2->getFinalOcclusion() << std::endl
+                  << "Rotation: " << obj2->getFinalRotation() << std::endl
+                  << "Position: " << obj2->getFinalPosition() << std::endl;
+
+        cv::namedWindow("Depth");
+        cv::imshow("Depth", result.depthImage);
+        cv::namedWindow("RGB");
+        cv::imshow("RGB", result.rgbImage);
+        cv::waitKey();
+    }
+
+    // Execute simulation
+    result = tradag.execute();
+
+    // Evaluate result
+    if(result.status == OD_SUCCESS) {
+        std::cout << "Success!" << std::endl
+                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
+                  << "Rotation: " << obj->getFinalRotation() << std::endl
+                  << "Position: " << obj->getFinalPosition() << std::endl;
+
+        cv::namedWindow("Depth");
+        cv::imshow("Depth", result.depthImage);
+        cv::namedWindow("RGB");
+        cv::imshow("RGB", result.rgbImage);
+        cv::waitKey();
+    }
+
+    // Execute simulation
+    result = tradag.execute();
+
+    // Evaluate result
+    if(result.status == OD_SUCCESS) {
+        std::cout << "Success!" << std::endl
+                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
+                  << "Rotation: " << obj->getFinalRotation() << std::endl
+                  << "Position: " << obj->getFinalPosition() << std::endl;
+
+        cv::namedWindow("Depth");
+        cv::imshow("Depth", result.depthImage);
+        cv::namedWindow("RGB");
+        cv::imshow("RGB", result.rgbImage);
+        cv::waitKey();
+    }
+
+    // Execute simulation
+    result = tradag2.execute();
+
+    // Evaluate result
+    if(result.status == OD_SUCCESS) {
+        std::cout << "Success!" << std::endl
+                  << "Occlusion: " << obj2->getFinalOcclusion() << std::endl
+                  << "Rotation: " << obj2->getFinalRotation() << std::endl
+                  << "Position: " << obj2->getFinalPosition() << std::endl;
+
+        cv::namedWindow("Depth");
+        cv::imshow("Depth", result.depthImage);
+        cv::namedWindow("RGB");
+        cv::imshow("RGB", result.rgbImage);
+        cv::waitKey();
     }
 
     return 0;

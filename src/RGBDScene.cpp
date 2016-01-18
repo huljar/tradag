@@ -152,7 +152,7 @@ cv::Mat RGBDScene::getDepthImage() const {
     return mDepthImage;
 }
 
-cv::Mat RGBDScene::getRgbImage() const {
+cv::Mat RGBDScene::getRGBImage() const {
     return mRGBImage;
 }
 

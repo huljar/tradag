@@ -1,5 +1,5 @@
-#ifndef TRADAGMAIN_H
-#define TRADAGMAIN_H
+#ifndef SIMULATOR_H
+#define SIMULATOR_H
 
 #include <TraDaG/CameraManager.h>
 #include <TraDaG/OgreWindow.h>
@@ -18,26 +18,26 @@
 #include <vector>
 
 namespace TraDaG {
-    class TradagMain;
+    class Simulator;
 }
 
-class TraDaG::TradagMain
+class TraDaG::Simulator
 {
 public:
     // TODO: check depth/label image for single channel, check rgb image for color image
     // Constructors
-    TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams);
+    Simulator(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams);
 
-    TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const CameraManager& cameraParams);
+    Simulator(const std::string& depthImagePath, const std::string& rgbImagePath, const CameraManager& cameraParams);
 
     // Destructor
-    ~TradagMain();
+    ~Simulator();
 
     // Move constructor
-    TradagMain(TradagMain&& other);
+    Simulator(Simulator&& other);
 
     // Move assignment operator
-    TradagMain& operator=(TradagMain&& other);
+    Simulator& operator=(Simulator&& other);
 
     DroppableObject* createObject(const std::string& meshName);
     void destroyObject(DroppableObject* object);
@@ -81,7 +81,7 @@ public:
     void setGravity(const Auto<cv::Vec3f>& gravity);
 
 private:
-    TradagMain();
+    Simulator();
     void init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams);
 
     Ogre::Vector3 computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
@@ -105,4 +105,4 @@ private:
 
 };
 
-#endif // TRADAGMAIN_H
+#endif // SIMULATOR_H

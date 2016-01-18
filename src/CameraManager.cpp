@@ -104,6 +104,7 @@ cv::Vec2i CameraManager::getRGBForDepth(int u, int v, unsigned short d) const {
 }
 
 cv::Vec2i CameraManager::getLabelForDepth(int u, int v, unsigned short d) const {
+    (void)d;
     return cv::Vec2i(u, v);
 }
 

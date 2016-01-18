@@ -71,9 +71,9 @@ namespace TraDaG {
         {
         }
 
-        const ObjectDropStatus status;
-        const cv::Mat depthImage;
-        const cv::Mat rgbImage;
+        ObjectDropStatus status;
+        cv::Mat depthImage;
+        cv::Mat rgbImage;
     };
 
     namespace Strings {

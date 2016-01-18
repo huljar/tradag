@@ -1,4 +1,4 @@
-#include <TraDaG/TradagMain.h>
+#include <TraDaG/Simulator.h>
 #include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
 
@@ -14,8 +14,8 @@
 
 using namespace TraDaG;
 
-TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams)
-    : TradagMain()
+Simulator::Simulator(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams)
+    : Simulator()
 {
     DEBUG_OUT("Constructing Simulator with OpenCV matrices");
 
@@ -23,8 +23,8 @@ TradagMain::TradagMain(const cv::Mat& depthImage, const cv::Mat& rgbImage, const
     init(depthImage, rgbImage, cameraParams);
 }
 
-TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgbImagePath, const CameraManager& cameraParams)
-    : TradagMain()
+Simulator::Simulator(const std::string& depthImagePath, const std::string& rgbImagePath, const CameraManager& cameraParams)
+    : Simulator()
 {
     DEBUG_OUT("Constructing Simulator with image paths:");
     DEBUG_OUT("    Depth image: " << depthImagePath);
@@ -43,7 +43,7 @@ TradagMain::TradagMain(const std::string& depthImagePath, const std::string& rgb
     init(depthImage, rgbImage, cameraParams);
 }
 
-TradagMain::TradagMain()
+Simulator::Simulator()
     : mRGBDScene(NULL)
     , mMaxAttempts(Defaults::MaxAttempts)
     , mShowPreviewWindow(Defaults::ShowPreviewWindow)
@@ -55,13 +55,13 @@ TradagMain::TradagMain()
 {
 }
 
-TradagMain::~TradagMain() {
+Simulator::~Simulator() {
     destroyAllObjects();
     OgreWindow::getSingletonPtr()->invalidate(mRGBDScene);
     delete mRGBDScene;
 }
 
-TradagMain::TradagMain(TradagMain&& other)
+Simulator::Simulator(Simulator&& other)
     : mRGBDScene(other.mRGBDScene)
     , mObjects(std::move(other.mObjects))
     , mGroundPlane(std::move(other.mGroundPlane))
@@ -77,7 +77,7 @@ TradagMain::TradagMain(TradagMain&& other)
     other.mObjects.clear();
 }
 
-TradagMain& TradagMain::operator=(TradagMain&& other) {
+Simulator& Simulator::operator=(Simulator&& other) {
     // Destroy self
     destroyAllObjects();
     OgreWindow::getSingletonPtr()->invalidate(mRGBDScene);
@@ -104,7 +104,7 @@ TradagMain& TradagMain::operator=(TradagMain&& other) {
     return *this;
 }
 
-void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams) {
+void Simulator::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams) {
     if(!(depthImage.rows == rgbImage.rows && depthImage.cols == rgbImage.cols))
         throw std::invalid_argument("Supplied images do not have the same dimensions");
 
@@ -115,13 +115,13 @@ void TradagMain::init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const 
                                depthImage, rgbImage, cameraParams);
 }
 
-DroppableObject* TradagMain::createObject(const std::string& meshName) {
+DroppableObject* Simulator::createObject(const std::string& meshName) {
     DroppableObject* obj = new DroppableObject(meshName, OgreWindow::getSingletonPtr()->getSceneManager());
     mObjects.push_back(obj);
     return obj;
 }
 
-void TradagMain::destroyObject(DroppableObject* object) {
+void Simulator::destroyObject(DroppableObject* object) {
     ObjectVec::iterator objPos = std::find(mObjects.begin(), mObjects.end(), object);
     if(objPos != mObjects.end())
         mObjects.erase(objPos);
@@ -130,14 +130,14 @@ void TradagMain::destroyObject(DroppableObject* object) {
     delete object;
 }
 
-void TradagMain::destroyObject(unsigned int index) {
+void Simulator::destroyObject(unsigned int index) {
     assert(index < mObjects.size());
     OgreWindow::getSingletonPtr()->invalidate(mObjects[index]);
     delete mObjects[index];
     mObjects.erase(mObjects.begin() + index);
 }
 
-void TradagMain::destroyAllObjects() {
+void Simulator::destroyAllObjects() {
     OgreWindow::getSingletonPtr()->invalidate(mObjects, nullptr);
 
     for(ObjectVec::iterator it = mObjects.begin(); it != mObjects.end(); ++it)
@@ -146,23 +146,23 @@ void TradagMain::destroyAllObjects() {
     mObjects.clear();
 }
 
-ObjectVec::iterator TradagMain::beginObjects() {
+ObjectVec::iterator Simulator::beginObjects() {
     return mObjects.begin();
 }
 
-ObjectVec::const_iterator TradagMain::beginObjects() const {
+ObjectVec::const_iterator Simulator::beginObjects() const {
     return mObjects.cbegin();
 }
 
-ObjectVec::iterator TradagMain::endObjects() {
+ObjectVec::iterator Simulator::endObjects() {
     return mObjects.end();
 }
 
-ObjectVec::const_iterator TradagMain::endObjects() const {
+ObjectVec::const_iterator Simulator::endObjects() const {
     return mObjects.cend();
 }
 
-ObjectDropResult TradagMain::execute() {
+ObjectDropResult Simulator::execute() {
     DEBUG_OUT("Executing simulation with the following parameters:");
     DEBUG_OUT("    Number of objects: " << mObjects.size());
     DEBUG_OUT("    Plane normal: " << mGroundPlane.ogrePlane().normal);
@@ -355,14 +355,14 @@ ObjectDropResult TradagMain::execute() {
     return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), cv::Mat());
 }
 
-Ogre::Vector3 TradagMain::computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
+Ogre::Vector3 Simulator::computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
     std::uniform_int_distribution<size_t> distribution(0, inliers.size() - 1);
     Ogre::Vector3 point = inliers[distribution(mRandomEngine)];
 
     return point - Constants::ObjectDropDistance * gravity.normalisedCopy();
 }
 
-Ogre::Matrix3 TradagMain::computeRotation(const float azimuth, const Ogre::Vector3& gravity) const {
+Ogre::Matrix3 Simulator::computeRotation(const float azimuth, const Ogre::Vector3& gravity) const {
     // Find rotation matrix so the object starts upright
     // (see https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d)
     Ogre::Vector3 a = Ogre::Vector3::UNIT_Y;
@@ -395,7 +395,7 @@ Ogre::Matrix3 TradagMain::computeRotation(const float azimuth, const Ogre::Vecto
     return rotation;
 }
 
-float TradagMain::distanceToIntervalSquared(float value, float min, float max) const {
+float Simulator::distanceToIntervalSquared(float value, float min, float max) const {
     if(value < min)
         return std::pow(min - value, 2);
 
@@ -405,15 +405,15 @@ float TradagMain::distanceToIntervalSquared(float value, float min, float max) c
     return 0.0;
 }
 
-RGBDScene* TradagMain::getRGBDScene() const {
+RGBDScene* Simulator::getRGBDScene() const {
     return mRGBDScene;
 }
 
-GroundPlane TradagMain::getGroundPlane() const {
+GroundPlane Simulator::getGroundPlane() const {
     return mGroundPlane;
 }
 
-void TradagMain::setGroundPlane(const GroundPlane& groundPlane) {
+void Simulator::setGroundPlane(const GroundPlane& groundPlane) {
     mGroundPlane = groundPlane;
 
     // Ensure that the camera lies on the positive side of the plane
@@ -424,50 +424,50 @@ void TradagMain::setGroundPlane(const GroundPlane& groundPlane) {
     }
 }
 
-unsigned int TradagMain::getMaxAttempts() const {
+unsigned int Simulator::getMaxAttempts() const {
     return mMaxAttempts;
 }
 
-void TradagMain::setMaxAttempts(unsigned int maxAttempts) {
+void Simulator::setMaxAttempts(unsigned int maxAttempts) {
     mMaxAttempts = maxAttempts;
 }
 
-bool TradagMain::showPreviewWindow() const {
+bool Simulator::showPreviewWindow() const {
     return mShowPreviewWindow;
 }
 
-void TradagMain::setShowPreviewWindow(bool showWindow) {
+void Simulator::setShowPreviewWindow(bool showWindow) {
     mShowPreviewWindow = showWindow;
 }
 
-bool TradagMain::showPhysicsAnimation() const {
+bool Simulator::showPhysicsAnimation() const {
     return mShowPhysicsAnimation;
 }
 
-void TradagMain::setShowPhysicsAnimation(bool showAnimation) {
+void Simulator::setShowPhysicsAnimation(bool showAnimation) {
     mShowPhysicsAnimation = showAnimation;
 }
 
-bool TradagMain::debugMarkInlierSet() const {
+bool Simulator::debugMarkInlierSet() const {
     return mMarkInlierSet;
 }
 
-void TradagMain::setDebugMarkInlierSet(bool markInliers) {
+void Simulator::setDebugMarkInlierSet(bool markInliers) {
     mMarkInlierSet = markInliers;
 }
 
-bool TradagMain::debugDrawBulletShapes() const {
+bool Simulator::debugDrawBulletShapes() const {
     return mDrawBulletShapes;
 }
 
-void TradagMain::setDebugDrawBulletShapes(bool drawShapes) {
+void Simulator::setDebugDrawBulletShapes(bool drawShapes) {
     mDrawBulletShapes = drawShapes;
 }
 
-Auto<cv::Vec3f> TradagMain::getGravity() const {
+Auto<cv::Vec3f> Simulator::getGravity() const {
     return mGravity;
 }
 
-void TradagMain::setGravity(const Auto<cv::Vec3f>& gravity) {
+void Simulator::setGravity(const Auto<cv::Vec3f>& gravity) {
     mGravity = gravity;
 }
