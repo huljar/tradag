@@ -1,12 +1,14 @@
 #include <TraDaG/GroundPlane.h>
-#include <TraDaG/util.h>
 #include <TraDaG/debug.h>
+#include <TraDaG/util.h>
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
+#include <cmath>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 using namespace TraDaG;
 namespace fs = boost::filesystem;
@@ -25,7 +27,8 @@ GroundPlane::GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vecto
     , mRestitution(Defaults::PlaneRestitution)
     , mFriction(Defaults::PlaneFriction)
 {
-    if(!mPlane.normal.isZeroLength()) mPlane.normalise();
+    if(!mPlane.normal.isZeroLength())
+        mPlane.normalise();
 }
 
 bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const {
@@ -75,8 +78,10 @@ bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const 
 
 void GroundPlane::leastSquaresFit() {
     if(mVertices.size() >= 3) {
-        // TODO: implement
+
     }
+
+    throw std::logic_error("Least squares fit is not yet implemented");
 }
 
 bool GroundPlane::isPlaneDefined() const {
@@ -93,6 +98,7 @@ Ogre::Plane& GroundPlane::ogrePlane() {
 
 void GroundPlane::setOgrePlane(const Ogre::Plane& plane) {
     mPlane = plane;
+    mPlane.normalise();
 }
 
 std::vector<Ogre::Vector3> GroundPlane::getVertices() const {

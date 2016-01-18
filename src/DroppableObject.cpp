@@ -1,6 +1,7 @@
 #include <TraDaG/DroppableObject.h>
 
 #include <stdexcept>
+#include <utility>
 
 using namespace TraDaG;
 
@@ -40,10 +41,10 @@ std::pair<float, float> DroppableObject::getDesiredOcclusion() const {
 }
 
 void DroppableObject::setDesiredOcclusion(const std::pair<float, float>& occlusion) {
-    if(checkIntervalValid(occlusion.first, occlusion.second))
+    if(checkOcclusionValid(occlusion.first, occlusion.second))
         mDesiredOcclusion = occlusion;
     else
-        throw std::invalid_argument("The provided occlusion interval does not lie in [0, 1] or max is larger than min");
+        throw std::invalid_argument("The provided occlusion interval does not lie in [0, 1] or max is smaller than min");
 }
 
 void DroppableObject::setDesiredOcclusion(float minOcclusion, float maxOcclusion) {
@@ -66,11 +67,14 @@ std::pair<unsigned short, unsigned short> DroppableObject::getDesiredDistance() 
 }
 
 void DroppableObject::setDesiredDistance(const std::pair<unsigned short, unsigned short>& distance) {
-    mDesiredDistance = distance;
+    if(checkDistanceValid(distance.first, distance.second))
+        mDesiredDistance = distance;
+    else
+        throw std::invalid_argument("The provided max distance is smaller than min distance");
 }
 
 void DroppableObject::setDesiredDistance(unsigned short minDistance, unsigned short maxDistance) {
-    mDesiredDistance = std::make_pair(minDistance, maxDistance);
+    setDesiredDistance(std::make_pair(minDistance, maxDistance));
 }
 
 unsigned short DroppableObject::getFinalDistance() const {
@@ -206,11 +210,18 @@ void DroppableObject::setMass(float mass) {
     mMass = mass;
 }
 
-bool DroppableObject::checkIntervalValid(float min, float max) const {
+bool DroppableObject::checkOcclusionValid(float min, float max) const {
     if(max < min)
         return false;
 
     if(min < 0.0 || max > 1.0)
+        return false;
+
+    return true;
+}
+
+bool DroppableObject::checkDistanceValid(unsigned short min, unsigned short max) const {
+    if(max < min)
         return false;
 
     return true;

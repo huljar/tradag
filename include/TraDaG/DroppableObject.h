@@ -3,11 +3,13 @@
 
 #include <TraDaG/util.h>
 
-#include <Ogre.h>
+#include <OGRE/OgreEntity.h>
+#include <OGRE/OgreSceneManager.h>
 
 #include <opencv2/core/core.hpp>
 
 #include <string>
+#include <utility>
 
 namespace TraDaG {
     class DroppableObject;
@@ -80,7 +82,8 @@ public:
     void setMass(float mass);
 
 protected:
-    bool checkIntervalValid(float min, float max) const;
+    bool checkOcclusionValid(float min, float max) const;
+    bool checkDistanceValid(unsigned short min, unsigned short max) const;
 
     Ogre::SceneManager* mSceneMgr;
     Ogre::Entity* mEntity;

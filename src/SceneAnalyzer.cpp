@@ -1,5 +1,4 @@
 #include <TraDaG/SceneAnalyzer.h>
-#include <TraDaG/ImageLabeling.h>
 #include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
 
@@ -22,8 +21,8 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
     : mDepthPath(depthDirPath)
     , mRGBPath(rgbDirPath)
     , mLabelPath(labelDirPath)
-    , mLabelMap(labelMap)
     , mCameraManager(cameraParams)
+    , mLabelMap(labelMap)
     , mRandomEngine(std::chrono::system_clock::now().time_since_epoch().count())
 {
     DEBUG_OUT("Constructing SceneAnalyzer:");

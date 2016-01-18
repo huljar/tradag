@@ -1,7 +1,11 @@
 #ifndef GROUNDPLANE_H
 #define GROUNDPLANE_H
 
-#include <Ogre.h>
+#include <OGRE/OgrePlane.h>
+#include <OGRE/OgreVector3.h>
+
+#include <string>
+#include <vector>
 
 namespace TraDaG {
     class GroundPlane;

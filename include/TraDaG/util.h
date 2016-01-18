@@ -1,13 +1,15 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include <Ogre.h>
+#include <OGRE/OgreMath.h>
+#include <OGRE/OgreVector3.h>
 
 #include <opencv2/core/core.hpp>
 
 #include <limits>
-#include <string>
 #include <map>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace TraDaG {

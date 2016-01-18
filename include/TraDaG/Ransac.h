@@ -1,13 +1,13 @@
 #ifndef RANSAC_H
 #define RANSAC_H
 
-#include <chrono>
-#include <functional>
-#include <vector>
 #include <array>
-#include <random>
-#include <limits>
+#include <chrono>
 #include <cmath>
+#include <functional>
+#include <limits>
+#include <random>
+#include <vector>
 
 namespace TraDaG {
     template<class P, class M, size_t d> class Ransac;

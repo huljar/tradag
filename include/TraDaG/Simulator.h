@@ -2,19 +2,19 @@
 #define SIMULATOR_H
 
 #include <TraDaG/CameraManager.h>
-#include <TraDaG/OgreWindow.h>
-#include <TraDaG/RGBDScene.h>
-#include <TraDaG/ImageLabeling.h>
 #include <TraDaG/DroppableObject.h>
 #include <TraDaG/GroundPlane.h>
+#include <TraDaG/OgreWindow.h>
+#include <TraDaG/RGBDScene.h>
 #include <TraDaG/util.h>
 
-#include <Ogre.h>
+#include <OGRE/OgreMatrix3.h>
+#include <OGRE/OgreVector3.h>
 
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/core/core.hpp>
 
 #include <random>
+#include <string>
 #include <vector>
 
 namespace TraDaG {

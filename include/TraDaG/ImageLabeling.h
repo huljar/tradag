@@ -5,13 +5,11 @@
 #include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
 
-#include <Ogre.h>
+#include <opencv2/core/core.hpp>
 
-#include <opencv2/imgproc/imgproc.hpp>
-
-#include <array>
 #include <limits>
 #include <random>
+#include <string>
 
 namespace TraDaG {
     class ImageLabeling;

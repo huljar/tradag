@@ -1,8 +1,17 @@
 #include <TraDaG/OgreWindow.h>
-#include <TraDaG/util.h>
 #include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
 
+#include <OGRE/OgreColourValue.h>
+#include <OGRE/OgreConfigFile.h>
+#include <OGRE/OgreException.h>
+#include <OGRE/OgreMath.h>
+#include <OGRE/OgreRay.h>
+#include <OGRE/OgreRenderSystem.h>
+#include <OGRE/OgreResourceGroupManager.h>
+#include <OGRE/OgreStringVector.h>
+#include <OGRE/OgreTextureManager.h>
+#include <OGRE/OgreViewport.h>
 #include <OGRE/Overlay/OgreOverlay.h>
 #include <OGRE/Overlay/OgreOverlayManager.h>
 #include <OGRE/Overlay/OgreBorderPanelOverlayElement.h>
@@ -10,16 +19,19 @@
 
 #include <OgreBites/OgreRay.h>
 
-#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsStaticPlaneShape.h>
 #include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsConvexHullShape.h>
 #include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsSphereShape.h>
+#include <OgreBullet/Collisions/Shapes/OgreBulletCollisionsStaticPlaneShape.h>
 
-#include <BulletCollision/CollisionShapes/btConvexHullShape.h>
-#include <BulletCollision/CollisionShapes/btShapeHull.h>
+#include <bullet/BulletCollision/CollisionShapes/btConvexHullShape.h>
+#include <bullet/BulletCollision/CollisionShapes/btShapeHull.h>
+#include <bullet/LinearMath/btScalar.h>
+
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include <limits>
-#include <string>
 #include <stdexcept>
+#include <string>
 
 using namespace TraDaG;
 
@@ -38,36 +50,36 @@ OgreWindow* OgreWindow::getSingletonPtr() {
 }
 
 OgreWindow::OgreWindow()
-    : mRoot(NULL)
-    , mPreviewWindow(NULL)
-    , mSceneMgr(NULL)
-    , mPreviewCamera(NULL)
-    , mPreviewCameraMan(NULL)
-    , mLogManager(NULL)
-    , mOverlaySystem(NULL)
-    , mInputManager(NULL)
-    , mKeyboard(NULL)
-    , mMouse(NULL)
-    , mRGBDScene(NULL)
-    , mRGBDSceneNode(NULL)
-    , mVertexMarkings(NULL)
-    , mVertexMarkingsNode(NULL)
+    : mRoot(nullptr)
+    , mPreviewWindow(nullptr)
+    , mSceneMgr(nullptr)
+    , mPreviewCamera(nullptr)
+    , mPreviewCameraMan(nullptr)
+    , mLogManager(nullptr)
+    , mOverlaySystem(nullptr)
+    , mInputManager(nullptr)
+    , mKeyboard(nullptr)
+    , mMouse(nullptr)
+    , mRGBDScene(nullptr)
+    , mRGBDSceneNode(nullptr)
+    , mVertexMarkings(nullptr)
+    , mVertexMarkingsNode(nullptr)
     , mInitialCameraPosition(Constants::DefaultCameraPosition)
     , mInitialCameraLookAt(Constants::DefaultCameraLookAt)
-    , mWorld(NULL)
-    , mDebugDrawer(NULL)
+    , mWorld(nullptr)
+    , mDebugDrawer(nullptr)
     , mBounds(Ogre::Vector3(-10000, -10000, -10000), Ogre::Vector3(10000, 10000, 10000))
     , mIdleTime(0)
     , mTotalTime(0)
     , mHaltRendering(false)
     , mStatus(READY)
     , mActionChosen(UA_KEEP)
-    , mRenderWindow(NULL)
-    , mRenderCamera(NULL)
-    , mRenderPixelBoxDepth(NULL)
-    , mRenderPixelBoxDepthData(NULL)
-    , mRenderPixelBoxRGB(NULL)
-    , mRenderPixelBoxRGBData(NULL)
+    , mRenderWindow(nullptr)
+    , mRenderCamera(nullptr)
+    , mRenderPixelBoxDepth(nullptr)
+    , mRenderPixelBoxDepthData(nullptr)
+    , mRenderPixelBoxRGB(nullptr)
+    , mRenderPixelBoxRGBData(nullptr)
 {
     initializeOgre();
 }
@@ -107,7 +119,7 @@ void OgreWindow::initializeOgre() {
 
     // Configure the render system to use
     const Ogre::RenderSystemList& rsList = mRoot->getAvailableRenderers();
-    Ogre::RenderSystem* rs = NULL;
+    Ogre::RenderSystem* rs = nullptr;
 
     Ogre::StringVector renderOrder;
 #if OGRE_PLATFORM == OGRE_PLATFORM_WIN32
@@ -250,7 +262,7 @@ void OgreWindow::shutDownOIS() {
         mInputManager->destroyInputObject(mKeyboard);
 
         OIS::InputManager::destroyInputSystem(mInputManager);
-        mInputManager = NULL;
+        mInputManager = nullptr;
     }
 }
 
@@ -281,10 +293,10 @@ void OgreWindow::shutDownBullet() {
         Ogre::LogManager::getSingletonPtr()->logMessage("*** Shutting down Bullet ***");
 
         delete mWorld;
-        mWorld = NULL;
+        mWorld = nullptr;
 
         delete mDebugDrawer;
-        mDebugDrawer = NULL;
+        mDebugDrawer = nullptr;
     }
 }
 
@@ -706,7 +718,7 @@ void OgreWindow::unmarkVertices(bool destroy) {
         mVertexMarkings->detachFromParent();
         if(destroy) {
             mSceneMgr->destroyManualObject(mVertexMarkings);
-            mVertexMarkings = NULL;
+            mVertexMarkings = nullptr;
         }
     }
 }
@@ -1028,12 +1040,12 @@ void OgreWindow::invalidateRenderSettings() {
         mSceneMgr->destroyCamera(mRenderCamera);
         mRoot->destroyRenderTarget(mRenderWindow);
 
-        mRenderWindow = NULL;
-        mRenderCamera = NULL;
-        mRenderPixelBoxDepth = NULL;
-        mRenderPixelBoxDepthData = NULL;
-        mRenderPixelBoxRGB = NULL;
-        mRenderPixelBoxRGBData = NULL;
+        mRenderWindow = nullptr;
+        mRenderCamera = nullptr;
+        mRenderPixelBoxDepth = nullptr;
+        mRenderPixelBoxDepthData = nullptr;
+        mRenderPixelBoxRGB = nullptr;
+        mRenderPixelBoxRGBData = nullptr;
     }
 }
 

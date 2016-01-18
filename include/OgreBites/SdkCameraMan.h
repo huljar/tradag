@@ -322,6 +322,7 @@ namespace OgreBites
 #else
         virtual void injectMouseDown(const OIS::MouseEvent& evt, OIS::MouseButtonID id)
         {
+            (void)evt;
             if (mStyle == CS_ORBIT)
             {
                 if (id == OIS::MB_Left) mOrbiting = true;
@@ -353,6 +354,7 @@ namespace OgreBites
 #else
         virtual void injectMouseUp(const OIS::MouseEvent& evt, OIS::MouseButtonID id)
         {
+            (void)evt;
             if (mStyle == CS_ORBIT)
             {
                 if (id == OIS::MB_Left) mOrbiting = false;

@@ -2,14 +2,14 @@
 #include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
 
+#include <opencv2/highgui/highgui.hpp>
+
 #include <boost/lexical_cast.hpp>
 
-#include <cassert>
 #include <cmath>
 #include <chrono>
-#include <stdexcept>
-#include <string>
 #include <limits>
+#include <stdexcept>
 #include <utility>
 
 using namespace TraDaG;
@@ -44,7 +44,7 @@ Simulator::Simulator(const std::string& depthImagePath, const std::string& rgbIm
 }
 
 Simulator::Simulator()
-    : mRGBDScene(NULL)
+    : mRGBDScene(nullptr)
     , mMaxAttempts(Defaults::MaxAttempts)
     , mShowPreviewWindow(Defaults::ShowPreviewWindow)
     , mShowPhysicsAnimation(Defaults::ShowPhysicsAnimation)
@@ -131,7 +131,9 @@ void Simulator::destroyObject(DroppableObject* object) {
 }
 
 void Simulator::destroyObject(unsigned int index) {
-    assert(index < mObjects.size());
+    if(index < mObjects.size())
+        throw std::out_of_range("Index is out of bounds");
+
     OgreWindow::getSingletonPtr()->invalidate(mObjects[index]);
     delete mObjects[index];
     mObjects.erase(mObjects.begin() + index);

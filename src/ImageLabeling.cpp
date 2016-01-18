@@ -1,13 +1,18 @@
 #include <TraDaG/ImageLabeling.h>
-#include <TraDaG/Ransac.h>
 #include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
+#include <TraDaG/Ransac.h>
+
+#include <OGRE/OgreMath.h>
+#include <OGRE/OgrePlane.h>
+#include <OGRE/OgreVector3.h>
 
 #include <algorithm>
 #include <chrono>
 #include <queue>
-#include <map>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 using namespace TraDaG;
 

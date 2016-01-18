@@ -1,20 +1,40 @@
 #ifndef OGREWINDOW_H
 #define OGREWINDOW_H
 
-#include <TraDaG/RGBDScene.h>
 #include <TraDaG/DroppableObject.h>
 #include <TraDaG/GroundPlane.h>
+#include <TraDaG/RGBDScene.h>
 #include <TraDaG/util.h>
 
-#include <Ogre.h>
-#include <OGRE/Overlay/OgreOverlaySystem.h>
 #include <OgreBites/SdkCameraMan.h>
-#include <OIS.h>
 
-#include <OgreBullet/Dynamics/OgreBulletDynamicsWorld.h>
-#include <OgreBullet/Dynamics/OgreBulletDynamicsRigidBody.h>
-#include <OgreBullet/Collisions/Debug/OgreBulletCollisionsDebugDrawer.h>
+#include <OGRE/OgreAxisAlignedBox.h>
+#include <OGRE/OgreCamera.h>
+#include <OGRE/OgreEntity.h>
+#include <OGRE/OgreFrameListener.h>
+#include <OGRE/OgreLogManager.h>
+#include <OGRE/OgreManualObject.h>
+#include <OGRE/OgrePixelFormat.h>
+#include <OGRE/OgrePrerequisites.h>
+#include <OGRE/OgreQuaternion.h>
+#include <OGRE/OgreRenderWindow.h>
+#include <OGRE/OgreRoot.h>
+#include <OGRE/OgreSceneManager.h>
+#include <OGRE/OgreSceneNode.h>
+#include <OGRE/OgreVector3.h>
+#include <OGRE/OgreWindowEventUtilities.h>
+#include <OGRE/Overlay/OgreOverlaySystem.h>
+
+#include <OIS/OISInputManager.h>
+#include <OIS/OISKeyboard.h>
+#include <OIS/OISMouse.h>
+
+#include <opencv2/core/core.hpp>
+
 #include <OgreBullet/Collisions/OgreBulletCollisionsShape.h>
+#include <OgreBullet/Collisions/Debug/OgreBulletCollisionsDebugDrawer.h>
+#include <OgreBullet/Dynamics/OgreBulletDynamicsRigidBody.h>
+#include <OgreBullet/Dynamics/OgreBulletDynamicsWorld.h>
 
 #include <vector>
 
@@ -45,7 +65,7 @@ public:
     bool queryObjectInfo(const DroppableObject* object, float& occlusion, unsigned short& distance,
                          PixelInfoMap& pixelInfo, bool& onPlane);
 
-    bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = NULL);
+    bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = nullptr);
 
     void invalidate(const ObjectVec& objects, const RGBDScene* scene);
     void invalidate(const DroppableObject* object);

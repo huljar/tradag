@@ -1,6 +1,9 @@
 #include <TraDaG/RGBDScene.h>
 #include <TraDaG/interop.h>
 
+#include <OGRE/OgrePlane.h>
+#include <OGRE/OgreVector3.h>
+
 #include <stdexcept>
 #include <utility>
 

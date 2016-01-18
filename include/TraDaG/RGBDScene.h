@@ -4,9 +4,13 @@
 #include <TraDaG/CameraManager.h>
 #include <TraDaG/util.h>
 
-#include <Ogre.h>
+#include <OGRE/OgreCamera.h>
+#include <OGRE/OgreManualObject.h>
+#include <OGRE/OgrePlatform.h>
+#include <OGRE/OgreSceneManager.h>
+#include <OGRE/OgreVector2.h>
 
-#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/core/core.hpp>
 
 namespace TraDaG {
     class RGBDScene;

@@ -3,6 +3,7 @@
 
 #include <TraDaG/CameraManager.h>
 #include <TraDaG/GroundPlane.h>
+#include <TraDaG/ImageLabeling.h>
 #include <TraDaG/Simulator.h>
 #include <TraDaG/util.h>
 
