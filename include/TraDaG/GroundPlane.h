@@ -10,8 +10,10 @@ namespace TraDaG {
 class TraDaG::GroundPlane
 {
 public:
-    explicit GroundPlane();
-    explicit GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vector3>& vertices, const std::string& label);
+    GroundPlane();
+    GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vector3>& vertices, const std::string& label);
+
+    bool saveToFile(const std::string& filePath, bool overwrite = false) const;
 
     virtual void leastSquaresFit();
 
@@ -33,6 +35,9 @@ public:
 
     float getFriction() const;
     void setFriction(float friction);
+
+    // Create plane from file
+    static GroundPlane readFromFile(const std::string& filePath);
 
     // Model construction and evaluation functions for RANSAC
     static Ogre::Plane createPlaneFromPoints(const std::array<Ogre::Vector3, 3>& points);

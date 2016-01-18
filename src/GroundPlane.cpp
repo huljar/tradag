@@ -1,7 +1,15 @@
 #include <TraDaG/GroundPlane.h>
 #include <TraDaG/util.h>
+#include <TraDaG/debug.h>
+
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+
+#include <fstream>
+#include <sstream>
 
 using namespace TraDaG;
+namespace fs = boost::filesystem;
 
 GroundPlane::GroundPlane()
     : mRestitution(Defaults::PlaneRestitution)
@@ -18,6 +26,51 @@ GroundPlane::GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vecto
     , mFriction(Defaults::PlaneFriction)
 {
     if(!mPlane.normal.isZeroLength()) mPlane.normalise();
+}
+
+bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const {
+    DEBUG_OUT("Saving plane to file \"" << filePath << "\"");
+
+    // Check if this plane is defined
+    if(!isPlaneDefined()) {
+        DEBUG_OUT("The plane is not defined and cannot be saved");
+        return false;
+    }
+
+    // Convert file path to boost path
+    fs::path path(filePath);
+
+    // Check if the file exists (if we don't want to overwrite)
+    if(!overwrite && fs::exists(path)) {
+        DEBUG_OUT("File \"" << filePath << "\" already exists and overwrite is disabled");
+        return false;
+    }
+
+    // Create output file stream and truncate file (if it already exists)
+    fs::ofstream ofs(path, std::ios::trunc);
+    if(!ofs.is_open()) {
+        DEBUG_OUT("Failed to open file \"" << filePath << "\"");
+        return false;
+    }
+
+    // Save plane label, normal, distance, restitution and friction
+    ofs << "label " << mLabel << '\n'
+        << "normal " << mPlane.normal.x << ' ' << mPlane.normal.y << ' ' << mPlane.normal.z << '\n'
+        << "distance " << -mPlane.d << '\n'
+        << "restitution " << mRestitution << '\n'
+        << "friction " << mFriction << '\n';
+
+    // Save plane vertices
+    ofs << "\nvertices\n";
+    for(std::vector<Ogre::Vector3>::const_iterator it = mVertices.cbegin(); it != mVertices.cend(); ++it) {
+        ofs << it->x << ' ' << it->y << ' ' << it->z << '\n';
+    }
+
+    // Close stream
+    ofs.close();
+
+    DEBUG_OUT("Plane successfully saved to file \"" << filePath << "\"");
+    return true;
 }
 
 void GroundPlane::leastSquaresFit() {
@@ -76,6 +129,191 @@ float GroundPlane::getFriction() const {
 
 void GroundPlane::setFriction(float friction) {
     mFriction = friction;
+}
+
+GroundPlane GroundPlane::readFromFile(const std::string& filePath) {
+    DEBUG_OUT("Reading plane from file \"" << filePath << "\"");
+
+    // Convert file path to boost path
+    fs::path path(filePath);
+
+    // Check if the file exists
+    if(!fs::exists(path)) {
+        DEBUG_OUT("File \"" << filePath << "\" does not exist");
+        return GroundPlane();
+    }
+
+    // Check if the file is a regular file
+    if(!fs::is_regular_file(path)) {
+        DEBUG_OUT("Cannot read from \"" << filePath << "\" since it is not a regular file");
+        return GroundPlane();
+    }
+
+    // Create input file stream
+    fs::ifstream ifs(path);
+    if(!ifs.is_open()) {
+        DEBUG_OUT("Failed to open file \"" << filePath << "\"");
+        return GroundPlane();
+    }
+
+    // Read header (label, normal, distance, restitution and friction)
+    std::string line;
+    std::string word;
+
+    // Read label
+    if(!std::getline(ifs, line)) {
+        DEBUG_OUT("Couldn't find label line");
+        return GroundPlane();
+    }
+
+    std::istringstream labeliss(line);
+    if(!(labeliss >> word)) {
+        DEBUG_OUT("Couldn't read label line");
+        return GroundPlane();
+    }
+
+    if(word != "label") {
+        DEBUG_OUT("Label line didn't start with \"label\"");
+        return GroundPlane();
+    }
+
+    std::string label;
+    labeliss >> label; // It's ok if this fails, in this case no label was assigned to the plane and we leave it empty
+
+    // Read normal
+    if(!std::getline(ifs, line)) {
+        DEBUG_OUT("Couldn't find normal line");
+        return GroundPlane();
+    }
+
+    std::istringstream normaliss(line);
+    if(!(normaliss >> word)) {
+        DEBUG_OUT("Couldn't read normal line");
+        return GroundPlane();
+    }
+
+    if(word != "normal") {
+        DEBUG_OUT("Normal line didn't start with \"normal\"");
+        return GroundPlane();
+    }
+
+    Ogre::Vector3 normal;
+    if(!(normaliss >> normal.x >> normal.y >> normal.z)) {
+        DEBUG_OUT("Unable to parse plane normal");
+        return GroundPlane();
+    }
+
+    // Read distance
+    if(!std::getline(ifs, line)) {
+        DEBUG_OUT("Couldn't find distance line");
+        return GroundPlane();
+    }
+
+    std::istringstream distanceiss(line);
+    if(!(distanceiss >> word)) {
+        DEBUG_OUT("Couldn't read distance line");
+        return GroundPlane();
+    }
+
+    if(word != "distance") {
+        DEBUG_OUT("Distance line didn't start with \"distance\"");
+        return GroundPlane();
+    }
+
+    Ogre::Real distance;
+    if(!(distanceiss >> distance)) {
+        DEBUG_OUT("Unable to parse plane distance");
+        return GroundPlane();
+    }
+
+    // Read restitution
+    if(!std::getline(ifs, line)) {
+        DEBUG_OUT("Couldn't find restitution line");
+        return GroundPlane();
+    }
+
+    std::istringstream restitutioniss(line);
+    if(!(restitutioniss >> word)) {
+        DEBUG_OUT("Couldn't read restitution line");
+        return GroundPlane();
+    }
+
+    if(word != "restitution") {
+        DEBUG_OUT("Restitution line didn't start with \"restitution\"");
+        return GroundPlane();
+    }
+
+    float restitution;
+    if(!(restitutioniss >> restitution)) {
+        DEBUG_OUT("Unable to parse plane restitution");
+        return GroundPlane();
+    }
+
+    // Read friction
+    if(!std::getline(ifs, line)) {
+        DEBUG_OUT("Couldn't find friction line");
+        return GroundPlane();
+    }
+
+    std::istringstream frictioniss(line);
+    if(!(frictioniss >> word)) {
+        DEBUG_OUT("Couldn't read friction line");
+        return GroundPlane();
+    }
+
+    if(word != "friction") {
+        DEBUG_OUT("Friction line didn't start with \"friction\"");
+        return GroundPlane();
+    }
+
+    float friction;
+    if(!(frictioniss >> friction)) {
+        DEBUG_OUT("Unable to parse plane friction");
+        return GroundPlane();
+    }
+
+    DEBUG_OUT("Headers parsed without errors");
+
+    // Skip empty line(s) until vertex definitions appear
+    do {
+        if(!std::getline(ifs, line)) {
+            DEBUG_OUT("Couldn't find vertex definitions");
+            return GroundPlane();
+        }
+    } while(line != "vertices");
+
+    // Read vertices
+    std::vector<Ogre::Vector3> vertices;
+    while(std::getline(ifs, line)) {
+        std::istringstream vertexiss(line);
+        Ogre::Vector3 vertex;
+
+        if(!(vertexiss >> vertex.x >> vertex.y >> vertex.z)) {
+            DEBUG_OUT("Encountered invalid vertex definition");
+            return GroundPlane();
+        }
+
+        vertices.push_back(vertex);
+    }
+
+    DEBUG_OUT("Body parsed without errors");
+
+    // Reached end of file, close file stream
+    ifs.close();
+
+    // Construct and return GroundPlane
+    DEBUG_OUT("Successfully parsed the following information from the file:");
+    DEBUG_OUT("    Label: " << label);
+    DEBUG_OUT("    Normal: " << normal << ", distance: " << distance);
+    DEBUG_OUT("    Number of vertices: " << vertices.size());
+    DEBUG_OUT("    Restitution: " << restitution);
+    DEBUG_OUT("    Friction: " << friction);
+
+    GroundPlane ret(Ogre::Plane(normal, distance), vertices, label);
+    ret.setRestitution(restitution);
+    ret.setFriction(friction);
+
+    return ret;
 }
 
 Ogre::Plane GroundPlane::createPlaneFromPoints(const std::array<Ogre::Vector3, 3>& points) {

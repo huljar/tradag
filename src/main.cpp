@@ -72,7 +72,7 @@ int main(int argc, char** argv)
     CameraManager camManager(depthPrincipalPoint, depthFocalLength, depthPrincipalPoint, depthFocalLength);
 
     // --- BEGIN TESTING --- //
-    SceneAnalyzer sa(depthPath, rgbPath, labelPath, camManager, labelMap);
+    SceneAnalyzer sa(depthPath, rgbPath, labelPath/*, "../resources/scenes/plane"*/, camManager, labelMap);
 
     std::vector<unsigned int> ids = sa.findScenesByLabel(labelName);
 
@@ -92,6 +92,7 @@ int main(int argc, char** argv)
     obj->setInitialAzimuth(M_PI_2);
     obj->setInitialTorque(5, 5, 5);
     //obj->setInitialVelocity(400, 100, -400);
+    obj->setMustBeUpright(true);
 
     tradag2.setShowPreviewWindow(preview);
     tradag2.setShowPhysicsAnimation(animate);
@@ -104,24 +105,25 @@ int main(int argc, char** argv)
     obj2->setInitialVelocity(0, 500, 0);
     obj2->setInitialTorque(8, 8 ,8);
 
-    // TODO: sa.createImageLabeling(ID)
-
     // Compute ground plane
-    cv::Mat depthImg, rgbImg, labelImg;
-    sa.readImages(ids[0], depthImg, rgbImg, labelImg);
-
-    ImageLabeling labeling(depthImg, labelImg, labelMap, camManager);
     GroundPlane plane;
+    ImageLabeling labeling = sa.createImageLabeling(ids[0]);
     if(labeling.findPlaneForLabel(labelName, plane) != PF_SUCCESS) {
         std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
         return 1;
     }
-    tradag.setGroundPlane(plane);
+
+    // Save plane
+    plane.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[0]) + ".plane", true);
+
+    // Read plane
+    GroundPlane np = GroundPlane::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[0]) + ".plane");
+    if(!np.isPlaneDefined()) std::cerr << "Error: plane was not read correctly!" << std::endl;
+
+    tradag.setGroundPlane(np);
 
     // Compute ground plane
-    sa.readImages(ids[1], depthImg, rgbImg, labelImg);
-
-    labeling = ImageLabeling(depthImg, labelImg, labelMap, camManager);
+    labeling = sa.createImageLabeling(ids[1]);
     if(labeling.findPlaneForLabel(labelName, plane) != PF_SUCCESS) {
         std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
         return 1;
@@ -171,40 +173,6 @@ int main(int argc, char** argv)
                   << "Occlusion: " << obj->getFinalOcclusion() << std::endl
                   << "Rotation: " << obj->getFinalRotation() << std::endl
                   << "Position: " << obj->getFinalPosition() << std::endl;
-
-        cv::namedWindow("Depth");
-        cv::imshow("Depth", result.depthImage);
-        cv::namedWindow("RGB");
-        cv::imshow("RGB", result.rgbImage);
-        cv::waitKey();
-    }
-
-    // Execute simulation
-    result = tradag.execute();
-
-    // Evaluate result
-    if(result.status == OD_SUCCESS) {
-        std::cout << "Success!" << std::endl
-                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
-                  << "Rotation: " << obj->getFinalRotation() << std::endl
-                  << "Position: " << obj->getFinalPosition() << std::endl;
-
-        cv::namedWindow("Depth");
-        cv::imshow("Depth", result.depthImage);
-        cv::namedWindow("RGB");
-        cv::imshow("RGB", result.rgbImage);
-        cv::waitKey();
-    }
-
-    // Execute simulation
-    result = tradag2.execute();
-
-    // Evaluate result
-    if(result.status == OD_SUCCESS) {
-        std::cout << "Success!" << std::endl
-                  << "Occlusion: " << obj2->getFinalOcclusion() << std::endl
-                  << "Rotation: " << obj2->getFinalRotation() << std::endl
-                  << "Position: " << obj2->getFinalPosition() << std::endl;
 
         cv::namedWindow("Depth");
         cv::imshow("Depth", result.depthImage);

@@ -30,6 +30,10 @@ public:
     SceneAnalyzer(const std::string& depthDirPath, const std::string& rgbDirPath, const std::string& labelDirPath,
                   const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxScenes = 0);
 
+    SceneAnalyzer(const std::string& depthDirPath, const std::string& rgbDirPath, const std::string& labelDirPath,
+                  const std::string& planeDirPath,
+                  const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxScenes = 0);
+
     std::vector<unsigned int> findScenesByLabel(const std::vector<std::string>& labels);
     std::vector<unsigned int> findScenesByLabel(const std::string& label);
 
@@ -45,6 +49,7 @@ public:
 
     bool readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage);
 
+    ImageLabeling createImageLabeling(unsigned int sceneID);
     Simulator createSimulator(unsigned int sceneID);
 
     std::string getFileName(unsigned int sceneID) const;
@@ -66,6 +71,7 @@ protected:
     boost::filesystem::path mDepthPath;
     boost::filesystem::path mRGBPath;
     boost::filesystem::path mLabelPath;
+    boost::filesystem::path mPlanePath;
 
     CameraManager mCameraManager;
 

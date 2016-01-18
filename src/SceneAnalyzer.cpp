@@ -35,6 +35,10 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
     if(!fs::exists(mDepthPath) || !fs::exists(mRGBPath) || !fs::exists(mLabelPath))
         throw std::invalid_argument("One or more of the specified paths do not exist");
 
+    // Check if all paths are directories
+    if(!fs::is_directory(mDepthPath) || !fs::is_directory(mRGBPath) || !fs::is_directory(mLabelPath))
+        throw std::invalid_argument("One or more of the specified paths are not directories");
+
     // Collect directory entries
     std::vector<fs::path> depthImgs, rgbImgs, labelImgs;
     fs::directory_iterator dirEnd;
@@ -106,6 +110,24 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
             mScenes.erase(*it);
         }
     }
+}
+
+SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string& rgbDirPath, const std::string& labelDirPath,
+                             const std::string& planeDirPath,
+                             const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxScenes)
+    : SceneAnalyzer(depthDirPath, rgbDirPath, labelDirPath, cameraParams, labelMap, maxScenes)
+{
+    DEBUG_OUT("Registering plane path: " << planeDirPath);
+    mPlanePath = fs::path(planeDirPath);
+
+    // Check if the path exists
+    if(!fs::exists(mPlanePath))
+        throw std::invalid_argument("Plane path does not exist");
+
+    // Check if the path is a directory
+    if(!fs::is_directory(mPlanePath))
+        throw std::invalid_argument("Plane path is not a directory");
+
 }
 
 std::vector<unsigned int> SceneAnalyzer::findScenesByLabel(const std::vector<std::string>& labels) {
@@ -228,6 +250,17 @@ bool SceneAnalyzer::readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Ma
 
     DEBUG_OUT("Unable to read one or more images from disk");
     return false;
+}
+
+ImageLabeling SceneAnalyzer::createImageLabeling(unsigned int sceneID) {
+    DEBUG_OUT("Creating ImageLabeling for scene with ID " << sceneID);
+
+    cv::Mat depthImg, rgbImg, labelImg;
+    if(!readImages(sceneID, depthImg, rgbImg, labelImg))
+        throw std::runtime_error("Unable to load images for ID " + boost::lexical_cast<std::string>(sceneID)
+                                 + " (" + getFileName(sceneID) + ")");
+
+    return ImageLabeling(depthImg, labelImg, mLabelMap, mCameraManager);
 }
 
 Simulator SceneAnalyzer::createSimulator(unsigned int sceneID) {

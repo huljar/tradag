@@ -492,7 +492,7 @@ UserAction OgreWindow::promptUserAction() {
     return mActionChosen;
 }
 
-bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occlusion, unsigned short& distance,
+bool OgreWindow::queryObjectInfo(const DroppableObject* object, float& occlusion, unsigned short& distance,
                                  PixelInfoMap& pixelInfo, bool& onPlane) {
 
     Ogre::Entity* entity = object->getOgreEntity();
@@ -525,7 +525,10 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, Ogre::Real& occl
             }
 
             // Calculate occlusion and set output parameter
-            occlusion = static_cast<Ogre::Real>(occludedPixels) / static_cast<Ogre::Real>(objectPixels.size());
+            if(objectPixels.size() > 0)
+                occlusion = static_cast<Ogre::Real>(occludedPixels) / static_cast<Ogre::Real>(objectPixels.size());
+            else
+                occlusion = 1.0;
 
             // Calculate distance of object center to camera plane and set output parameter
             DepthPixel depthPx = mRGBDScene->cameraManager().getActualDepthForWorld(ogreToCv(node->getPosition()));
