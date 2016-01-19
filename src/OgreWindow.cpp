@@ -167,7 +167,8 @@ void OgreWindow::initializeOgre() {
     windowParams["vsync"] = "true";
     windowParams["hidden"] = "true";
 
-    mPreviewWindow = mRoot->createRenderWindow(Strings::PreviewWindowName, 1024, 768, false, &windowParams);
+    mPreviewWindow = mRoot->createRenderWindow(Strings::PreviewWindowName, Constants::PreviewWindowWidth, Constants::PreviewWindowHeight,
+                                               false, &windowParams);
 
     // Init resources
     Ogre::TextureManager::getSingleton().setDefaultNumMipmaps(5);
@@ -180,7 +181,7 @@ void OgreWindow::initializeOgre() {
     mPreviewCamera = mSceneMgr->createCamera("MainCamera");
     mPreviewCamera->setPosition(mInitialCameraPosition);
     mPreviewCamera->lookAt(mInitialCameraLookAt);
-    mPreviewCamera->setNearClipDistance(5.0);
+    mPreviewCamera->setNearClipDistance(Constants::CameraNearClipDistance);
     mPreviewCamera->setFOVy(Ogre::Degree(55.0));
 
     // Create camera controller
@@ -632,21 +633,9 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
         }
     }
 
-    // Get screenspace bounding box of the scene
-    Ogre::Vector2 screenTopLeft, screenBottomRight;
-    if(!mRGBDScene->screenspaceCoords(mRenderCamera, screenTopLeft, screenBottomRight))
-        return false;
-
-    // Compute region of interest
-    cv::Rect roi(cv::Point(screenTopLeft.x * renderImageDepth.cols, screenTopLeft.y * renderImageDepth.rows),
-                 cv::Point(screenBottomRight.x * renderImageDepth.cols, screenBottomRight.y * renderImageDepth.rows));
-
-    // Resize the remaining area and copy to output parameter
-    // Use nearest neighbor interpolation to ensure no new (and incorrect) depth values are created
-    cv::Mat depthImg = mRGBDScene->getDepthImage();
-    cv::Size resultSize(depthImg.cols, depthImg.rows);
-    cv::resize(renderImageDepth(roi), depthResult, resultSize, 0, 0, cv::INTER_NEAREST);
-    cv::resize(renderImageRGB(roi), rgbResult, resultSize);
+    // Set output parameters and return
+    depthResult = renderImageDepth;
+    rgbResult = renderImageRGB;
 
     return true;
 }
@@ -973,33 +962,17 @@ OgreBulletCollisions::CollisionShape* OgreWindow::createConvexHull(Ogre::Entity*
 
 void OgreWindow::setUpRenderSettings() {
     if(!mRenderWindow) {
-        // Determine aspect ratio
+        // Get scene-specific objects
         const cv::Mat depthImg = mRGBDScene->getDepthImage();
         CameraManager& camMgr = mRGBDScene->cameraManager();
-
-        Ogre::Vector3 topLeft = cvToOgre(camMgr.getWorldForDepth(0, 0, Constants::WorkPlaneDepth));
-        Ogre::Vector3 bottomRight = cvToOgre(camMgr.getWorldForDepth(depthImg.cols - 1, depthImg.rows - 1, Constants::WorkPlaneDepth));
-
-        Ogre::Real width = bottomRight.x - topLeft.x;
-        Ogre::Real height = topLeft.y - bottomRight.y;
-        if(height == 0.0)
-            throw std::runtime_error("Division by zero error while setting up render settings");
-
-        // Determine vertical field of view (horizontal fov is automatically adjusted according to aspect ratio)
-        Ogre::Vector3 top(0, topLeft.y, topLeft.z);
-        Ogre::Vector3 bottom(0, bottomRight.y, bottomRight.z);
-        Ogre::Radian verticalFOV(std::max(
-            top.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians(),
-            bottom.angleBetween(Ogre::Vector3::NEGATIVE_UNIT_Z).valueRadians()
-        ) * 2.0 + 0.04);
 
         // Create a hidden render window
         Ogre::NameValuePairList windowParams;
         windowParams["vsync"] = "true";
         windowParams["hidden"] = "true";
 
-        Ogre::uint32 imgWidth = depthImg.cols * 1.1; // render in larger resolution because we crop black edges later
-        Ogre::uint32 imgHeight = depthImg.rows * 1.1;
+        Ogre::uint32 imgWidth = depthImg.cols;
+        Ogre::uint32 imgHeight = depthImg.rows;
 
         mRenderWindow = mRoot->createRenderWindow(Strings::RenderWindowName, imgWidth, imgHeight, false, &windowParams);
 
@@ -1009,9 +982,13 @@ void OgreWindow::setUpRenderSettings() {
         // Set camera parameters
         mRenderCamera->setPosition(mInitialCameraPosition);
         mRenderCamera->lookAt(mInitialCameraLookAt);
-        mRenderCamera->setNearClipDistance(5.0);
-        mRenderCamera->setFOVy(verticalFOV);
-        mRenderCamera->setAspectRatio(width / height);
+        mRenderCamera->setNearClipDistance(Constants::CameraNearClipDistance);
+
+        // Set camera frustum to exactly fit the scene
+        unsigned short nearClipDistance = static_cast<unsigned short>(std::round(Constants::CameraNearClipDistance));
+        Ogre::Vector3 topLeft = cvToOgre(camMgr.getWorldForDepth(0, 0, nearClipDistance));
+        Ogre::Vector3 bottomRight = cvToOgre(camMgr.getWorldForDepth(depthImg.cols - 1, depthImg.rows - 1, nearClipDistance));
+        mRenderCamera->setFrustumExtents(topLeft.x, bottomRight.x, topLeft.y, bottomRight.y);
 
         // Add viewport
         Ogre::Viewport* renderViewport = mRenderWindow->addViewport(mRenderCamera);

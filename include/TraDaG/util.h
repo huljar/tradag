@@ -132,6 +132,7 @@ namespace TraDaG {
     namespace Constants {
         const float ObjectDropDistance = 500.0;
         const Ogre::Degree MaxPlaneNormalToGravityAngle(25);
+
         const unsigned int MinLabelPixelsToBeValid = 10;
 
         const float RansacConfidenceInterval = 18.0;
@@ -142,8 +143,12 @@ namespace TraDaG {
         const float ScoreOcclusionWeight = 150.0;
         const float ScoreDistanceWeight = 0.1;
 
+        const unsigned int PreviewWindowWidth = 1024;
+        const unsigned int PreviewWindowHeight = 768;
+
         const Ogre::Vector3 DefaultCameraPosition = Ogre::Vector3::ZERO;
         const Ogre::Vector3 DefaultCameraLookAt = Ogre::Vector3::NEGATIVE_UNIT_Z;
+        const Ogre::Real CameraNearClipDistance = 5.0;
 
         const unsigned short WorkPlaneDepth = 50;
     }

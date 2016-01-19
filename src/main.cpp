@@ -157,23 +157,38 @@ int main(int argc, char** argv)
                   << "Rotation: " << obj2->getFinalRotation() << std::endl
                   << "Position: " << obj2->getFinalPosition() << std::endl;
 
-        cv::namedWindow("Depth");
-        cv::imshow("Depth", result.depthImage);
-        cv::namedWindow("RGB");
-        cv::imshow("RGB", result.rgbImage);
-        cv::waitKey();
-    }
+        // Compare depth values
+        cv::Mat depthImg, rgbImg, labelImg;
+        sa.readImages(ids[1], depthImg, rgbImg, labelImg);
 
-    // Execute simulation
-    result = tradag.execute();
+//        for(int y = 0; y < depthImg.rows; y += 1) {
+//            for(int x = 0; x < depthImg.cols; x += 1) {
+//                std::cout << "(" << x << ", " << y << "): Original -> " << depthImg.at<unsigned short>(y, x)
+//                          << " -- " << result.depthImage.at<unsigned short>(y, x) << " <- Rendered\n";
+//            }
+//        }
+//        std::cout << std::flush;
 
-    // Evaluate result
-    if(result.status == OD_SUCCESS) {
-        std::cout << "Success!" << std::endl
-                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
-                  << "Rotation: " << obj->getFinalRotation() << std::endl
-                  << "Position: " << obj->getFinalPosition() << std::endl;
+        cv::Mat compareMat(depthImg.rows, depthImg.cols, CV_16U);
+        for(int y = 0; y < depthImg.rows; y += 1) {
+            for(int x = 0; x < depthImg.cols; x += 1) {
+                unsigned short diff = std::abs(depthImg.at<unsigned short>(y, x) - result.depthImage.at<unsigned short>(y, x));
+                if(diff > 80)
+                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max();
+                else if(diff > 45)
+                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.75;
+                else if(diff > 20)
+                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.5;
+                else if(diff > 5)
+                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.25;
+                else
+                    compareMat.at<unsigned short>(y, x) = 0;
+            }
+        }
+        cv::namedWindow("Depth Comparison");
+        cv::imshow("Depth Comparison", compareMat);
 
+        // Display result
         cv::namedWindow("Depth");
         cv::imshow("Depth", result.depthImage);
         cv::namedWindow("RGB");

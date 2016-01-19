@@ -54,7 +54,8 @@ public:
     // TODO: when checking, cast a ray from object center of mass in direction of gravity (or direction of negative plane normal?) onto the mesh
     // TODO: when checking if inliers are still underneath the object, only check for the visible part of the object (underneath the covered parts is obviously no inlier)
     // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
-    // TODO: setVerbose parameter, detailed log messages if enabled
+    // TODO: save all regions in plane together with min-max distance, const unsigned int MinRegionPixelsToBeValid = 10;
+    // TODO: when not using preview window, only keep result if optimal, otherwise return max attempts reached
     ObjectDropResult execute();
 
     RGBDScene* getRGBDScene() const;
