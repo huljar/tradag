@@ -4,7 +4,8 @@ vertex_program TraDaG/DepthMapVP glsl
 
 	default_params
 	{
-		param_named_auto worldViewProj worldviewproj_matrix
+		param_named_auto worldView worldview_matrix
+		param_named_auto projection projection_matrix
 		param_named_auto texelOffsets texel_offsets
 	}
 }
