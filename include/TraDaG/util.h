@@ -51,7 +51,6 @@ namespace TraDaG {
 
     typedef std::pair<cv::Point, unsigned short> DepthPixel;
     typedef std::vector<DroppableObject*> ObjectVec;
-    typedef std::map<cv::Vec2i, Ogre::Vector3, bool(*)(const cv::Vec2i&, const cv::Vec2i&)> PixelWorldMap;
     typedef std::map<cv::Point, std::pair<cv::Vec3s, bool>, bool(*)(const cv::Point&, const cv::Point&)> PixelInfoMap;
     typedef std::vector<unsigned short> LabelVec;
     typedef std::map<std::string, LabelVec> LabelMap;
@@ -101,6 +100,9 @@ namespace TraDaG {
         const std::string UserInputPromptFontName = "TraDaG/Inputs";
 
         const std::string UserInputPromptText = "Select an action:\n\nEnter - Accept this result\nr - Restart\nEsc - Abort";
+
+        const std::string FileExtensionPlane = ".plane";
+        const std::string FileExtensionPlaneInfo = ".planeinfo";
     }
 
     namespace Defaults {
@@ -134,6 +136,7 @@ namespace TraDaG {
         const Ogre::Degree MaxPlaneNormalToGravityAngle(25);
 
         const unsigned int MinLabelPixelsToBeValid = 10;
+        const unsigned int MinRegionPixelsToBeValid = 10;
 
         const float RansacConfidenceInterval = 18.0;
 

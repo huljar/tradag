@@ -20,6 +20,7 @@ SOURCES += main.cpp \
     ImageLabeling.cpp \
     DroppableObject.cpp \
     GroundPlane.cpp \
+    PlaneInfo.cpp \
     SceneAnalyzer.cpp \
     CVLDWrapper.cpp \
     CameraManager.cpp
@@ -34,6 +35,7 @@ HEADERS += include/OgreBites/SdkCameraMan.h \
     ImageLabeling.h \
     DroppableObject.h \
     GroundPlane.h \
+    PlaneInfo.h \
     SceneAnalyzer.h \
     CVLDWrapper.h \
     CameraManager.h \

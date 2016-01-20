@@ -17,6 +17,7 @@ public:
                   const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
                   MapMode mapMode = MM_MAPPED_DEPTH_TO_RGB);
 
+    cv::Vec3f getWorldForDepth(const cv::Point& uv, unsigned short d) const;
     cv::Vec3f getWorldForDepth(int u, int v, unsigned short d) const;
 
     cv::Vec2i getDepthForWorld(const cv::Vec3f& xyz) const;
@@ -31,7 +32,10 @@ public:
     cv::Vec2i getLabelForWorld(const cv::Vec3f& xyz) const;
     cv::Vec2i getLabelForWorld(float x, float y, float z) const;
 
+    cv::Vec2i getRGBForDepth(const cv::Point& uv, unsigned short d) const;
     cv::Vec2i getRGBForDepth(int u, int v, unsigned short d) const;
+
+    cv::Vec2i getLabelForDepth(const cv::Point& uv, unsigned short d) const;
     cv::Vec2i getLabelForDepth(int u, int v, unsigned short d) const;
 
     cv::Vec2f getDepthPrincipalPoint() const;

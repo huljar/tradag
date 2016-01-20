@@ -32,7 +32,7 @@ GroundPlane::GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vecto
 }
 
 bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const {
-    DEBUG_OUT("Saving plane to file \"" << filePath << "\"");
+    DEBUG_OUT("Saving plane to file \"" << filePath + Strings::FileExtensionPlane << "\"");
 
     // Check if this plane is defined
     if(!isPlaneDefined()) {
@@ -41,18 +41,18 @@ bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const 
     }
 
     // Convert file path to boost path
-    fs::path path(filePath);
+    fs::path path(filePath + Strings::FileExtensionPlane);
 
     // Check if the file exists (if we don't want to overwrite)
     if(!overwrite && fs::exists(path)) {
-        DEBUG_OUT("File \"" << filePath << "\" already exists and overwrite is disabled");
+        DEBUG_OUT("File " << path << " already exists and overwrite is disabled");
         return false;
     }
 
     // Create output file stream and truncate file (if it already exists)
     fs::ofstream ofs(path, std::ios::trunc);
     if(!ofs.is_open()) {
-        DEBUG_OUT("Failed to open file \"" << filePath << "\"");
+        DEBUG_OUT("Failed to open file " << path);
         return false;
     }
 
@@ -64,7 +64,7 @@ bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const 
         << "friction " << mFriction << '\n';
 
     // Save plane vertices
-    ofs << "\nvertices\n";
+    ofs << "\nvertices " << mVertices.size() << '\n';
     for(std::vector<Ogre::Vector3>::const_iterator it = mVertices.cbegin(); it != mVertices.cend(); ++it) {
         ofs << it->x << ' ' << it->y << ' ' << it->z << '\n';
     }
@@ -72,7 +72,7 @@ bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const 
     // Close stream
     ofs.close();
 
-    DEBUG_OUT("Plane successfully saved to file \"" << filePath << "\"");
+    DEBUG_OUT("Plane successfully saved to file " << path);
     return true;
 }
 
@@ -138,27 +138,27 @@ void GroundPlane::setFriction(float friction) {
 }
 
 GroundPlane GroundPlane::readFromFile(const std::string& filePath) {
-    DEBUG_OUT("Reading plane from file \"" << filePath << "\"");
+    DEBUG_OUT("Reading plane from file \"" << filePath + Strings::FileExtensionPlane << "\"");
 
     // Convert file path to boost path
-    fs::path path(filePath);
+    fs::path path(filePath + Strings::FileExtensionPlane);
 
     // Check if the file exists
     if(!fs::exists(path)) {
-        DEBUG_OUT("File \"" << filePath << "\" does not exist");
+        DEBUG_OUT("File " << path << " does not exist");
         return GroundPlane();
     }
 
     // Check if the file is a regular file
     if(!fs::is_regular_file(path)) {
-        DEBUG_OUT("Cannot read from \"" << filePath << "\" since it is not a regular file");
+        DEBUG_OUT("Cannot read from " << path << " since it is not a regular file");
         return GroundPlane();
     }
 
     // Create input file stream
     fs::ifstream ifs(path);
     if(!ifs.is_open()) {
-        DEBUG_OUT("Failed to open file \"" << filePath << "\"");
+        DEBUG_OUT("Failed to open file " << path);
         return GroundPlane();
     }
 
@@ -280,16 +280,36 @@ GroundPlane GroundPlane::readFromFile(const std::string& filePath) {
 
     DEBUG_OUT("Headers parsed without errors");
 
-    // Skip empty line(s) until vertex definitions appear
+    // Skip empty line(s)
     do {
         if(!std::getline(ifs, line)) {
             DEBUG_OUT("Couldn't find vertex definitions");
             return GroundPlane();
         }
-    } while(line != "vertices");
+    } while(line.empty());
+
+    // Read number of vertices
+    std::istringstream verticesiss(line);
+    if(!(verticesiss >> word)) {
+        DEBUG_OUT("Couldn't read vertices line");
+        return GroundPlane();
+    }
+
+    if(word != "vertices") {
+        DEBUG_OUT("Vertices line didn't start with \"vertices\"");
+        return GroundPlane();
+    }
+
+    size_t numVertices;
+    if(!(verticesiss >> numVertices)) {
+        DEBUG_OUT("Unable to parse number of vertices");
+        return GroundPlane();
+    }
 
     // Read vertices
     std::vector<Ogre::Vector3> vertices;
+    vertices.reserve(numVertices);
+
     while(std::getline(ifs, line)) {
         std::istringstream vertexiss(line);
         Ogre::Vector3 vertex;
@@ -308,7 +328,7 @@ GroundPlane GroundPlane::readFromFile(const std::string& filePath) {
     ifs.close();
 
     // Construct and return GroundPlane
-    DEBUG_OUT("Successfully parsed the following information from the file:");
+    DEBUG_OUT("Successfully parsed " << path << " with the following information:");
     DEBUG_OUT("    Label: " << label);
     DEBUG_OUT("    Normal: " << normal << ", distance: " << distance);
     DEBUG_OUT("    Number of vertices: " << vertices.size());

@@ -3,6 +3,7 @@
 #include <TraDaG/RGBDScene.h>
 #include <TraDaG/DroppableObject.h>
 #include <TraDaG/GroundPlane.h>
+#include <TraDaG/PlaneInfo.h>
 #include <TraDaG/util.h>
 #include <TraDaG/SceneAnalyzer.h>
 
@@ -81,7 +82,7 @@ int main(int argc, char** argv)
 
     tradag.setShowPreviewWindow(preview);
     tradag.setShowPhysicsAnimation(animate);
-    //tradag.setDebugMarkInlierSet(true);
+    tradag.setDebugMarkInlierSet(true);
     //tradag.setDebugDrawBulletShapes(true);
     //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
     tradag.setMaxAttempts(5);
@@ -96,6 +97,7 @@ int main(int argc, char** argv)
 
     tradag2.setShowPreviewWindow(preview);
     tradag2.setShowPhysicsAnimation(animate);
+    tradag2.setDebugMarkInlierSet(true);
 
     // Create another object
     DroppableObject* obj2 = tradag2.createObject("003.mesh");
@@ -108,27 +110,49 @@ int main(int argc, char** argv)
     // Compute ground plane
     GroundPlane plane;
     ImageLabeling labeling = sa.createImageLabeling(ids[0]);
-    if(labeling.findPlaneForLabel(labelName, plane) != PF_SUCCESS) {
+    if(labeling.findPlaneForLabel(labelName, plane, cv::Vec3f(0, 1, 0), 14, 3500, 4000) != PF_SUCCESS) {
         std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
         return 1;
     }
 
     // Save plane
-    plane.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[0]) + ".plane", true);
+    plane.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[0]), true);
 
     // Read plane
-    GroundPlane np = GroundPlane::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[0]) + ".plane");
-    if(!np.isPlaneDefined()) std::cerr << "Error: plane was not read correctly!" << std::endl;
-
-    tradag.setGroundPlane(np);
-
-    // Compute ground plane
-    labeling = sa.createImageLabeling(ids[1]);
-    if(labeling.findPlaneForLabel(labelName, plane) != PF_SUCCESS) {
-        std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
+    GroundPlane np = GroundPlane::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[0]));
+    if(!np.isPlaneDefined()) {
+        std::cerr << "Error: plane was not read correctly!" << std::endl;
         return 1;
     }
-    tradag2.setGroundPlane(plane);
+
+    // Set actual plane
+    PlaneInfo pi;
+    labeling.findPlaneForLabel(labelName, pi);
+
+    tradag.setGroundPlane(pi.createGroundPlane());
+
+    // Compute ground plane info
+    PlaneInfo planeInfo;
+    labeling = sa.createImageLabeling(ids[1]);
+    if(labeling.findPlaneForLabel(labelName, planeInfo) != PF_SUCCESS) {
+        std::cerr << "Error: unable to compute plane info for label \"" << labelName << "\"" << std::endl;
+        return 1;
+    }
+
+    // Save plane info
+    planeInfo.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[1]), true);
+
+    // Read plane info
+    PlaneInfo npi  = PlaneInfo::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[1]));
+
+    // Create ground plane from info
+    GroundPlane createdPlane = npi.createGroundPlane(3500, 5000, PlaneInfo::PickMode::WEIGHTED_RANDOM);
+    if(!npi.isPlaneDefined()) {
+        std::cerr << "Error: plane was not read correctly" << std::endl;
+        return 1;
+    }
+
+    tradag2.setGroundPlane(createdPlane);
 
     // Execute simulation
     ObjectDropResult result = tradag.execute();
@@ -139,6 +163,29 @@ int main(int argc, char** argv)
                   << "Occlusion: " << obj->getFinalOcclusion() << std::endl
                   << "Rotation: " << obj->getFinalRotation() << std::endl
                   << "Position: " << obj->getFinalPosition() << std::endl;
+
+        // Compare depth values
+        cv::Mat depthImg, rgbImg, labelImg;
+        sa.readImages(ids[0], depthImg, rgbImg, labelImg);
+
+        cv::Mat compareMat(depthImg.rows, depthImg.cols, CV_16U);
+        for(int y = 0; y < depthImg.rows; y += 1) {
+            for(int x = 0; x < depthImg.cols; x += 1) {
+                unsigned short diff = std::abs(depthImg.at<unsigned short>(y, x) - result.depthImage.at<unsigned short>(y, x));
+                if(diff > 80)
+                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max();
+                else if(diff > 45)
+                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.75;
+                else if(diff > 20)
+                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.5;
+                else if(diff > 5)
+                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.25;
+                else
+                    compareMat.at<unsigned short>(y, x) = 0;
+            }
+        }
+        cv::namedWindow("Depth Comparison");
+        cv::imshow("Depth Comparison", compareMat);
 
         cv::namedWindow("Depth");
         cv::imshow("Depth", result.depthImage);
@@ -160,14 +207,6 @@ int main(int argc, char** argv)
         // Compare depth values
         cv::Mat depthImg, rgbImg, labelImg;
         sa.readImages(ids[1], depthImg, rgbImg, labelImg);
-
-//        for(int y = 0; y < depthImg.rows; y += 1) {
-//            for(int x = 0; x < depthImg.cols; x += 1) {
-//                std::cout << "(" << x << ", " << y << "): Original -> " << depthImg.at<unsigned short>(y, x)
-//                          << " -- " << result.depthImage.at<unsigned short>(y, x) << " <- Rendered\n";
-//            }
-//        }
-//        std::cout << std::flush;
 
         cv::Mat compareMat(depthImg.rows, depthImg.cols, CV_16U);
         for(int y = 0; y < depthImg.rows; y += 1) {

@@ -36,6 +36,7 @@ namespace TraDaG {
     inline cv::Vec3f ogreToCv(const Ogre::Vector3& vec) {
         return cv::Vec3f(vec.x, vec.y, vec.z);
     }
+
 }
 
 #endif // INTEROP_H
