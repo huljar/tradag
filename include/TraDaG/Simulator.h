@@ -49,12 +49,13 @@ public:
     ObjectVec::iterator endObjects();
     ObjectVec::const_iterator endObjects() const;
 
-    // TODO: define angle of plane to camera and tolerance (in separate interface)
     // TODO: at end: check if inliers are within x radius of object (center of mass), sample again if not
     // TODO: when checking, cast a ray from object center of mass in direction of gravity (or direction of negative plane normal?) onto the mesh
     // TODO: when checking if inliers are still underneath the object, only check for the visible part of the object (underneath the covered parts is obviously no inlier)
     // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
     // TODO: when not using preview window, only keep result if optimal, otherwise return max attempts reached
+    // TODO: test region growing with 24-connected neighborhood?
+    // TODO: IDs for object selection in SceneAnalyzer (getMeshName/getObjectName function)
     ObjectDropResult execute();
 
     RGBDScene* getRGBDScene() const;

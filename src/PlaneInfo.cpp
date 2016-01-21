@@ -140,6 +140,12 @@ GroundPlane PlaneInfo::createGroundPlane(unsigned short minDistance, unsigned sh
 
     DEBUG_OUT(validRegions.size() << " regions remain after distance check");
 
+    // Check if any regions are left
+    if(validRegions.size() == 0) {
+        DEBUG_OUT("Unable to create a ground plane - no suitable regions exist");
+        return GroundPlane();
+    }
+
     // Pick a region according to the regionMode
     std::vector<std::vector<Ogre::Vector3>>::iterator pick;
     if(regionMode == PickMode::LARGEST) {

@@ -75,164 +75,191 @@ int main(int argc, char** argv)
     // --- BEGIN TESTING --- //
     SceneAnalyzer sa(depthPath, rgbPath, labelPath/*, "../resources/scenes/plane"*/, camManager, labelMap);
 
-    std::vector<unsigned int> ids = sa.findScenesByLabel(labelName);
+//    std::vector<unsigned int> ids = sa.findScenesByLabel(labelName);
 
-    Simulator tradag = sa.createSimulator(ids[0]);
-    Simulator tradag2 = sa.createSimulator(ids[1]);
+//    Simulator tradag = sa.createSimulator(ids[0]);
+//    Simulator tradag2 = sa.createSimulator(ids[1]);
 
-    tradag.setShowPreviewWindow(preview);
-    tradag.setShowPhysicsAnimation(animate);
-    tradag.setDebugMarkInlierSet(true);
-    //tradag.setDebugDrawBulletShapes(true);
-    //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
-    tradag.setMaxAttempts(5);
+//    tradag.setShowPreviewWindow(preview);
+//    tradag.setShowPhysicsAnimation(animate);
+//    tradag.setDebugMarkInlierSet(true);
+//    //tradag.setDebugDrawBulletShapes(true);
+//    //tradag.setGravity(Auto<cv::Vec3f>(false, cv::Vec3f(0, -1000, 0)));
+//    tradag.setMaxAttempts(5);
 
-    // Create an object
-    DroppableObject* obj = tradag.createObject(meshName);
-    obj->setDesiredOcclusion(0.2, 0.4);
-    obj->setInitialAzimuth(M_PI_2);
-    obj->setInitialTorque(5, 5, 5);
-    //obj->setInitialVelocity(400, 100, -400);
-    obj->setMustBeUpright(true);
+//    // Create an object
+//    DroppableObject* obj = tradag.createObject(meshName);
+//    obj->setDesiredOcclusion(0.2, 0.4);
+//    obj->setInitialAzimuth(M_PI_2);
+//    obj->setInitialTorque(5, 5, 5);
+//    //obj->setInitialVelocity(400, 100, -400);
+//    obj->setMustBeUpright(true);
 
-    tradag2.setShowPreviewWindow(preview);
-    tradag2.setShowPhysicsAnimation(animate);
-    tradag2.setDebugMarkInlierSet(true);
+//    tradag2.setShowPreviewWindow(preview);
+//    tradag2.setShowPhysicsAnimation(animate);
+//    tradag2.setDebugMarkInlierSet(true);
 
-    // Create another object
-    DroppableObject* obj2 = tradag2.createObject("003.mesh");
-    obj2->setDesiredOcclusion(0.0, 0.5);
-    //obj2->setInitialVelocity(400, 100, -400);
-    obj2->setInitialAzimuth(M_PI_2);
-    obj2->setInitialVelocity(0, 500, 0);
-    obj2->setInitialTorque(8, 8 ,8);
+//    // Create another object
+//    DroppableObject* obj2 = tradag2.createObject("003.mesh");
+//    obj2->setDesiredOcclusion(0.0, 0.5);
+//    //obj2->setInitialVelocity(400, 100, -400);
+//    obj2->setInitialAzimuth(M_PI_2);
+//    obj2->setInitialVelocity(0, 500, 0);
+//    obj2->setInitialTorque(8, 8 ,8);
 
-    // Compute ground plane
-    GroundPlane plane;
-    ImageLabeling labeling = sa.createImageLabeling(ids[0]);
-    if(labeling.findPlaneForLabel(labelName, plane, cv::Vec3f(0, 1, 0), 14, 3500, 4000) != PF_SUCCESS) {
-        std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
-        return 1;
-    }
+//    // Compute ground plane
+//    GroundPlane plane;
+//    ImageLabeling labeling = sa.createImageLabeling(ids[0]);
+//    if(labeling.findPlaneForLabel(labelName, plane, cv::Vec3f(0, 1, 0), 14, 3500, 4000) != PF_SUCCESS) {
+//        std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
+//        return 1;
+//    }
 
-    // Save plane
-    plane.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[0]), true);
+//    // Save plane
+//    plane.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[0]), true);
 
-    // Read plane
-    GroundPlane np = GroundPlane::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[0]));
-    if(!np.isPlaneDefined()) {
-        std::cerr << "Error: plane was not read correctly!" << std::endl;
-        return 1;
-    }
+//    // Read plane
+//    GroundPlane np = GroundPlane::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[0]));
+//    if(!np.isPlaneDefined()) {
+//        std::cerr << "Error: plane was not read correctly!" << std::endl;
+//        return 1;
+//    }
 
-    // Set actual plane
-    PlaneInfo pi;
-    labeling.findPlaneForLabel(labelName, pi);
+//    // Set actual plane
+//    PlaneInfo pi;
+//    labeling.findPlaneForLabel(labelName, pi);
 
-    tradag.setGroundPlane(pi.createGroundPlane());
+//    tradag.setGroundPlane(pi.createGroundPlane());
 
-    // Compute ground plane info
-    PlaneInfo planeInfo;
-    labeling = sa.createImageLabeling(ids[1]);
-    if(labeling.findPlaneForLabel(labelName, planeInfo) != PF_SUCCESS) {
-        std::cerr << "Error: unable to compute plane info for label \"" << labelName << "\"" << std::endl;
-        return 1;
-    }
+//    // Compute ground plane info
+//    PlaneInfo planeInfo;
+//    labeling = sa.createImageLabeling(ids[1]);
+//    if(labeling.findPlaneForLabel(labelName, planeInfo) != PF_SUCCESS) {
+//        std::cerr << "Error: unable to compute plane info for label \"" << labelName << "\"" << std::endl;
+//        return 1;
+//    }
 
-    // Save plane info
-    planeInfo.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[1]), true);
+//    // Save plane info
+//    planeInfo.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[1]), true);
 
-    // Read plane info
-    PlaneInfo npi  = PlaneInfo::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[1]));
+//    // Read plane info
+//    PlaneInfo npi  = PlaneInfo::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[1]));
 
-    // Create ground plane from info
-    GroundPlane createdPlane = npi.createGroundPlane(3500, 5000, PlaneInfo::PickMode::WEIGHTED_RANDOM);
-    if(!npi.isPlaneDefined()) {
-        std::cerr << "Error: plane was not read correctly" << std::endl;
-        return 1;
-    }
+//    // Create ground plane from info
+//    GroundPlane createdPlane = npi.createGroundPlane(3000, 5000, PlaneInfo::PickMode::WEIGHTED_RANDOM);
+//    if(!createdPlane.isPlaneDefined()) {
+//        std::cerr << "Error: plane was not read correctly" << std::endl;
+//        return 1;
+//    }
 
-    tradag2.setGroundPlane(createdPlane);
+//    tradag2.setGroundPlane(createdPlane);
 
-    // Execute simulation
-    ObjectDropResult result = tradag.execute();
+//    // Execute simulation
+//    ObjectDropResult result = tradag.execute();
 
-    // Evaluate result
-    if(result.status == OD_SUCCESS) {
-        std::cout << "Success!" << std::endl
-                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
-                  << "Rotation: " << obj->getFinalRotation() << std::endl
-                  << "Position: " << obj->getFinalPosition() << std::endl;
+//    // Evaluate result
+//    if(result.status == OD_SUCCESS) {
+//        std::cout << "Success!" << std::endl
+//                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
+//                  << "Rotation: " << obj->getFinalRotation() << std::endl
+//                  << "Position: " << obj->getFinalPosition() << std::endl;
 
-        // Compare depth values
-        cv::Mat depthImg, rgbImg, labelImg;
-        sa.readImages(ids[0], depthImg, rgbImg, labelImg);
+//        // Compare depth values
+//        cv::Mat depthImg, rgbImg, labelImg;
+//        sa.readImages(ids[0], depthImg, rgbImg, labelImg);
 
-        cv::Mat compareMat(depthImg.rows, depthImg.cols, CV_16U);
-        for(int y = 0; y < depthImg.rows; y += 1) {
-            for(int x = 0; x < depthImg.cols; x += 1) {
-                unsigned short diff = std::abs(depthImg.at<unsigned short>(y, x) - result.depthImage.at<unsigned short>(y, x));
-                if(diff > 80)
-                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max();
-                else if(diff > 45)
-                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.75;
-                else if(diff > 20)
-                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.5;
-                else if(diff > 5)
-                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.25;
-                else
-                    compareMat.at<unsigned short>(y, x) = 0;
-            }
-        }
-        cv::namedWindow("Depth Comparison");
-        cv::imshow("Depth Comparison", compareMat);
+//        cv::Mat compareMat(depthImg.rows, depthImg.cols, CV_16U);
+//        for(int y = 0; y < depthImg.rows; y += 1) {
+//            for(int x = 0; x < depthImg.cols; x += 1) {
+//                unsigned short diff = std::abs(depthImg.at<unsigned short>(y, x) - result.depthImage.at<unsigned short>(y, x));
+//                if(diff > 80)
+//                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max();
+//                else if(diff > 45)
+//                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.75;
+//                else if(diff > 20)
+//                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.5;
+//                else if(diff > 5)
+//                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.25;
+//                else
+//                    compareMat.at<unsigned short>(y, x) = 0;
+//            }
+//        }
+//        cv::namedWindow("Depth Comparison");
+//        cv::imshow("Depth Comparison", compareMat);
 
-        cv::namedWindow("Depth");
-        cv::imshow("Depth", result.depthImage);
-        cv::namedWindow("RGB");
-        cv::imshow("RGB", result.rgbImage);
-        cv::waitKey();
-    }
+//        cv::namedWindow("Depth");
+//        cv::imshow("Depth", result.depthImage);
+//        cv::namedWindow("RGB");
+//        cv::imshow("RGB", result.rgbImage);
+//        cv::waitKey();
+//    }
 
-    // Execute simulation
-    result = tradag2.execute();
+//    // Execute simulation
+//    result = tradag2.execute();
 
-    // Evaluate result
-    if(result.status == OD_SUCCESS) {
-        std::cout << "Success!" << std::endl
-                  << "Occlusion: " << obj2->getFinalOcclusion() << std::endl
-                  << "Rotation: " << obj2->getFinalRotation() << std::endl
-                  << "Position: " << obj2->getFinalPosition() << std::endl;
+//    // Evaluate result
+//    if(result.status == OD_SUCCESS) {
+//        std::cout << "Success!" << std::endl
+//                  << "Occlusion: " << obj2->getFinalOcclusion() << std::endl
+//                  << "Rotation: " << obj2->getFinalRotation() << std::endl
+//                  << "Position: " << obj2->getFinalPosition() << std::endl;
 
-        // Compare depth values
-        cv::Mat depthImg, rgbImg, labelImg;
-        sa.readImages(ids[1], depthImg, rgbImg, labelImg);
+//        // Compare depth values
+//        cv::Mat depthImg, rgbImg, labelImg;
+//        sa.readImages(ids[1], depthImg, rgbImg, labelImg);
 
-        cv::Mat compareMat(depthImg.rows, depthImg.cols, CV_16U);
-        for(int y = 0; y < depthImg.rows; y += 1) {
-            for(int x = 0; x < depthImg.cols; x += 1) {
-                unsigned short diff = std::abs(depthImg.at<unsigned short>(y, x) - result.depthImage.at<unsigned short>(y, x));
-                if(diff > 80)
-                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max();
-                else if(diff > 45)
-                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.75;
-                else if(diff > 20)
-                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.5;
-                else if(diff > 5)
-                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.25;
-                else
-                    compareMat.at<unsigned short>(y, x) = 0;
-            }
-        }
-        cv::namedWindow("Depth Comparison");
-        cv::imshow("Depth Comparison", compareMat);
+//        cv::Mat compareMat(depthImg.rows, depthImg.cols, CV_16U);
+//        for(int y = 0; y < depthImg.rows; y += 1) {
+//            for(int x = 0; x < depthImg.cols; x += 1) {
+//                unsigned short diff = std::abs(depthImg.at<unsigned short>(y, x) - result.depthImage.at<unsigned short>(y, x));
+//                if(diff > 80)
+//                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max();
+//                else if(diff > 45)
+//                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.75;
+//                else if(diff > 20)
+//                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.5;
+//                else if(diff > 5)
+//                    compareMat.at<unsigned short>(y, x) = std::numeric_limits<unsigned short>::max() * 0.25;
+//                else
+//                    compareMat.at<unsigned short>(y, x) = 0;
+//            }
+//        }
+//        cv::namedWindow("Depth Comparison");
+//        cv::imshow("Depth Comparison", compareMat);
 
-        // Display result
-        cv::namedWindow("Depth");
-        cv::imshow("Depth", result.depthImage);
-        cv::namedWindow("RGB");
-        cv::imshow("RGB", result.rgbImage);
-        cv::waitKey();
+//        // Display result
+//        cv::namedWindow("Depth");
+//        cv::imshow("Depth", result.depthImage);
+//        cv::namedWindow("RGB");
+//        cv::imshow("RGB", result.rgbImage);
+//        cv::waitKey();
+//    }
+
+//    Simulator sim5 = sa.createSimulator(5);
+//    ImageLabeling lab5 = sa.createImageLabeling(5);
+//    GroundPlane plane5;
+//    lab5.findPlaneForLabel(labelName, plane5, cv::Vec3f(0, 0, 1), 45);
+//    if(!plane5.isPlaneDefined()) {
+//        std::cerr << "Not able to fit image 5" << std::endl;
+//        exit(1);
+//    }
+//    sim5.setGroundPlane(plane5);
+//    sim5.setShowPreviewWindow(true);
+//    sim5.setShowPhysicsAnimation(true);
+//    sim5.setDebugMarkInlierSet(true);
+//    sim5.createObject("001.mesh");
+//    sim5.execute();
+
+    // Test finding scenes by plane
+    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 10, 1500, 2500);
+    std::cout << "Found " << scenes.size() << " scenes" << std::endl;
+    for(auto it = scenes.begin(); it != scenes.end(); ++it) {
+        Simulator sim = sa.createSimulator(it->first, it->second);
+        sim.createObject(meshName);
+        sim.setShowPreviewWindow(true);
+        sim.setShowPhysicsAnimation(true);
+        sim.setDebugMarkInlierSet(true);
+        sim.execute();
     }
 
     return 0;

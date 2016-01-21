@@ -168,21 +168,19 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
                                                                      const cv::Vec3f& normal, float tolerance,
                                                                      unsigned short minDistance, unsigned short maxDistance) {
 
-    DEBUG_OUT("Searching for scenes with valid labels that meet the following constraints:");
+    DEBUG_OUT("Searching for scenes with the given labels that meet the following constraints:");
     DEBUG_OUT("    Plane normal: " << normal << ", tolerance: " << tolerance << "°");
     DEBUG_OUT("    Distance to camera: [" << minDistance << ", " << maxDistance << "]");
 
     std::map<unsigned int, GroundPlane> ret;
 
+    // TODO: incorporate reading planes from file instead of using ImageLabeling
+    // TODO: PlaneInfo::readHeaders()[, GroundPlane::readHeaders()]
+
     // Iterate over all scenes
     for(FileMap::iterator it = mScenes.begin(); it != mScenes.end(); ++it) {
-        // Get images
-        cv::Mat depthImg, rgbImg, labelImg;
-        if(!readImages(it->first, depthImg, rgbImg, labelImg))
-            continue;
-
         // Create image labeling for this scene
-        ImageLabeling labeling(depthImg, labelImg, mLabelMap, mCameraManager);
+        ImageLabeling labeling = createImageLabeling(it->first);
         GroundPlane plane;
 
         // Iterate over given labels
@@ -251,6 +249,11 @@ bool SceneAnalyzer::readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Ma
     return false;
 }
 
+void SceneAnalyzer::clearCache() {
+    DEBUG_OUT("Clearing image cache");
+    mMats.clear();
+}
+
 ImageLabeling SceneAnalyzer::createImageLabeling(unsigned int sceneID) {
     DEBUG_OUT("Creating ImageLabeling for scene with ID " << sceneID);
 
@@ -271,6 +274,12 @@ Simulator SceneAnalyzer::createSimulator(unsigned int sceneID) {
                                  + " (" + getFileName(sceneID) + ")");
 
     return Simulator(depthImg, rgbImg, mCameraManager);
+}
+
+Simulator SceneAnalyzer::createSimulator(unsigned int sceneID, const GroundPlane& plane) {
+    Simulator ret = createSimulator(sceneID);
+    ret.setGroundPlane(plane);
+    return ret;
 }
 
 std::string SceneAnalyzer::getFileName(unsigned int sceneID) const {

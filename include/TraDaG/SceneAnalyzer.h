@@ -49,9 +49,11 @@ public:
                                                           unsigned short maxDistance = std::numeric_limits<unsigned short>::max());
 
     bool readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage);
+    void clearCache();
 
     ImageLabeling createImageLabeling(unsigned int sceneID);
     Simulator createSimulator(unsigned int sceneID);
+    Simulator createSimulator(unsigned int sceneID, const GroundPlane& plane);
 
     std::string getFileName(unsigned int sceneID) const;
 
