@@ -207,8 +207,10 @@ ObjectDropResult Simulator::execute() {
     cv::Mat bestAttemptDepthImage;
     cv::Mat bestAttemptRGBImage;
 
+    bool optimalSolution;
+
     // Loop to restart if the user chooses so
-    UserAction action = UA_KEEP;
+    UserAction action = UA_NO_CHOICE;
     do {
         // If animation is requested, display the window now
         if(mShowPreviewWindow && mShowPhysicsAnimation && ogreWindow.hidden())
@@ -216,7 +218,7 @@ ObjectDropResult Simulator::execute() {
 
         float bestAttemptScore = std::numeric_limits<float>::infinity(); // TODO: weighting object for score influence?
 
-        bool solutionFound = false;
+        optimalSolution = false;
         unsigned int attempt = 0;
 
         // Execution loop - perform simulations until the criteria are met or the maximum number of attempts was reached
@@ -312,14 +314,14 @@ ObjectDropResult Simulator::execute() {
 
                 if(score <= 0.0) {
                     DEBUG_OUT("Found an optimal solution");
-                    solutionFound = true;
+                    optimalSolution = true;
                 }
             }
-        } while(!solutionFound && attempt < mMaxAttempts);
+        } while(!optimalSolution && attempt < mMaxAttempts);
 
         DEBUG_OUT("Finished simulation with the following result:");
         DEBUG_OUT("    Result\'s score: " << bestAttemptScore);
-        DEBUG_OUT("    Result is optimal: " << std::boolalpha << solutionFound << std::noboolalpha);
+        DEBUG_OUT("    Result is optimal: " << std::boolalpha << optimalSolution << std::noboolalpha);
         DEBUG_OUT("    Simulations performed: " << attempt);
 
         // Restore the object poses of the best attempt found
@@ -341,7 +343,17 @@ ObjectDropResult Simulator::execute() {
     } while(action == UA_RESTART);
 
     // Check user choice
-    if(action == UA_KEEP) {
+    if(action == UA_NO_CHOICE) {
+        // No choice was made (because no preview window was requested)
+        if(optimalSolution) {
+            DEBUG_OUT("Simulation was successful");
+            return ObjectDropResult(OD_SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
+        }
+
+        DEBUG_OUT("Simulation was unsuccessful, performed " << mMaxAttempts << " attempts without optimal solution");
+        return ObjectDropResult(OD_MAX_ATTEMPTS_REACHED, bestAttemptDepthImage, bestAttemptRGBImage);
+    }
+    else if(action == UA_KEEP) {
         // Check rendered images
         if(bestAttemptDepthImage.data && bestAttemptRGBImage.data) {
             DEBUG_OUT("Simulation was successful");

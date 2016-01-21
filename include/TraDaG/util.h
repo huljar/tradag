@@ -36,6 +36,7 @@ namespace TraDaG {
     } SimulationResult;
 
     typedef enum {
+        UA_NO_CHOICE,
         UA_KEEP,
         UA_RESTART,
         UA_ABORT
