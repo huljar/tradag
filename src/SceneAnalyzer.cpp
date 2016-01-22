@@ -7,7 +7,9 @@
 #include <opencv2/highgui/highgui.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/string/replace.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/regex.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -15,6 +17,7 @@
 
 using namespace TraDaG;
 namespace fs = boost::filesystem;
+namespace ba = boost::algorithm;
 
 SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string& rgbDirPath, const std::string& labelDirPath,
                              const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxScenes)
@@ -100,7 +103,7 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
     if(maxScenes > 0 && maxScenes < mScenes.size()) {
         DEBUG_OUT("Selecting " << maxScenes << " random scenes");
 
-        // Scramble the scene IDs
+        // Shuffle the scene IDs
         std::shuffle(sceneIDs.begin(), sceneIDs.end(), mRandomEngine);
 
         // Iterate over shuffled IDs
@@ -174,24 +177,82 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
 
     std::map<unsigned int, GroundPlane> ret;
 
-    // TODO: incorporate reading planes from file instead of using ImageLabeling
-    // TODO: PlaneInfo::readHeaders()[, GroundPlane::readHeaders()]
+    // Convert normal and tolerance
+    Ogre::Vector3 normalOgre = cvToOgre(normal);
+    Ogre::Degree toleranceOgre(tolerance);
 
     // Iterate over all scenes
     for(FileMap::iterator it = mScenes.begin(); it != mScenes.end(); ++it) {
-        // Create image labeling for this scene
-        ImageLabeling labeling = createImageLabeling(it->first);
+        // Temporary result storage variables
+        bool sceneIsGood = false;
         GroundPlane plane;
 
-        // Iterate over given labels
-        bool sceneIsGood = false;
-        for(std::vector<std::string>::const_iterator jt = labels.cbegin(); jt != labels.cend(); ++jt) {
-            // Try to get a plane for this label
-            PlaneFitStatus result = labeling.findPlaneForLabel(*jt, plane, normal, tolerance, minDistance, maxDistance);
+        // Find available .planeinfo files for this scene
+        std::vector<std::string> planes = getPlaneInfoFileNames(it->first);
 
-            if(result == PF_SUCCESS) {
+        // Shuffle file names
+        std::shuffle(planes.begin(), planes.end(), mRandomEngine);
+
+        // Iterate over files
+        for(std::vector<std::string>::iterator it = planes.begin(); it != planes.end(); ++it) {
+            // Get path to file
+            std::string filePath = (mPlanePath / fs::path(*it)).string();
+
+            // Read plane info headers
+            PlaneInfo::Headers headers = PlaneInfo::readHeadersFromFile(filePath);
+
+            // Check parsed headers
+            Ogre::Vector3& fileNormal = std::get<1>(headers);
+            if(fileNormal.isZeroLength())
+                continue;
+
+            // Check if the label is one of the specified ones
+            if(std::find(labels.begin(), labels.end(), std::get<0>(headers)) == labels.end()) {
+                DEBUG_OUT("Label \"" << std::get<0>(headers) << "\" does not match any of the given labels");
+                continue;
+            }
+
+            // Check if normal is within tolerance
+            if(!normalOgre.isZeroLength() && fileNormal.angleBetween(normalOgre) > toleranceOgre
+                    && (-fileNormal).angleBetween(normalOgre) > toleranceOgre) {
+                DEBUG_OUT("Plane normal " << fileNormal << " is not within " << tolerance << "° of " << normalOgre <<
+                          " (" << std::min(fileNormal.angleBetween(normalOgre).valueDegrees(),
+                                           (-fileNormal).angleBetween(normalOgre).valueDegrees()) << "°)");
+                continue;
+            }
+
+            // Plane is good, read whole file and check distance to camera
+            DEBUG_OUT("Label and normal OK, parsing the rest of the file");
+            PlaneInfo filePlaneInfo = PlaneInfo::readFromFile(filePath);
+
+            // Check parsed file
+            if(!filePlaneInfo.isPlaneDefined())
+                continue;
+
+            // Try to create a GroundPlane with the given distance
+            plane = filePlaneInfo.createGroundPlane(minDistance, maxDistance);
+
+            // Check if a plane was successfully created
+            if(plane.isPlaneDefined()) {
                 sceneIsGood = true;
                 break;
+            }
+        }
+
+        // If we didn't find a good plane yet, try to fit one now
+        if(!sceneIsGood) {
+            // Create image labeling for this scene
+            ImageLabeling labeling = createImageLabeling(it->first);
+
+            // Iterate over given labels
+            for(std::vector<std::string>::const_iterator jt = labels.cbegin(); jt != labels.cend(); ++jt) {
+                // Try to get a plane for this label
+                PlaneFitStatus result = labeling.findPlaneForLabel(*jt, plane, normal, tolerance, minDistance, maxDistance);
+
+                if(result == PF_SUCCESS) {
+                    sceneIsGood = true;
+                    break;
+                }
             }
         }
 
@@ -212,6 +273,20 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
                                                                      unsigned short minDistance, unsigned short maxDistance) {
 
     return findScenesByPlane(std::vector<std::string>({label}), normal, tolerance, minDistance, maxDistance);
+}
+
+bool SceneAnalyzer::precomputePlaneInfoForScene(unsigned int sceneID, const std::string& label, const cv::Vec3f& normal, float tolerance) {
+    // TODO: implement
+    return false;
+}
+
+bool SceneAnalyzer::precomputePlaneInfoForAllScenes(const std::string& label, const cv::Vec3f& normal, float tolerance) {
+    bool ret = true;
+    for(FileMap::const_iterator it = mScenes.cbegin(); it != mScenes.cend(); ++it) {
+        if(!precomputePlaneInfoForScene(it->first, label, normal, tolerance))
+            ret = false;
+    }
+    return ret;
 }
 
 bool SceneAnalyzer::readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage) {
@@ -282,6 +357,46 @@ Simulator SceneAnalyzer::createSimulator(unsigned int sceneID, const GroundPlane
     return ret;
 }
 
+std::vector<std::string> SceneAnalyzer::getPlaneInfoFileNames(unsigned int sceneID) {
+    DEBUG_OUT("Searching existing files for scene ID " << sceneID << " (" << getFileName(sceneID) << ")");
+
+    // Check if a plane path was provided
+    if(mPlanePath.empty()) {
+        DEBUG_OUT("Unable to search for plane info files - no plane path specified");
+        return std::vector<std::string>();
+    }
+
+    // Get file name pattern
+    std::string pattern = Strings::FileNamePatternPlaneInfo + Strings::FileExtensionPlaneInfo;
+
+    // Build regex
+    ba::replace_all(pattern, "%s", getFileName(sceneID));
+    ba::replace_all(pattern, "%n", "\\d+");
+    ba::replace_all(pattern, ".", "\\.");
+    boost::regex fileRegex('^' + pattern + '$');
+
+    DEBUG_OUT("Constructed file name regular expression: " << fileRegex);
+
+    // Iterate over plane directory
+    fs::directory_iterator dirEnd;
+    std::vector<std::string> ret;
+
+    for(fs::directory_iterator it(mPlanePath); it != dirEnd; ++it) {
+        if(fs::is_regular_file(it->status())) {
+            // Check file with regex
+            fs::path fileName = it->path().filename();
+            if(boost::regex_match(fileName.string(), fileRegex)) {
+                // File name matches
+                DEBUG_OUT("File " << fileName << " matches regular expression");
+                ret.push_back(fileName.string().substr(0, fileName.string().length() - Strings::FileExtensionPlaneInfo.length()));
+            }
+        }
+    }
+
+    DEBUG_OUT("Found " << ret.size() << " matching files");
+    return ret;
+}
+
 std::string SceneAnalyzer::getFileName(unsigned int sceneID) const {
     FileMap::const_iterator fileIter = mScenes.find(sceneID);
     if(fileIter != mScenes.cend())
@@ -299,6 +414,19 @@ std::string SceneAnalyzer::getRGBPath() const {
 
 std::string SceneAnalyzer::getLabelPath() const {
     return mLabelPath.string();
+}
+
+std::string SceneAnalyzer::getPlanePath() const {
+    return mPlanePath.string();
+}
+
+void SceneAnalyzer::setPlanePath(const std::string& planePath) {
+    fs::path path(planePath);
+    if(!fs::exists(path))
+        throw std::invalid_argument("Specified path does not exist");
+    if(!fs::is_directory(path))
+        throw std::invalid_argument("Specified path is not a directory");
+    mPlanePath = path;
 }
 
 CameraManager SceneAnalyzer::getCameraManager() const {

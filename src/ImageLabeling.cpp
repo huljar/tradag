@@ -76,7 +76,8 @@ LabelVec ImageLabeling::findValidLabelValues(const std::string& label) const {
 
 PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, GroundPlane& result,
                                                 const cv::Vec3f& normal, float tolerance,
-                                                unsigned short minDistance, unsigned short maxDistance) {
+                                                unsigned short minDistance, unsigned short maxDistance,
+                                                PlaneInfo::PickMode regionMode) {
 
     DEBUG_OUT("Computing plane for label \"" << label << "\" with the following constraints:");
     DEBUG_OUT("    Plane normal: " << normal << ", tolerance: " << tolerance << "°");
@@ -91,7 +92,7 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, Ground
         return PF_INVALID_LABEL;
     }
 
-    // Scramble label values
+    // Shuffle label values
     std::shuffle(labelValues.begin(), labelValues.end(), mRandomEngine);
 
     // Convert normal and tolerance
@@ -177,25 +178,87 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, Ground
 
     std::vector<unsigned int> regionPointCounts = doRegionGrowing(finalInliers);
 
-    DEBUG_OUT("Found " << regionPointCounts.size() << " connected regions, selecting largest one");
-
-    // Select largest region to use for the plane
-    int selectedRegionID = 0;
-    unsigned int selectedRegionPointCount = regionPointCounts[0];
-
-    for(size_t i = 1; i < regionPointCounts.size(); ++i) {
-        if(regionPointCounts[i] > selectedRegionPointCount) {
-            selectedRegionID = static_cast<int>(i);
-            selectedRegionPointCount = regionPointCounts[i];
+    // Filter out all regions with too little vertices
+    std::vector<size_t> validRegions;
+    for(size_t i = 0; i < regionPointCounts.size(); ++i) {
+        if(regionPointCounts[i] >= Constants::MinRegionPixelsToBeValid) {
+            DEBUG_OUT("Adding region with " << regionPointCounts[i] << " vertices");
+            validRegions.push_back(i);
+        }
+        else {
+            DEBUG_OUT("Skipping region with less than " << Constants::MinRegionPixelsToBeValid << " vertices");
         }
     }
 
+    DEBUG_OUT("Found " << validRegions.size() << " connected regions");
+
+    // Check if any regions are left
+    if(validRegions.size() == 0) {
+        DEBUG_OUT("Unable to create a ground plane - no suitable regions exist");
+        return PF_NO_GOOD_PLANE;
+    }
+
+    // Pick a region according to the regionMode
+    int pick;
+    if(regionMode == PlaneInfo::PickMode::LARGEST) {
+        DEBUG_OUT("Picking the largest region for plane construction");
+
+        unsigned int largestNumVertices = 0;
+        for(std::vector<size_t>::iterator it = validRegions.begin(); it != validRegions.end(); ++it) {
+            if(regionPointCounts[*it] > largestNumVertices) {
+                pick = static_cast<int>(*it);
+                largestNumVertices = regionPointCounts[*it];
+            }
+        }
+    }
+    else if(regionMode == PlaneInfo::PickMode::UNIFORM_RANDOM) {
+        DEBUG_OUT("Picking a random region for plane construction");
+
+        std::uniform_int_distribution<size_t> distribution(0, validRegions.size() - 1);
+        pick = static_cast<int>(validRegions[distribution(mRandomEngine)]);
+    }
+    else if(regionMode == PlaneInfo::PickMode::WEIGHTED_RANDOM) {
+        DEBUG_OUT("Picking a weighted random region for plane construction");
+
+        // Using the algorithm as described here: https://stackoverflow.com/questions/1761626/weighted-random-numbers
+        // Weights are the number of vertices in each region
+
+        // Calculate sum of weights
+        unsigned long sumOfWeights = 0;
+        for(std::vector<size_t>::iterator it = validRegions.begin(); it != validRegions.end(); ++it) {
+            sumOfWeights += static_cast<unsigned long>(regionPointCounts[*it]);
+        }
+
+        // Pick a random number between 0 and sum of weights
+        std::uniform_int_distribution<unsigned long> distribution(0, sumOfWeights - 1);
+        unsigned long rnd = distribution(mRandomEngine);
+
+        // Select the corresponding region
+        bool pickFound = false;
+        for(std::vector<size_t>::iterator it = validRegions.begin(); it != validRegions.end(); ++it) {
+            unsigned long weight = static_cast<unsigned long>(regionPointCounts[*it]);
+            if(rnd < weight) {
+                pick = static_cast<int>(*it);
+                pickFound = true;
+                break;
+            }
+            rnd -= weight;
+        }
+        if(!pickFound)
+            throw std::logic_error("Unable to pick a weighted random region - the function should never reach this point");
+    }
+    else {
+        throw std::invalid_argument("Invalid region mode specified");
+    }
+
+    DEBUG_OUT("Picked region " << pick << " with " << regionPointCounts[pick] << " valid vertices");
+
     // Gather all 3D points from the region
     std::vector<Ogre::Vector3> planePoints;
-    planePoints.reserve(selectedRegionPointCount);
+    planePoints.reserve(regionPointCounts[pick]);
 
     for(PixelWorldMap::const_iterator it = finalInliers.cbegin(); it != finalInliers.cend(); ++it) {
-        if(it->second.second == selectedRegionID) {
+        if(it->second.second == pick) {
             planePoints.push_back(it->second.first);
         }
     }
@@ -220,7 +283,7 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, PlaneI
         return PF_INVALID_LABEL;
     }
 
-    // Scramble label values
+    // Shuffle label values
     std::shuffle(labelValues.begin(), labelValues.end(), mRandomEngine);
 
     // Convert normal and tolerance
@@ -321,9 +384,6 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, PlaneI
         currentMinDepth = std::min(currentDepth, currentMinDepth);
         currentMaxDepth = std::max(currentDepth, currentMaxDepth);
     }
-
-
-
 
     // Set output parameter and return
     DEBUG_OUT("Returning plane info with normal " << finalPlane.normal << " and " << finalRegions.size() << " regions");

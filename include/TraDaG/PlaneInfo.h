@@ -6,6 +6,8 @@
 #include <OGRE/OgrePlane.h>
 #include <OGRE/OgreVector3.h>
 
+#include <boost/filesystem/fstream.hpp>
+
 #include <limits>
 #include <random>
 #include <string>
@@ -21,6 +23,7 @@ class TraDaG::PlaneInfo
 public:
     typedef std::tuple<std::vector<Ogre::Vector3>, unsigned short, unsigned short> Region;
     typedef std::vector<Region> RegionVec;
+    typedef std::tuple<std::string, Ogre::Vector3, Ogre::Real> Headers;
 
     enum class PickMode { LARGEST, UNIFORM_RANDOM, WEIGHTED_RANDOM };
 
@@ -40,8 +43,11 @@ public:
 
     // Retrieve PlaneInfo from file
     static PlaneInfo readFromFile(const std::string& filePath);
+    static Headers readHeadersFromFile(const std::string& filePath);
 
 protected:
+    static Headers parseHeaders(boost::filesystem::ifstream& ifs);
+
     template<typename T>
     inline bool intervalSubsumed(T minBigger, T maxBigger, T minSmaller, T maxSmaller) const {
         return minSmaller >= minBigger && maxSmaller <= maxBigger;

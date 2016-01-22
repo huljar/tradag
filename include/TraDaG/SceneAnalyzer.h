@@ -48,6 +48,11 @@ public:
                                                           unsigned short minDistance = 0,
                                                           unsigned short maxDistance = std::numeric_limits<unsigned short>::max());
 
+    bool precomputePlaneInfoForScene(unsigned int sceneID, const std::string& label,
+                                     const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0);
+    bool precomputePlaneInfoForAllScenes(const std::string& label,
+                                         const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0);
+
     bool readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Mat& rgbImage, cv::Mat& labelImage);
     void clearCache();
 
@@ -55,11 +60,16 @@ public:
     Simulator createSimulator(unsigned int sceneID);
     Simulator createSimulator(unsigned int sceneID, const GroundPlane& plane);
 
+    std::vector<std::string> getPlaneInfoFileNames(unsigned int sceneID);
+
     std::string getFileName(unsigned int sceneID) const;
 
     std::string getDepthPath() const;
     std::string getRGBPath() const;
     std::string getLabelPath() const;
+
+    std::string getPlanePath() const;
+    void setPlanePath(const std::string& planePath);
 
     CameraManager getCameraManager() const;
 

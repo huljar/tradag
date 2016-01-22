@@ -163,8 +163,7 @@ GroundPlane GroundPlane::readFromFile(const std::string& filePath) {
     }
 
     // Read header (label, normal, distance, restitution and friction)
-    std::string line;
-    std::string word;
+    std::string line, word;
 
     // Read label
     if(!std::getline(ifs, line)) {

@@ -74,6 +74,7 @@ int main(int argc, char** argv)
 
     // --- BEGIN TESTING --- //
     SceneAnalyzer sa(depthPath, rgbPath, labelPath/*, "../resources/scenes/plane"*/, camManager, labelMap);
+    sa.setPlanePath("../resources/scenes/plane/");
 
 //    std::vector<unsigned int> ids = sa.findScenesByLabel(labelName);
 
@@ -256,8 +257,8 @@ int main(int argc, char** argv)
     for(auto it = scenes.begin(); it != scenes.end(); ++it) {
         Simulator sim = sa.createSimulator(it->first, it->second);
         sim.createObject(meshName);
-        sim.setShowPreviewWindow(true);
-        sim.setShowPhysicsAnimation(true);
+        sim.setShowPreviewWindow(preview);
+        sim.setShowPhysicsAnimation(animate);
         sim.setDebugMarkInlierSet(true);
         sim.execute();
     }

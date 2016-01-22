@@ -71,10 +71,13 @@ else {
 }
 
 # Boost
-LIBS += -lboost_system -lboost_program_options -lboost_filesystem
+LIBS += -lboost_system -lboost_filesystem -lboost_regex
 
 # OpenCV
 LIBS += -lopencv_core -lopencv_imgproc -lopencv_highgui
+
+# Required only by main.cpp
+LIBS += -lboost_program_options
 
 include(deployment.pri)
 qtcAddDeployment()

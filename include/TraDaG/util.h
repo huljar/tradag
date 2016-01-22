@@ -102,8 +102,10 @@ namespace TraDaG {
 
         const std::string UserInputPromptText = "Select an action:\n\nEnter - Accept this result\nr - Restart\nEsc - Abort";
 
-        const std::string FileExtensionPlane = ".plane";
+        const std::string FileNamePatternPlaneInfo = "%s-%n";
         const std::string FileExtensionPlaneInfo = ".planeinfo";
+        const std::string FileExtensionPlane = ".plane";
+
     }
 
     namespace Defaults {

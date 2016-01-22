@@ -3,7 +3,6 @@
 #include <TraDaG/util.h>
 
 #include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -29,6 +28,12 @@ PlaneInfo::PlaneInfo(const Ogre::Plane& plane, const std::string& label)
 
 bool PlaneInfo::saveToFile(const std::string& filePath, bool overwrite) const {
     DEBUG_OUT("Saving plane info to file \"" << filePath + Strings::FileExtensionPlaneInfo << "\"");
+
+    // Check if this plane is defined
+    if(!isPlaneDefined()) {
+        DEBUG_OUT("The plane is not defined and cannot be saved");
+        return false;
+    }
 
     // Convert file path to boost path
     fs::path path(filePath + Strings::FileExtensionPlaneInfo);
@@ -123,14 +128,15 @@ GroundPlane PlaneInfo::createGroundPlane(unsigned short minDistance, unsigned sh
                 }
             );
 
-            DEBUG_OUT(std::distance(tmpRegion.begin(), tmpEnd) << " valid vertices left");
-
             // Check if enough vertices are left
             if(std::distance(tmpRegion.begin(), tmpEnd) >= Constants::MinRegionPixelsToBeValid) {
-                DEBUG_OUT("Adding remaining vertices as region");
+                DEBUG_OUT("Adding remaining " << std::distance(tmpRegion.begin(), tmpRegion.end()) << " vertices as region");
 
                 // Insert remaining vertices as a valid region
                 validRegions.push_back(std::vector<Ogre::Vector3>(tmpRegion.begin(), tmpEnd));
+            }
+            else {
+                DEBUG_OUT("Skipping region with less than " << Constants::MinRegionPixelsToBeValid << " valid vertices");
             }
         }
         else {
@@ -154,8 +160,6 @@ GroundPlane PlaneInfo::createGroundPlane(unsigned short minDistance, unsigned sh
         size_t largestNumVertices = 0;
         for(std::vector<std::vector<Ogre::Vector3>>::iterator it = validRegions.begin(); it != validRegions.end(); ++it) {
             if(it->size() > largestNumVertices) {
-                DEBUG_OUT("Registering region " << std::distance(validRegions.begin(), it) << " with " << it->size() << " vertices as currently largest region");
-
                 pick = it;
                 largestNumVertices = it->size();
             }
@@ -244,82 +248,11 @@ TraDaG::PlaneInfo PlaneInfo::readFromFile(const std::string& filePath) {
         return PlaneInfo();
     }
 
-    // Read header (label, normal and distance)
-    std::string line;
-    std::string word, word2;
-
-    // Read label
-    if(!std::getline(ifs, line)) {
-        DEBUG_OUT("Couldn't find label line");
-        return PlaneInfo();
-    }
-
-    std::istringstream labeliss(line);
-    if(!(labeliss >> word)) {
-        DEBUG_OUT("Couldn't read label line");
-        return PlaneInfo();
-    }
-
-    if(word != "label") {
-        DEBUG_OUT("Label line didn't start with \"label\"");
-        return PlaneInfo();
-    }
-
-    std::string label;
-    if(!(labeliss >> label)) {
-        DEBUG_OUT("Unable to parse label");
-        return PlaneInfo();
-    }
-
-    // Read normal
-    if(!std::getline(ifs, line)) {
-        DEBUG_OUT("Couldn't find normal line");
-        return PlaneInfo();
-    }
-
-    std::istringstream normaliss(line);
-    if(!(normaliss >> word)) {
-        DEBUG_OUT("Couldn't read normal line");
-        return PlaneInfo();
-    }
-
-    if(word != "normal") {
-        DEBUG_OUT("Normal line didn't start with \"normal\"");
-        return PlaneInfo();
-    }
-
-    Ogre::Vector3 normal;
-    if(!(normaliss >> normal.x >> normal.y >> normal.z)) {
-        DEBUG_OUT("Unable to parse plane normal");
-        return PlaneInfo();
-    }
-
-    // Read distance
-    if(!std::getline(ifs, line)) {
-        DEBUG_OUT("Couldn't find distance line");
-        return PlaneInfo();
-    }
-
-    std::istringstream distanceiss(line);
-    if(!(distanceiss >> word)) {
-        DEBUG_OUT("Couldn't read distance line");
-        return PlaneInfo();
-    }
-
-    if(word != "distance") {
-        DEBUG_OUT("Distance line didn't start with \"distance\"");
-        return PlaneInfo();
-    }
-
-    Ogre::Real distance;
-    if(!(distanceiss >> distance)) {
-        DEBUG_OUT("Unable to parse plane distance");
-        return PlaneInfo();
-    }
-
-    DEBUG_OUT("Headers parsed without errors");
+    // Read headers
+    Headers headers = parseHeaders(ifs);
 
     // Skip empty line(s)
+    std::string line, word, word2;
     do {
         if(!std::getline(ifs, line)) {
             DEBUG_OUT("Couldn't find region definitions");
@@ -395,12 +328,121 @@ TraDaG::PlaneInfo PlaneInfo::readFromFile(const std::string& filePath) {
 
     // Construct and return PlaneInfo
     DEBUG_OUT("Successfully parsed " << path << " with the following information:");
-    DEBUG_OUT("    Label: " << label);
-    DEBUG_OUT("    Normal: " << normal << ", distance: " << distance);
+    DEBUG_OUT("    Label: " << std::get<0>(headers));
+    DEBUG_OUT("    Normal: " << std::get<1>(headers) << ", distance: " << std::get<2>(headers));
     DEBUG_OUT("    Number of regions: " << regions.size());
 
-    PlaneInfo ret(Ogre::Plane(normal, distance), label);
+    PlaneInfo ret(Ogre::Plane(std::get<1>(headers), std::get<2>(headers)), std::get<0>(headers));
     ret.regions() = std::move(regions);
 
     return ret;
+}
+
+PlaneInfo::Headers PlaneInfo::readHeadersFromFile(const std::string& filePath) {
+    DEBUG_OUT("Reading plane info headers from file \"" << filePath + Strings::FileExtensionPlaneInfo << "\"");
+
+    // Convert file path to boost path
+    fs::path path(filePath + Strings::FileExtensionPlaneInfo);
+
+    // Check if the file exists
+    if(!fs::exists(path)) {
+        DEBUG_OUT("File " << path << " does not exist");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    // Check if the file is a regular file
+    if(!fs::is_regular_file(path)) {
+        DEBUG_OUT("Cannot read from " << path << " since it is not a regular file");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    // Create input file stream
+    fs::ifstream ifs(path);
+    if(!ifs.is_open()) {
+        DEBUG_OUT("Failed to open file " << path);
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    // Read headers
+    Headers headers = parseHeaders(ifs);
+
+    ifs.close();
+    return headers;
+}
+
+PlaneInfo::Headers PlaneInfo::parseHeaders(boost::filesystem::ifstream& ifs) {
+    // Read headers (label, normal and distance)
+    std::string line, word;
+
+    // Read label
+    if(!std::getline(ifs, line)) {
+        DEBUG_OUT("Couldn't find label line");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    std::istringstream labeliss(line);
+    if(!(labeliss >> word)) {
+        DEBUG_OUT("Couldn't read label line");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    if(word != "label") {
+        DEBUG_OUT("Label line didn't start with \"label\"");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    std::string label;
+    if(!(labeliss >> label)) {
+        DEBUG_OUT("Unable to parse label");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    // Read normal
+    if(!std::getline(ifs, line)) {
+        DEBUG_OUT("Couldn't find normal line");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    std::istringstream normaliss(line);
+    if(!(normaliss >> word)) {
+        DEBUG_OUT("Couldn't read normal line");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    if(word != "normal") {
+        DEBUG_OUT("Normal line didn't start with \"normal\"");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    Ogre::Vector3 normal;
+    if(!(normaliss >> normal.x >> normal.y >> normal.z)) {
+        DEBUG_OUT("Unable to parse plane normal");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    // Read distance
+    if(!std::getline(ifs, line)) {
+        DEBUG_OUT("Couldn't find distance line");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    std::istringstream distanceiss(line);
+    if(!(distanceiss >> word)) {
+        DEBUG_OUT("Couldn't read distance line");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    if(word != "distance") {
+        DEBUG_OUT("Distance line didn't start with \"distance\"");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    Ogre::Real distance;
+    if(!(distanceiss >> distance)) {
+        DEBUG_OUT("Unable to parse plane distance");
+        return std::make_tuple(std::string(), Ogre::Vector3::ZERO, 0.0);
+    }
+
+    DEBUG_OUT("Headers parsed without errors");
+    return std::make_tuple(label, normal, distance);
 }
