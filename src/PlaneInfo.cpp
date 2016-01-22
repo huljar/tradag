@@ -110,7 +110,7 @@ GroundPlane PlaneInfo::createGroundPlane(unsigned short minDistance, unsigned sh
                 validRegions.push_back(tmpRegion);
             }
             else {
-                DEBUG_OUT("Not adding region because it contains less than " << Constants::MinRegionPixelsToBeValid << " vertices");
+                DEBUG_OUT("Skipping region with less than " << Constants::MinRegionPixelsToBeValid << " vertices");
             }
         }
         // Else check if the region partially overlaps with the bounds
@@ -130,7 +130,7 @@ GroundPlane PlaneInfo::createGroundPlane(unsigned short minDistance, unsigned sh
 
             // Check if enough vertices are left
             if(std::distance(tmpRegion.begin(), tmpEnd) >= Constants::MinRegionPixelsToBeValid) {
-                DEBUG_OUT("Adding remaining " << std::distance(tmpRegion.begin(), tmpRegion.end()) << " vertices as region");
+                DEBUG_OUT("Adding remaining " << std::distance(tmpRegion.begin(), tmpEnd) << " vertices as region");
 
                 // Insert remaining vertices as a valid region
                 validRegions.push_back(std::vector<Ogre::Vector3>(tmpRegion.begin(), tmpEnd));

@@ -53,8 +53,6 @@ public:
     // TODO: when checking, cast a ray from object center of mass in direction of gravity (or direction of negative plane normal?) onto the mesh
     // TODO: when checking if inliers are still underneath the object, only check for the visible part of the object (underneath the covered parts is obviously no inlier)
     // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
-    // TODO: when not using preview window, only keep result if optimal, otherwise return max attempts reached
-    // TODO: test region growing with 24-connected neighborhood?
     // TODO: IDs for object selection in SceneAnalyzer (getMeshName/getObjectName function)
     ObjectDropResult execute();
 

@@ -41,12 +41,14 @@ public:
     std::map<unsigned int, GroundPlane> findScenesByPlane(const std::vector<std::string>& labels,
                                                           const cv::Vec3f& normal, float tolerance,
                                                           unsigned short minDistance = 0,
-                                                          unsigned short maxDistance = std::numeric_limits<unsigned short>::max());
+                                                          unsigned short maxDistance = std::numeric_limits<unsigned short>::max(),
+                                                          bool computePlaneIfNoPlaneInfoFile = false);
 
     std::map<unsigned int, GroundPlane> findScenesByPlane(const std::string& label,
                                                           const cv::Vec3f& normal, float tolerance,
                                                           unsigned short minDistance = 0,
-                                                          unsigned short maxDistance = std::numeric_limits<unsigned short>::max());
+                                                          unsigned short maxDistance = std::numeric_limits<unsigned short>::max(),
+                                                          bool computePlaneIfNoPlaneInfoFile = false);
 
     bool precomputePlaneInfoForScene(unsigned int sceneID, const std::string& label,
                                      const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0);

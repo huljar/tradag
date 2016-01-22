@@ -169,7 +169,8 @@ std::vector<unsigned int> SceneAnalyzer::findScenesByLabel(const std::string& la
 
 std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::vector<std::string>& labels,
                                                                      const cv::Vec3f& normal, float tolerance,
-                                                                     unsigned short minDistance, unsigned short maxDistance) {
+                                                                     unsigned short minDistance, unsigned short maxDistance,
+                                                                     bool computePlaneIfNoPlaneInfoFile) {
 
     DEBUG_OUT("Searching for scenes with the given labels that meet the following constraints:");
     DEBUG_OUT("    Plane normal: " << normal << ", tolerance: " << tolerance << "°");
@@ -239,8 +240,8 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
             }
         }
 
-        // If we didn't find a good plane yet, try to fit one now
-        if(!sceneIsGood) {
+        // If we didn't find a good plane yet, try to fit one now (if requested)
+        if(!sceneIsGood && computePlaneIfNoPlaneInfoFile) {
             // Create image labeling for this scene
             ImageLabeling labeling = createImageLabeling(it->first);
 
@@ -257,11 +258,14 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
         }
 
         if(sceneIsGood) {
-            DEBUG_OUT("Found plane for scene \"" << it->second << "\" and label \"" << plane.getLabel() << "\"");
+            DEBUG_OUT("Found plane for scene ID " << it->first << " (" << it->second << ") and label \"" << plane.getLabel() << "\"");
             DEBUG_OUT("    Plane normal: " << plane.ogrePlane().normal);
             DEBUG_OUT("    Plane vertices: " << plane.vertices().size());
 
             ret.insert(std::make_pair(it->first, plane));
+        }
+        else {
+            DEBUG_OUT("Didn't find any good planes for scene ID " << it->first << " (" << it->second << ")");
         }
     }
 
@@ -270,17 +274,69 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
 
 std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::string& label,
                                                                      const cv::Vec3f& normal, float tolerance,
-                                                                     unsigned short minDistance, unsigned short maxDistance) {
+                                                                     unsigned short minDistance, unsigned short maxDistance,
+                                                                     bool computePlaneIfNoPlaneInfoFile) {
 
-    return findScenesByPlane(std::vector<std::string>({label}), normal, tolerance, minDistance, maxDistance);
+    return findScenesByPlane(std::vector<std::string>({label}), normal, tolerance, minDistance, maxDistance, computePlaneIfNoPlaneInfoFile);
 }
 
 bool SceneAnalyzer::precomputePlaneInfoForScene(unsigned int sceneID, const std::string& label, const cv::Vec3f& normal, float tolerance) {
-    // TODO: implement
+    DEBUG_OUT("Precomputing plane info for scene ID " << sceneID << " (" << getFileName(sceneID) << ") and label \"" << label << "\"");
+
+    // Check if a plane path was provided
+    if(mPlanePath.empty()) {
+        DEBUG_OUT("Unable to precompute plane info - no plane path specified");
+        return false;
+    }
+
+    // Create image labeling for this scene
+    ImageLabeling labeling = createImageLabeling(sceneID);
+
+    // Create plane info
+    PlaneInfo planeInfo;
+    if(labeling.findPlaneForLabel(label, planeInfo, normal, tolerance) == PF_SUCCESS) {
+        DEBUG_OUT("Found a valid plane");
+
+        // Determine file name
+        std::string pattern = Strings::FileNamePatternPlaneInfo;
+
+        // Replace markers
+        ba::replace_all(pattern, "%s", getFileName(sceneID));
+
+        if(pattern.find("%n") != std::string::npos) {
+            // Pattern includes an index, so we will always find a valid file name
+            unsigned long index = 0;
+            std::string newPattern;
+            do {
+                newPattern = boost::replace_all_copy(pattern, "%n", boost::lexical_cast<std::string>(index++));
+            } while(fs::exists(mPlanePath / fs::path(newPattern + Strings::FileExtensionPlaneInfo)));
+
+            pattern = newPattern;
+        }
+
+        // Try to save the plane info
+        if(planeInfo.saveToFile((mPlanePath / pattern).string())) {
+            DEBUG_OUT("Successfully saved plane info for scene ID " << sceneID << " to \"" << pattern << Strings::FileExtensionPlaneInfo << "\"");
+            return true;
+        }
+        else {
+            DEBUG_OUT("Error saving plane info to \"" << pattern << Strings::FileExtensionPlaneInfo << "\", maybe the file already exists");
+        }
+    }
+    else {
+        DEBUG_OUT("Couldn't precompute a valid plane");
+    }
+
     return false;
 }
 
 bool SceneAnalyzer::precomputePlaneInfoForAllScenes(const std::string& label, const cv::Vec3f& normal, float tolerance) {
+    // Check if a plane path was provided
+    if(mPlanePath.empty()) {
+        DEBUG_OUT("Unable to precompute plane info for all scenes - no plane path specified");
+        return false;
+    }
+
     bool ret = true;
     for(FileMap::const_iterator it = mScenes.cbegin(); it != mScenes.cend(); ++it) {
         if(!precomputePlaneInfoForScene(it->first, label, normal, tolerance))

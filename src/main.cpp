@@ -251,8 +251,11 @@ int main(int argc, char** argv)
 //    sim5.createObject("001.mesh");
 //    sim5.execute();
 
+    // Test precomputation of planes
+    //sa.precomputePlaneInfoForAllScenes(labelName, cv::Vec3f(0, 1, 0));
+
     // Test finding scenes by plane
-    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 10, 1500, 2500);
+    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 10, 1500, 4000);
     std::cout << "Found " << scenes.size() << " scenes" << std::endl;
     for(auto it = scenes.begin(); it != scenes.end(); ++it) {
         Simulator sim = sa.createSimulator(it->first, it->second);
