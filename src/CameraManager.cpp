@@ -51,21 +51,6 @@ cv::Vec2i CameraManager::getDepthForWorld(float x, float y, float z) const {
     return cv::Vec2i(u, v);
 }
 
-DepthPixel CameraManager::getActualDepthForWorld(const cv::Vec3f& xyz) const {
-    return getActualDepthForWorld(xyz[0], xyz[1], xyz[2]);
-}
-
-DepthPixel CameraManager::getActualDepthForWorld(float x, float y, float z) const {
-    cv::Vec2f principalPoint = (mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRGBPrincipalPoint : mDepthPrincipalPoint);
-    cv::Vec2f focalLength = (mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRGBFocalLength : mDepthFocalLength);
-
-    int u = std::round(x * focalLength[0] / (-z) + principalPoint[0]);
-    int v = std::round((-y) * focalLength[1] / (-z) + principalPoint[1]);
-    unsigned short d = std::round(-z);
-
-    return std::make_pair(cv::Point(u, v), d);
-}
-
 cv::Vec2i CameraManager::getRGBForWorld(const cv::Vec3f& xyz) const {
     cv::Vec3f xyzNew;
     cv::Vec2f principalPoint = (mMapMode == MM_MAPPED_RGB_TO_DEPTH ? mDepthPrincipalPoint : mRGBPrincipalPoint);

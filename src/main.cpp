@@ -156,10 +156,10 @@ int main(int argc, char** argv)
 //    tradag2.setGroundPlane(createdPlane);
 
 //    // Execute simulation
-//    ObjectDropResult result = tradag.execute();
+//    Simulator::DropResult result = tradag.execute();
 
 //    // Evaluate result
-//    if(result.status == OD_SUCCESS) {
+//    if(result.status == Simulator::DropStatus::SUCCESS) {
 //        std::cout << "Success!" << std::endl
 //                  << "Occlusion: " << obj->getFinalOcclusion() << std::endl
 //                  << "Rotation: " << obj->getFinalRotation() << std::endl
@@ -199,7 +199,7 @@ int main(int argc, char** argv)
 //    result = tradag2.execute();
 
 //    // Evaluate result
-//    if(result.status == OD_SUCCESS) {
+//    if(result.status == Simulator::DropStatus::SUCCESS) {
 //        std::cout << "Success!" << std::endl
 //                  << "Occlusion: " << obj2->getFinalOcclusion() << std::endl
 //                  << "Rotation: " << obj2->getFinalRotation() << std::endl
@@ -275,9 +275,9 @@ int main(int argc, char** argv)
         obj->setInitialAzimuth(M_PI);
         sim.setShowPreviewWindow(preview);
         sim.setShowPhysicsAnimation(animate);
-        ObjectDropResult res = sim.execute();
+        Simulator::DropResult res = sim.execute();
 
-        if(res.status == OD_SUCCESS) {
+        if(res.status == Simulator::DropStatus::SUCCESS) {
             cv::namedWindow("RGB image");
             cv::imshow("RGB image", res.rgbImage);
 

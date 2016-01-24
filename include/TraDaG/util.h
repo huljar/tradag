@@ -42,15 +42,6 @@ namespace TraDaG {
         UA_ABORT
     } UserAction;
 
-    typedef enum {
-        OD_SUCCESS,
-        OD_PLANE_TOO_STEEP,
-        OD_MAX_ATTEMPTS_REACHED,
-        OD_USER_ABORTED,
-        OD_UNKNOWN_ERROR
-    } ObjectDropStatus;
-
-    typedef std::pair<cv::Point, unsigned short> DepthPixel;
     typedef std::vector<DroppableObject*> ObjectVec;
     typedef std::vector<unsigned short> LabelVec;
     typedef std::map<std::string, LabelVec> LabelMap;
@@ -64,17 +55,6 @@ namespace TraDaG {
 
         bool automate;
         T manualValue;
-    };
-
-    struct ObjectDropResult {
-        ObjectDropResult(ObjectDropStatus status, const cv::Mat& depthImage, const cv::Mat& rgbImage)
-            : status(status), depthImage(depthImage), rgbImage(rgbImage)
-        {
-        }
-
-        ObjectDropStatus status;
-        cv::Mat depthImage;
-        cv::Mat rgbImage;
     };
 
     namespace Strings {

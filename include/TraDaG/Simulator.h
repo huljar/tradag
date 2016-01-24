@@ -24,6 +24,19 @@ namespace TraDaG {
 class TraDaG::Simulator
 {
 public:
+    enum class DropStatus { SUCCESS, PLANE_TOO_STEEP, MAX_ATTEMPTS_REACHED, USER_ABORTED, UNKNOWN_ERROR };
+
+    struct DropResult {
+        DropResult(DropStatus status, const cv::Mat& depthImage, const cv::Mat& rgbImage)
+            : status(status), depthImage(depthImage), rgbImage(rgbImage)
+        {
+        }
+
+        DropStatus status;
+        cv::Mat depthImage;
+        cv::Mat rgbImage;
+    };
+
     // TODO: check depth/label image for single channel, check rgb image for color image
     // Constructors
     Simulator(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams);
@@ -54,7 +67,7 @@ public:
     // TODO: when checking if inliers are still underneath the object, only check for the visible part of the object (underneath the covered parts is obviously no inlier)
     // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
     // TODO: IDs for object selection in SceneAnalyzer (getMeshName/getObjectName function)
-    ObjectDropResult execute();
+    DropResult execute();
 
     RGBDScene* getRGBDScene() const;
 

@@ -164,7 +164,7 @@ ObjectVec::const_iterator Simulator::endObjects() const {
     return mObjects.cend();
 }
 
-ObjectDropResult Simulator::execute() {
+Simulator::DropResult Simulator::execute() {
     DEBUG_OUT("Executing simulation with the following parameters:");
     DEBUG_OUT("    Number of objects: " << mObjects.size());
     DEBUG_OUT("    Plane normal: " << mGroundPlane.ogrePlane().normal);
@@ -186,7 +186,7 @@ ObjectDropResult Simulator::execute() {
 
     // Abort if the angle between plane normal and gravity vector is too large
     if(!mGravity.automate && groundPlane.normal.angleBetween(-gravity) > Constants::MaxPlaneNormalToGravityAngle)
-        return ObjectDropResult(OD_PLANE_TOO_STEEP, cv::Mat(), cv::Mat());
+        return DropResult(DropStatus::PLANE_TOO_STEEP, cv::Mat(), cv::Mat());
 
     // Calculate initial rotations
     for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
@@ -350,26 +350,26 @@ ObjectDropResult Simulator::execute() {
         // No choice was made (because no preview window was requested)
         if(optimalSolution) {
             DEBUG_OUT("Simulation was successful");
-            return ObjectDropResult(OD_SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
+            return DropResult(DropStatus::SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
         }
 
         DEBUG_OUT("Simulation was unsuccessful, performed " << mMaxAttempts << " attempts without optimal solution");
-        return ObjectDropResult(OD_MAX_ATTEMPTS_REACHED, bestAttemptDepthImage, bestAttemptRGBImage);
+        return DropResult(DropStatus::MAX_ATTEMPTS_REACHED, bestAttemptDepthImage, bestAttemptRGBImage);
     }
     else if(action == UA_KEEP) {
         // Check rendered images
         if(bestAttemptDepthImage.data && bestAttemptRGBImage.data) {
             DEBUG_OUT("Simulation was successful");
-            return ObjectDropResult(OD_SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
+            return DropResult(DropStatus::SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
         }
     }
     else if(action == UA_ABORT) {
         DEBUG_OUT("Simulation was canceled by the user");
-        return ObjectDropResult(OD_USER_ABORTED, cv::Mat(), cv::Mat());
+        return DropResult(DropStatus::USER_ABORTED, cv::Mat(), cv::Mat());
     }
 
     DEBUG_OUT("An unknown error occurred");
-    return ObjectDropResult(OD_UNKNOWN_ERROR, cv::Mat(), cv::Mat());
+    return DropResult(DropStatus::UNKNOWN_ERROR, cv::Mat(), cv::Mat());
 }
 
 Ogre::Vector3 Simulator::computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity) {
