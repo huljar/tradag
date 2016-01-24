@@ -63,7 +63,7 @@ public:
     UserAction promptUserAction();
 
     bool queryObjectInfo(const DroppableObject* object, float& occlusion, unsigned short& distance,
-                         PixelInfoMap& pixelInfo, bool& onPlane);
+                         DroppableObject::PixelInfoMap& pixelInfo, bool& onPlane);
 
     bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = nullptr);
 

@@ -8,6 +8,7 @@
 
 #include <opencv2/core/core.hpp>
 
+#include <map>
 #include <string>
 #include <utility>
 
@@ -18,10 +19,15 @@ namespace TraDaG {
 class TraDaG::DroppableObject
 {
 public:
+    typedef std::map<cv::Point, std::pair<cv::Vec3s, bool>, bool(*)(const cv::Point&, const cv::Point&)> PixelInfoMap;
+
     DroppableObject(const std::string& meshName, Ogre::SceneManager* sceneManager);
     virtual ~DroppableObject();
 
     Ogre::Entity* getOgreEntity() const;
+
+    PixelInfoMap getFinalObjectCoords() const;
+    void setFinalObjectCoords(const PixelInfoMap& objectCoords);
 
     std::pair<float, float> getDesiredOcclusion() const;
     void setDesiredOcclusion(const std::pair<float, float>& occlusion);
@@ -87,6 +93,8 @@ protected:
 
     Ogre::SceneManager* mSceneMgr;
     Ogre::Entity* mEntity;
+
+    PixelInfoMap mFinalObjectCoords;
 
     std::pair<float, float> mDesiredOcclusion;
     float mFinalOcclusion;

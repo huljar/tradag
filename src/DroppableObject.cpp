@@ -36,6 +36,14 @@ Ogre::Entity* DroppableObject::getOgreEntity() const {
     return mEntity;
 }
 
+DroppableObject::PixelInfoMap DroppableObject::getFinalObjectCoords() const {
+    return mFinalObjectCoords;
+}
+
+void DroppableObject::setFinalObjectCoords(const PixelInfoMap& objectCoords) {
+    mFinalObjectCoords = objectCoords;
+}
+
 std::pair<float, float> DroppableObject::getDesiredOcclusion() const {
     return mDesiredOcclusion;
 }

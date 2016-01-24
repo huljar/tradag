@@ -251,12 +251,12 @@ ObjectDropResult Simulator::execute() {
 
             // Calculate score of this result
             float score = 0.0;
-            std::vector<float> occlusions;
+            std::vector<std::pair<float, DroppableObject::PixelInfoMap>> objectInfos;
             for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
 
-                Ogre::Real occlusion;
+                float occlusion;
                 unsigned short distance;
-                PixelInfoMap pixelInfo;
+                DroppableObject::PixelInfoMap pixelInfo;
                 bool onPlane;
                 if(!ogreWindow.queryObjectInfo(*it, occlusion, distance, pixelInfo, onPlane)) {
                     score = std::numeric_limits<float>::max();
@@ -276,7 +276,8 @@ ObjectDropResult Simulator::execute() {
                 std::pair<unsigned short, unsigned short> desiredDistance = (*it)->getDesiredDistance();
                 score += Constants::ScoreDistanceWeight * distanceToIntervalSquared(distance, desiredDistance.first, desiredDistance.second);
 
-                occlusions.push_back(occlusion);
+                // Store parameters of this object
+                objectInfos.push_back(std::make_pair(occlusion, std::move(pixelInfo)));
             }
 
             DEBUG_OUT("Score of this simulation: " << score);
@@ -304,12 +305,14 @@ ObjectDropResult Simulator::execute() {
 
                 for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
                     Ogre::SceneNode* node = (*it)->getOgreEntity()->getParentSceneNode();
+                    size_t idx = std::distance(beginObjects(), it);
 
                     Ogre::Matrix3 rot;
                     node->getOrientation().ToRotationMatrix(rot);
                     (*it)->setFinalRotation(ogreToCv(rot));
                     (*it)->setFinalPosition(ogreToCv(node->getPosition()));
-                    (*it)->setFinalOcclusion(occlusions[std::distance(beginObjects(), it)]);
+                    (*it)->setFinalOcclusion(objectInfos[idx].first);
+                    (*it)->setFinalObjectCoords(objectInfos[idx].second);
                 }
 
                 if(score <= 0.0) {

@@ -251,19 +251,55 @@ int main(int argc, char** argv)
 //    sim5.createObject("001.mesh");
 //    sim5.execute();
 
-    // Test precomputation of planes
-    //sa.precomputePlaneInfoForAllScenes(labelName, cv::Vec3f(0, 1, 0));
+//    // Test precomputation of planes
+//    //sa.precomputePlaneInfoForAllScenes(labelName, cv::Vec3f(0, 1, 0));
 
-    // Test finding scenes by plane
-    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 10, 1500, 4000);
-    std::cout << "Found " << scenes.size() << " scenes" << std::endl;
+//    // Test finding scenes by plane
+//    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 10, 1500, 4000);
+//    std::cout << "Found " << scenes.size() << " scenes" << std::endl;
+//    for(auto it = scenes.begin(); it != scenes.end(); ++it) {
+//        Simulator sim = sa.createSimulator(it->first, it->second);
+//        sim.createObject(meshName);
+//        sim.setShowPreviewWindow(preview);
+//        sim.setShowPhysicsAnimation(animate);
+//        sim.setDebugMarkInlierSet(true);
+//        sim.execute();
+//    }
+
+    // Test object coordinate calculation
+    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 15);
     for(auto it = scenes.begin(); it != scenes.end(); ++it) {
         Simulator sim = sa.createSimulator(it->first, it->second);
-        sim.createObject(meshName);
+        DroppableObject* obj = sim.createObject(meshName);
+        obj->setMustBeUpright(true);
+        obj->setInitialAzimuth(M_PI);
         sim.setShowPreviewWindow(preview);
         sim.setShowPhysicsAnimation(animate);
-        sim.setDebugMarkInlierSet(true);
-        sim.execute();
+        ObjectDropResult res = sim.execute();
+
+        if(res.status == OD_SUCCESS) {
+            cv::namedWindow("RGB image");
+            cv::imshow("RGB image", res.rgbImage);
+
+            // Print object coordinates
+            DroppableObject::PixelInfoMap objCoords = obj->getFinalObjectCoords();
+            std::cout << "\nObject coordinates:\n";
+            for(auto jt = objCoords.begin(); jt != objCoords.end(); ++jt) {
+                std::cout << "(" << jt->first.x << ", " << jt->first.y << "): "
+                          << jt->second.first << ", " << std::boolalpha << jt->second.second << std::noboolalpha << "\n";
+            }
+            std::cout << std::flush;
+
+            cv::Mat visibility(res.depthImage.rows, res.depthImage.cols, CV_16U, cv::Scalar(0));
+            for(auto jt = objCoords.begin(); jt != objCoords.end(); ++jt) {
+                if(jt->second.second) visibility.at<unsigned short>(jt->first) = std::numeric_limits<unsigned short>::max();
+                else visibility.at<unsigned short>(jt->first) = std::numeric_limits<unsigned short>::max() * 0.4;
+            }
+            cv::namedWindow("Visibility");
+            cv::imshow("Visibility", visibility);
+            cv::waitKey();
+        }
+        break;
     }
 
     return 0;

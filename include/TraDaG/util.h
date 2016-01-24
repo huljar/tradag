@@ -52,7 +52,6 @@ namespace TraDaG {
 
     typedef std::pair<cv::Point, unsigned short> DepthPixel;
     typedef std::vector<DroppableObject*> ObjectVec;
-    typedef std::map<cv::Point, std::pair<cv::Vec3s, bool>, bool(*)(const cv::Point&, const cv::Point&)> PixelInfoMap;
     typedef std::vector<unsigned short> LabelVec;
     typedef std::map<std::string, LabelVec> LabelMap;
 

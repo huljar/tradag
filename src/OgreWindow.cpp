@@ -29,6 +29,7 @@
 
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include <cmath>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -506,7 +507,7 @@ UserAction OgreWindow::promptUserAction() {
 }
 
 bool OgreWindow::queryObjectInfo(const DroppableObject* object, float& occlusion, unsigned short& distance,
-                                 PixelInfoMap& pixelInfo, bool& onPlane) {
+                                 DroppableObject::PixelInfoMap& pixelInfo, bool& onPlane) {
 
     Ogre::Entity* entity = object->getOgreEntity();
     Ogre::SceneNode* node = entity->getParentSceneNode();
@@ -517,20 +518,29 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, float& occlusion
         if(render(objectDepthRender, objectRGBRender, object) && render(sceneDepthRender, sceneRGBRender)) {
 
             // Gather all object pixels
-            PixelInfoMap objectPixels(
+            DroppableObject::PixelInfoMap objectPixels(
                 [] (const cv::Point& lhs, const cv::Point& rhs) -> bool {
                     return lhs.y == rhs.y ? lhs.x < rhs.x : lhs.y < rhs.y;
                 }
             );
             for(cv::Mat_<unsigned short>::iterator it = objectDepthRender.begin<unsigned short>(); it != objectDepthRender.end<unsigned short>(); ++it) {
-                // TODO: Calculate object coordinates for this pixel
-                cv::Vec3s objCoords(0, 0, 0);
-                if(*it) objectPixels.insert(std::make_pair(it.pos(), std::make_pair(objCoords, true)));
+                // Check if the pixel is not black
+                if(*it) {
+                    // Get world coordinates
+                    Ogre::Vector3 worldCoords = cvToOgre(mRGBDScene->cameraManager().getWorldForDepth(it.pos(), *it));
+                    // Convert to object-local coordinates, but use world scale (millimeters)
+                    Ogre::Vector3 objCoords = node->convertWorldToLocalPosition(worldCoords) * node->_getDerivedScale();
+                    cv::Vec3s objCoordsRounded(static_cast<short>(std::round(objCoords.x)),
+                                               static_cast<short>(std::round(objCoords.y)),
+                                               static_cast<short>(std::round(objCoords.z)));
+
+                    objectPixels.insert(std::make_pair(it.pos(), std::make_pair(objCoordsRounded, true)));
+                }
             }
 
             // Check object pixels for visibility in the scene
             size_t occludedPixels = 0;
-            for(PixelInfoMap::iterator it = objectPixels.begin(); it != objectPixels.end(); ++it) {
+            for(DroppableObject::PixelInfoMap::iterator it = objectPixels.begin(); it != objectPixels.end(); ++it) {
                 if(sceneDepthRender.at<unsigned short>(it->first) < objectDepthRender.at<unsigned short>(it->first)) {
                     ++occludedPixels;
                     it->second.second = false;
@@ -539,13 +549,12 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, float& occlusion
 
             // Calculate occlusion and set output parameter
             if(objectPixels.size() > 0)
-                occlusion = static_cast<Ogre::Real>(occludedPixels) / static_cast<Ogre::Real>(objectPixels.size());
+                occlusion = static_cast<float>(occludedPixels) / static_cast<float>(objectPixels.size());
             else
                 occlusion = 1.0;
 
             // Calculate distance of object center to camera plane and set output parameter
-            DepthPixel depthPx = mRGBDScene->cameraManager().getActualDepthForWorld(ogreToCv(node->getPosition()));
-            distance = depthPx.second;
+            distance = static_cast<unsigned short>(-node->getPosition().z);
 
             // Set pixel info output parameter
             pixelInfo = std::move(objectPixels);
