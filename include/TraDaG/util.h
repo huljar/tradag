@@ -116,6 +116,7 @@ namespace TraDaG {
     namespace Constants {
         const float ObjectDropDistance = 500.0;
         const Ogre::Degree MaxPlaneNormalToGravityAngle(25);
+        const float MaxObjectToPlaneDistanceSquared = 90.0 * 90.0; // in mm
 
         const unsigned int MinLabelPixelsToBeValid = 10;
         const unsigned int MinRegionPixelsToBeValid = 10;
@@ -136,6 +137,9 @@ namespace TraDaG {
         const Ogre::Real CameraNearClipDistance = 5.0;
 
         const unsigned short WorkPlaneDepth = 50;
+
+        const int KDTreeMaxDepth = 10;
+        const int KDTreeMinSize = 10;
     }
 
     namespace Labels {

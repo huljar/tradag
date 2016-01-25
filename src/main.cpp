@@ -6,6 +6,7 @@
 #include <TraDaG/PlaneInfo.h>
 #include <TraDaG/util.h>
 #include <TraDaG/SceneAnalyzer.h>
+#include <TraDaG/interop.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -254,53 +255,116 @@ int main(int argc, char** argv)
 //    // Test precomputation of planes
 //    //sa.precomputePlaneInfoForAllScenes(labelName, cv::Vec3f(0, 1, 0));
 
-//    // Test finding scenes by plane
-//    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 10, 1500, 4000);
-//    std::cout << "Found " << scenes.size() << " scenes" << std::endl;
+    // Test finding scenes by plane
+    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 10, 1500, 6000);
+    std::cout << "Found " << scenes.size() << " scenes" << std::endl;
+    for(auto it = scenes.begin(); it != scenes.end(); ++it) {
+        // Test onPlane test
+        Simulator sim = sa.createSimulator(it->first, it->second);
+        DroppableObject* obj = sim.createObject(meshName);
+        //obj->setInitialVelocity(0, 0, -100);
+        obj->setInitialTorque(20, 0, 0);
+        sim.setShowPreviewWindow(preview);
+        sim.setShowPhysicsAnimation(animate);
+        sim.setDebugMarkInlierSet(true);
+        sim.execute();
+    }
+
+//    // Test object coordinate calculation
+//    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 15);
 //    for(auto it = scenes.begin(); it != scenes.end(); ++it) {
 //        Simulator sim = sa.createSimulator(it->first, it->second);
-//        sim.createObject(meshName);
+//        DroppableObject* obj = sim.createObject(meshName);
+//        obj->setMustBeUpright(true);
+//        obj->setInitialAzimuth(M_PI);
+//        sim.setShowPreviewWindow(preview);
+//        sim.setShowPhysicsAnimation(animate);
+//        Simulator::DropResult res = sim.execute();
+
+//        if(res.status == Simulator::DropStatus::SUCCESS) {
+//            cv::namedWindow("RGB image");
+//            cv::imshow("RGB image", res.rgbImage);
+
+//            // Print object coordinates
+//            DroppableObject::PixelInfoMap objCoords = obj->getFinalObjectCoords();
+//            std::cout << "\nObject coordinates:\n";
+//            for(auto jt = objCoords.begin(); jt != objCoords.end(); ++jt) {
+//                std::cout << "(" << jt->first.x << ", " << jt->first.y << "): "
+//                          << jt->second.first << ", " << std::boolalpha << jt->second.second << std::noboolalpha << "\n";
+//            }
+//            std::cout << std::flush;
+
+////            cv::Mat visibility(res.depthImage.rows, res.depthImage.cols, CV_16U, cv::Scalar(0));
+////            for(auto jt = objCoords.begin(); jt != objCoords.end(); ++jt) {
+////                if(jt->second.second) visibility.at<unsigned short>(jt->first) = std::numeric_limits<unsigned short>::max();
+////                else visibility.at<unsigned short>(jt->first) = std::numeric_limits<unsigned short>::max() * 0.4;
+////            }
+////            cv::namedWindow("Visibility");
+////            cv::imshow("Visibility", visibility);
+////            cv::waitKey();
+//            cv::Mat testObjCoords = res.rgbImage.clone();
+//            for(auto jt = objCoords.begin(); jt != objCoords.end(); ++jt) {
+//                testObjCoords.at<cv::Vec3b>(jt->first) = cv::Vec3b(255, 255, 255);
+//            }
+//            cv::namedWindow("Object Coordinate Pixel Accuracy Test");
+//            cv::imshow("Object Coordinate Pixel Accuracy Test", testObjCoords);
+//            cv::waitKey();
+//        }
+//        break;
+//    }
+
+//    // Test nearest neighbor algorithm and KD tree
+//    std::map<unsigned int, GroundPlane> scenes2 = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 15);
+//    for(auto it = scenes2.begin(); it != scenes2.end(); ++it) {
+//        Simulator sim = sa.createSimulator(it->first, it->second);
+//        DroppableObject* obj = sim.createObject(meshName);
 //        sim.setShowPreviewWindow(preview);
 //        sim.setShowPhysicsAnimation(animate);
 //        sim.setDebugMarkInlierSet(true);
-//        sim.execute();
+//        Simulator::DropResult res = sim.execute();
+
+//        if(res.status == Simulator::DropStatus::SUCCESS) {
+//            OgreWindow& ogreWin = OgreWindow::getSingleton();
+//            Ogre::SceneManager* sceneMgr = ogreWin.getSceneManager();
+
+//            DroppableObject::PixelInfoMap objCoords = obj->getFinalObjectCoords();
+
+//            for(auto jt = objCoords.begin(); jt != objCoords.end(); ++jt) {
+//                if(jt->second.second) {
+//                    Ogre::Vector3 visPx = cvToOgre(camManager.getWorldForDepth(jt->first, res.depthImage.at<unsigned short>(jt->first)));
+//                    Ogre::Vector3 projPx = it->second.projectVectorOntoPlane(visPx);
+
+//                    std::vector<Ogre::Vector3> nearestNeighbors = it->second.findKNearestNeighbors(projPx, 20);
+//                    if(nearestNeighbors.size() < 3) {
+//                        std::cerr << "ERROR: only " << nearestNeighbors.size() << " neighbors found!" << std::endl;
+//                        exit(1);
+//                    }
+
+//                    Ogre::ManualObject* manObj = sceneMgr->createManualObject();
+//                    manObj->begin("BaseWhiteNoLighting", Ogre::RenderOperation::OT_LINE_LIST);
+//                    manObj->position(visPx);
+//                    manObj->colour(0.0, 1.0, 1.0);
+//                    manObj->position(projPx);
+//                    manObj->colour(1.0, 0.0, 0.0);
+//                    for(auto kt = nearestNeighbors.begin(); kt != nearestNeighbors.end(); ++kt) {
+//                        manObj->position(projPx);
+//                        manObj->colour(1.0, 1.0, 0.0);
+//                        manObj->position(*kt);
+//                        manObj->colour(1.0, 0.0, 1.0);
+//                    }
+//                    manObj->end();
+
+//                    sceneMgr->getRootSceneNode()->createChildSceneNode()->attachObject(manObj);
+
+//                    break;
+//                }
+//            }
+
+//            ogreWin.show();
+//            ogreWin.promptUserAction();
+//        }
+//        break;
 //    }
-
-    // Test object coordinate calculation
-    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 15);
-    for(auto it = scenes.begin(); it != scenes.end(); ++it) {
-        Simulator sim = sa.createSimulator(it->first, it->second);
-        DroppableObject* obj = sim.createObject(meshName);
-        obj->setMustBeUpright(true);
-        obj->setInitialAzimuth(M_PI);
-        sim.setShowPreviewWindow(preview);
-        sim.setShowPhysicsAnimation(animate);
-        Simulator::DropResult res = sim.execute();
-
-        if(res.status == Simulator::DropStatus::SUCCESS) {
-            cv::namedWindow("RGB image");
-            cv::imshow("RGB image", res.rgbImage);
-
-            // Print object coordinates
-            DroppableObject::PixelInfoMap objCoords = obj->getFinalObjectCoords();
-            std::cout << "\nObject coordinates:\n";
-            for(auto jt = objCoords.begin(); jt != objCoords.end(); ++jt) {
-                std::cout << "(" << jt->first.x << ", " << jt->first.y << "): "
-                          << jt->second.first << ", " << std::boolalpha << jt->second.second << std::noboolalpha << "\n";
-            }
-            std::cout << std::flush;
-
-            cv::Mat visibility(res.depthImage.rows, res.depthImage.cols, CV_16U, cv::Scalar(0));
-            for(auto jt = objCoords.begin(); jt != objCoords.end(); ++jt) {
-                if(jt->second.second) visibility.at<unsigned short>(jt->first) = std::numeric_limits<unsigned short>::max();
-                else visibility.at<unsigned short>(jt->first) = std::numeric_limits<unsigned short>::max() * 0.4;
-            }
-            cv::namedWindow("Visibility");
-            cv::imshow("Visibility", visibility);
-            cv::waitKey();
-        }
-        break;
-    }
 
     return 0;
 }

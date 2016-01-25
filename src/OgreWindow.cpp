@@ -506,7 +506,7 @@ UserAction OgreWindow::promptUserAction() {
     return mActionChosen;
 }
 
-bool OgreWindow::queryObjectInfo(const DroppableObject* object, float& occlusion, unsigned short& distance,
+bool OgreWindow::queryObjectInfo(const DroppableObject* object, GroundPlane& plane, float& occlusion, unsigned short& distance,
                                  DroppableObject::PixelInfoMap& pixelInfo, bool& onPlane) {
 
     Ogre::Entity* entity = object->getOgreEntity();
@@ -517,7 +517,11 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, float& occlusion
         cv::Mat objectDepthRender, objectRGBRender, sceneDepthRender, sceneRGBRender;
         if(render(objectDepthRender, objectRGBRender, object) && render(sceneDepthRender, sceneRGBRender)) {
 
-            // Gather all object pixels
+            // Iterate over all object pixels
+            size_t occludedPixels = 0;
+            onPlane = true;
+
+            // Construct pixel info map
             DroppableObject::PixelInfoMap objectPixels(
                 [] (const cv::Point& lhs, const cv::Point& rhs) -> bool {
                     return lhs.y == rhs.y ? lhs.x < rhs.x : lhs.y < rhs.y;
@@ -534,16 +538,36 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, float& occlusion
                                                static_cast<short>(std::round(objCoords.y)),
                                                static_cast<short>(std::round(objCoords.z)));
 
-                    objectPixels.insert(std::make_pair(it.pos(), std::make_pair(objCoordsRounded, true)));
-                }
-            }
+                    // Check pixel for visibility in the scene
+                    bool visible;
+                    if(sceneDepthRender.at<unsigned short>(it.pos()) < *it) {
+                        // Pixel is occluded
+                        visible = false;
+                        ++occludedPixels;
+                    }
+                    else {
+                        // Pixel is visible
+                        visible = true;
 
-            // Check object pixels for visibility in the scene
-            size_t occludedPixels = 0;
-            for(DroppableObject::PixelInfoMap::iterator it = objectPixels.begin(); it != objectPixels.end(); ++it) {
-                if(sceneDepthRender.at<unsigned short>(it->first) < objectDepthRender.at<unsigned short>(it->first)) {
-                    ++occludedPixels;
-                    it->second.second = false;
+                        // Project onto plane
+                        Ogre::Vector3 projected = plane.projectPointOntoPlane(worldCoords);
+
+                        // Get the nearest neighbor
+                        std::vector<Ogre::Vector3> nearestNeighbors = plane.findKNearestNeighbors(projected, 1);
+                        if(nearestNeighbors.size() != 1) {
+                            DEBUG_OUT("Unable to query nearest neighbor for the given plane");
+                            return false;
+                        }
+                        Ogre::Vector3& neighbor = nearestNeighbors.front();
+
+                        // Check distance to neighbor
+                        if(projected.squaredDistance(neighbor) > Constants::MaxObjectToPlaneDistanceSquared) {
+                            // Set output parameter
+                            onPlane = false;
+                        }
+                    }
+
+                    objectPixels.insert(std::make_pair(it.pos(), std::make_pair(objCoordsRounded, visible)));
                 }
             }
 
@@ -553,14 +577,15 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, float& occlusion
             else
                 occlusion = 1.0;
 
+            // Ensure that onPlane is false if the object has no visible pixels
+            if(occlusion == 1.0)
+                onPlane = false;
+
             // Calculate distance of object center to camera plane and set output parameter
             distance = static_cast<unsigned short>(-node->getPosition().z);
 
             // Set pixel info output parameter
             pixelInfo = std::move(objectPixels);
-
-            // TODO: Check if object is on plane
-            onPlane = true;
 
             return true;
         }
@@ -572,6 +597,9 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, float& occlusion
 bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject) {
     // Ensure that everything is set up correctly
     setUpRenderSettings();
+
+    // Hide vertex markings
+    unmarkVertices();
 
     // Check for specific object
     if(specificObject) {
@@ -642,9 +670,12 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
         }
     }
 
-    // Set output parameters and return
+    // Set output parameters
     depthResult = renderImageDepth;
     rgbResult = renderImageRGB;
+
+    // Re-mark old vertex markings
+    markVertices();
 
     return true;
 }

@@ -1,6 +1,8 @@
 #ifndef GROUNDPLANE_H
 #define GROUNDPLANE_H
 
+#include <TraDaG/KDTree.h>
+
 #include <OGRE/OgrePlane.h>
 #include <OGRE/OgreVector3.h>
 
@@ -15,20 +17,25 @@ class TraDaG::GroundPlane
 {
 public:
     GroundPlane();
-    GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vector3>& vertices, const std::string& label);
+    GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vector3>& vertices, const std::string& label, bool autoConstructKDTree = false);
+
+    GroundPlane(const GroundPlane& other);
+    GroundPlane& operator=(const GroundPlane& other);
 
     bool saveToFile(const std::string& filePath, bool overwrite = false) const;
 
-    virtual void leastSquaresFit();
+    Ogre::Vector3 projectPointOntoPlane(const Ogre::Vector3& vector) const;
+
+    std::vector<Ogre::Vector3> findKNearestNeighbors(const Ogre::Vector3& queryPoint, unsigned int k);
 
     bool isPlaneDefined() const;
 
     Ogre::Plane getOgrePlane() const;
-    Ogre::Plane& ogrePlane();
+    const Ogre::Plane& ogrePlane() const;
     void setOgrePlane(const Ogre::Plane& plane);
 
     std::vector<Ogre::Vector3> getVertices() const;
-    std::vector<Ogre::Vector3>& vertices();
+    const std::vector<Ogre::Vector3>& vertices();
     void setVertices(const std::vector<Ogre::Vector3>& vertices);
 
     std::string getLabel() const;
@@ -50,6 +57,8 @@ public:
 protected:
     Ogre::Plane mPlane;
     std::vector<Ogre::Vector3> mVertices;
+    KDTree mKDTree;
+    bool mKDTreeUpdated;
 
     std::string mLabel;
 

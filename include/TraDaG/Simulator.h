@@ -24,7 +24,7 @@ namespace TraDaG {
 class TraDaG::Simulator
 {
 public:
-    enum class DropStatus { SUCCESS, PLANE_TOO_STEEP, MAX_ATTEMPTS_REACHED, USER_ABORTED, UNKNOWN_ERROR };
+    enum class DropStatus { SUCCESS, PLANE_TOO_STEEP, MAX_ATTEMPTS_REACHED, NO_OBJECTS, PLANE_UNDEFINED, USER_ABORTED, UNKNOWN_ERROR };
 
     struct DropResult {
         DropResult(DropStatus status, const cv::Mat& depthImage, const cv::Mat& rgbImage)
@@ -62,9 +62,6 @@ public:
     ObjectVec::iterator endObjects();
     ObjectVec::const_iterator endObjects() const;
 
-    // TODO: at end: check if inliers are within x radius of object (center of mass), sample again if not
-    // TODO: when checking, cast a ray from object center of mass in direction of gravity (or direction of negative plane normal?) onto the mesh
-    // TODO: when checking if inliers are still underneath the object, only check for the visible part of the object (underneath the covered parts is obviously no inlier)
     // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
     // TODO: IDs for object selection in SceneAnalyzer (getMeshName/getObjectName function)
     DropResult execute();

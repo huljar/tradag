@@ -14,21 +14,49 @@ using namespace TraDaG;
 namespace fs = boost::filesystem;
 
 GroundPlane::GroundPlane()
-    : mRestitution(Defaults::PlaneRestitution)
+    : mKDTreeUpdated(false)
+    , mRestitution(Defaults::PlaneRestitution)
     , mFriction(Defaults::PlaneFriction)
 {
 
 }
 
-GroundPlane::GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vector3>& vertices, const std::string& label)
+GroundPlane::GroundPlane(const Ogre::Plane& plane, const std::vector<Ogre::Vector3>& vertices, const std::string& label, bool autoConstructKDTree)
     : mPlane(plane)
     , mVertices(vertices)
+    , mKDTreeUpdated(false)
     , mLabel(label)
     , mRestitution(Defaults::PlaneRestitution)
     , mFriction(Defaults::PlaneFriction)
 {
     if(!mPlane.normal.isZeroLength())
         mPlane.normalise();
+
+    if(autoConstructKDTree) {
+        mKDTree.initialize(&mVertices, Constants::KDTreeMaxDepth, Constants::KDTreeMinSize);
+        mKDTreeUpdated = true;
+    }
+}
+
+GroundPlane::GroundPlane(const GroundPlane& other)
+    : mPlane(other.mPlane)
+    , mVertices(other.mVertices)
+    , mKDTreeUpdated(false)
+    , mLabel(other.mLabel)
+    , mRestitution(other.mRestitution)
+    , mFriction(other.mFriction)
+{
+}
+
+GroundPlane& GroundPlane::operator=(const GroundPlane& other) {
+    mPlane = other.mPlane;
+    mVertices = other.mVertices;
+    mKDTreeUpdated = false;
+    mLabel = other.mLabel;
+    mRestitution = other.mRestitution;
+    mFriction = other.mFriction;
+
+    return *this;
 }
 
 bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const {
@@ -76,12 +104,29 @@ bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const 
     return true;
 }
 
-void GroundPlane::leastSquaresFit() {
-    if(mVertices.size() >= 3) {
+Ogre::Vector3 GroundPlane::projectPointOntoPlane(const Ogre::Vector3& vector) const {
+    if(isPlaneDefined())
+        return mPlane.projectVector(vector) - mPlane.d * mPlane.normal;
 
+    return vector;
+}
+
+std::vector<Ogre::Vector3> GroundPlane::findKNearestNeighbors(const Ogre::Vector3& queryPoint, unsigned int k) {
+    // Construct KD tree if it is not yet constructed or is out of date
+    if(!mKDTreeUpdated || !mKDTree.initialized()) {
+        mKDTree.initialize(&mVertices, Constants::KDTreeMaxDepth, Constants::KDTreeMinSize);
+        mKDTreeUpdated = true;
     }
 
-    throw std::logic_error("Least squares fit is not yet implemented");
+    std::vector<KDTree::ResultEntry> res = mKDTree.findKNearestNeighbors(queryPoint, k);
+
+    std::vector<Ogre::Vector3> ret;
+    ret.reserve(res.size());
+    for(std::vector<KDTree::ResultEntry>::iterator it = res.begin(); it != res.end(); ++it) {
+        ret.push_back(*it->vertex);
+    }
+
+    return ret;
 }
 
 bool GroundPlane::isPlaneDefined() const {
@@ -92,7 +137,7 @@ Ogre::Plane GroundPlane::getOgrePlane() const {
     return mPlane;
 }
 
-Ogre::Plane& GroundPlane::ogrePlane() {
+const Ogre::Plane& GroundPlane::ogrePlane() const {
     return mPlane;
 }
 
@@ -105,12 +150,13 @@ std::vector<Ogre::Vector3> GroundPlane::getVertices() const {
     return mVertices;
 }
 
-std::vector<Ogre::Vector3>& GroundPlane::vertices() {
+const std::vector<Ogre::Vector3>& GroundPlane::vertices() {
     return mVertices;
 }
 
 void GroundPlane::setVertices(const std::vector<Ogre::Vector3>& vertices) {
     mVertices = vertices;
+    mKDTreeUpdated = false;
 }
 
 std::string GroundPlane::getLabel() const {

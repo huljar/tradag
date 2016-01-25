@@ -176,6 +176,18 @@ Simulator::DropResult Simulator::execute() {
                                         + boost::lexical_cast<std::string>(mGravity.manualValue[1]) + ", "
                                         + boost::lexical_cast<std::string>(mGravity.manualValue[2]) + "]"));
 
+    // Check if objects were added
+    if(mObjects.size() == 0) {
+        DEBUG_OUT("No objects were added to the simulation");
+        return DropResult(DropStatus::NO_OBJECTS, cv::Mat(), cv::Mat());
+    }
+
+    // Check if the plane is defined
+    if(!mGroundPlane.isPlaneDefined()) {
+        DEBUG_OUT("No valid plane was set");
+        return DropResult(DropStatus::PLANE_UNDEFINED, cv::Mat(), cv::Mat());
+    }
+
     OgreWindow& ogreWindow = OgreWindow::getSingleton();
     const Ogre::Plane& groundPlane = mGroundPlane.ogrePlane();
 
@@ -251,19 +263,23 @@ Simulator::DropResult Simulator::execute() {
 
             // Calculate score of this result
             float score = 0.0;
-            std::vector<std::pair<float, DroppableObject::PixelInfoMap>> objectInfos;
+            std::vector<std::pair<float, DroppableObject::PixelInfoMap>> objectInfos(mObjects.size());
             for(ObjectVec::iterator it = beginObjects(); it != endObjects(); ++it) {
 
                 float occlusion;
                 unsigned short distance;
                 DroppableObject::PixelInfoMap pixelInfo;
                 bool onPlane;
-                if(!ogreWindow.queryObjectInfo(*it, occlusion, distance, pixelInfo, onPlane)) {
+                if(!ogreWindow.queryObjectInfo(*it, mGroundPlane, occlusion, distance, pixelInfo, onPlane)) {
+                    DEBUG_OUT("Failed to retrieve object parameters for at least one object");
+
                     score = std::numeric_limits<float>::max();
                     break;
                 }
 
                 if(!onPlane) {
+                    DEBUG_OUT("At least one object does not rest on the plane after dropping");
+
                     score = std::numeric_limits<float>::max();
                     break;
                 }
@@ -277,7 +293,7 @@ Simulator::DropResult Simulator::execute() {
                 score += Constants::ScoreDistanceWeight * distanceToIntervalSquared(distance, desiredDistance.first, desiredDistance.second);
 
                 // Store parameters of this object
-                objectInfos.push_back(std::make_pair(occlusion, std::move(pixelInfo)));
+                objectInfos[std::distance(beginObjects(), it)] = std::make_pair(occlusion, std::move(pixelInfo));
             }
 
             DEBUG_OUT("Score of this simulation: " << score);
@@ -285,18 +301,12 @@ Simulator::DropResult Simulator::execute() {
             if(score < bestAttemptScore) {
                 DEBUG_OUT("Score is better than the previous best, registering current attempt as new best");
 
-                // Hide vertex markings
-                ogreWindow.unmarkVertices();
-
                 // Render depth and RGB images
                 cv::Mat depthRender, rgbRender;
                 if(!ogreWindow.render(depthRender, rgbRender)) {
                     DEBUG_OUT("Unable to render current attempt, skipping to next");
                     continue;
                 }
-
-                // Re-mark vertices (if any were previously marked)
-                ogreWindow.markVertices();
 
                 // Store this attempt
                 bestAttemptDepthImage = depthRender;
@@ -434,10 +444,11 @@ void Simulator::setGroundPlane(const GroundPlane& groundPlane) {
     mGroundPlane = groundPlane;
 
     // Ensure that the camera lies on the positive side of the plane
-    Ogre::Plane& plane = mGroundPlane.ogrePlane();
+    Ogre::Plane plane = mGroundPlane.getOgrePlane();
     if(plane.getDistance(OgreWindow::getSingletonPtr()->getInitialCameraPosition()) < 0) {
         plane.normal = -plane.normal;
         plane.d = -plane.d;
+        mGroundPlane.setOgrePlane(plane);
     }
 }
 
