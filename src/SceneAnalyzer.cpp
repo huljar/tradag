@@ -132,11 +132,11 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
 
 }
 
-std::vector<unsigned int> SceneAnalyzer::findScenesByLabel(const std::vector<std::string>& labels) {
+std::map<unsigned int, std::string> SceneAnalyzer::findScenesByLabel(const std::vector<std::string>& labels) {
     DEBUG_OUT("Searching for scenes with the given labels");
     DEBUG_OUT("    Number of input labels: " << labels.size());
 
-    std::vector<unsigned int> ret;
+    std::map<unsigned int, std::string> ret;
 
     // Iterate over all scenes
     for(FileMap::iterator it = mScenes.begin(); it != mScenes.end(); ++it) {
@@ -152,9 +152,9 @@ std::vector<unsigned int> SceneAnalyzer::findScenesByLabel(const std::vector<std
         for(std::vector<std::string>::const_iterator jt = labels.cbegin(); jt != labels.cend(); ++jt) {
             // Check if it contains the label
             if(labeling.containsLabel(*jt)) {
-                DEBUG_OUT("Scene \"" << it->second << "\" contains label \"" << *jt << "\"");
+                DEBUG_OUT("Scene ID " << it->first << " (" << it->second << ") contains label \"" << *jt << "\"");
 
-                ret.push_back(it->first);
+                ret.insert(std::make_pair(it->first, *jt));
                 break;
             }
         }
@@ -163,7 +163,7 @@ std::vector<unsigned int> SceneAnalyzer::findScenesByLabel(const std::vector<std
     return ret;
 }
 
-std::vector<unsigned int> SceneAnalyzer::findScenesByLabel(const std::string& label) {
+std::map<unsigned int, std::string> SceneAnalyzer::findScenesByLabel(const std::string& label) {
     return findScenesByLabel(std::vector<std::string>({label}));
 }
 

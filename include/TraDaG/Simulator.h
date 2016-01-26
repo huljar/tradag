@@ -38,6 +38,7 @@ public:
     };
 
     // TODO: check depth/label image for single channel, check rgb image for color image
+    // TODO: azimuth in degrees
     // Constructors
     Simulator(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams);
 
@@ -62,8 +63,6 @@ public:
     ObjectVec::iterator endObjects();
     ObjectVec::const_iterator endObjects() const;
 
-    // TODO: when using objectMustBeUpright, disable angular restriction as soon as object is not moving anymore?
-    // TODO: IDs for object selection in SceneAnalyzer (getMeshName/getObjectName function)
     DropResult execute();
 
     RGBDScene* getRGBDScene() const;

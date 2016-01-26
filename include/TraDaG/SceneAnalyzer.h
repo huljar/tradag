@@ -35,8 +35,8 @@ public:
                   const std::string& planeDirPath,
                   const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxScenes = 0);
 
-    std::vector<unsigned int> findScenesByLabel(const std::vector<std::string>& labels);
-    std::vector<unsigned int> findScenesByLabel(const std::string& label);
+    std::map<unsigned int, std::string> findScenesByLabel(const std::vector<std::string>& labels);
+    std::map<unsigned int, std::string> findScenesByLabel(const std::string& label);
 
     std::map<unsigned int, GroundPlane> findScenesByPlane(const std::vector<std::string>& labels,
                                                           const cv::Vec3f& normal, float tolerance,
