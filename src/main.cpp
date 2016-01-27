@@ -7,6 +7,7 @@
 #include <TraDaG/util.h>
 #include <TraDaG/SceneAnalyzer.h>
 #include <TraDaG/interop.h>
+#include <TraDaG/CVLDWrapper/CVLDWrapper.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -74,13 +75,12 @@ int main(int argc, char** argv)
     CameraManager camManager(depthPrincipalPoint, depthFocalLength, depthPrincipalPoint, depthFocalLength);
 
     // --- BEGIN TESTING --- //
-    SceneAnalyzer sa(depthPath, rgbPath, labelPath/*, "../resources/scenes/plane"*/, camManager, labelMap);
-    sa.setPlanePath("../resources/scenes/plane/");
+    SceneAnalyzer sa(depthPath, rgbPath, labelPath, "../resources/scenes/plane", camManager, labelMap);
 
-//    std::vector<unsigned int> ids = sa.findScenesByLabel(labelName);
+//    std::map<unsigned int, std::string> ids = sa.findScenesByLabel(labelName);
 
-//    Simulator tradag = sa.createSimulator(ids[0]);
-//    Simulator tradag2 = sa.createSimulator(ids[1]);
+//    Simulator tradag = sa.createSimulator(ids.begin()->first);
+//    Simulator tradag2 = sa.createSimulator((++ids.begin())->first);
 
 //    tradag.setShowPreviewWindow(preview);
 //    tradag.setShowPhysicsAnimation(animate);
@@ -92,7 +92,7 @@ int main(int argc, char** argv)
 //    // Create an object
 //    DroppableObject* obj = tradag.createObject(meshName);
 //    obj->setDesiredOcclusion(0.2, 0.4);
-//    obj->setInitialAzimuth(M_PI_2);
+//    obj->setInitialAzimuth(270);
 //    obj->setInitialTorque(5, 5, 5);
 //    //obj->setInitialVelocity(400, 100, -400);
 //    obj->setMustBeUpright(true);
@@ -105,23 +105,23 @@ int main(int argc, char** argv)
 //    DroppableObject* obj2 = tradag2.createObject("003.mesh");
 //    obj2->setDesiredOcclusion(0.0, 0.5);
 //    //obj2->setInitialVelocity(400, 100, -400);
-//    obj2->setInitialAzimuth(M_PI_2);
+//    obj2->setInitialAzimuth(90);
 //    obj2->setInitialVelocity(0, 500, 0);
 //    obj2->setInitialTorque(8, 8 ,8);
 
 //    // Compute ground plane
 //    GroundPlane plane;
-//    ImageLabeling labeling = sa.createImageLabeling(ids[0]);
+//    ImageLabeling labeling = sa.createImageLabeling(ids.begin()->first);
 //    if(labeling.findPlaneForLabel(labelName, plane, cv::Vec3f(0, 1, 0), 14, 3500, 4000) != PF_SUCCESS) {
 //        std::cerr << "Error: unable to compute plane for label \"" << labelName << "\"" << std::endl;
 //        return 1;
 //    }
 
 //    // Save plane
-//    plane.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[0]), true);
+//    plane.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids.begin()->first), true);
 
 //    // Read plane
-//    GroundPlane np = GroundPlane::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[0]));
+//    GroundPlane np = GroundPlane::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids.begin()->first));
 //    if(!np.isPlaneDefined()) {
 //        std::cerr << "Error: plane was not read correctly!" << std::endl;
 //        return 1;
@@ -135,17 +135,17 @@ int main(int argc, char** argv)
 
 //    // Compute ground plane info
 //    PlaneInfo planeInfo;
-//    labeling = sa.createImageLabeling(ids[1]);
+//    labeling = sa.createImageLabeling((++ids.begin())->first);
 //    if(labeling.findPlaneForLabel(labelName, planeInfo) != PF_SUCCESS) {
 //        std::cerr << "Error: unable to compute plane info for label \"" << labelName << "\"" << std::endl;
 //        return 1;
 //    }
 
 //    // Save plane info
-//    planeInfo.saveToFile("../resources/scenes/plane/" + sa.getFileName(ids[1]), true);
+//    planeInfo.saveToFile("../resources/scenes/plane/" + sa.getFileName((++ids.begin())->first), true);
 
 //    // Read plane info
-//    PlaneInfo npi  = PlaneInfo::readFromFile("../resources/scenes/plane/" + sa.getFileName(ids[1]));
+//    PlaneInfo npi  = PlaneInfo::readFromFile("../resources/scenes/plane/" + sa.getFileName((++ids.begin())->first));
 
 //    // Create ground plane from info
 //    GroundPlane createdPlane = npi.createGroundPlane(3000, 5000, PlaneInfo::PickMode::WEIGHTED_RANDOM);
@@ -168,7 +168,7 @@ int main(int argc, char** argv)
 
 //        // Compare depth values
 //        cv::Mat depthImg, rgbImg, labelImg;
-//        sa.readImages(ids[0], depthImg, rgbImg, labelImg);
+//        sa.readImages(ids.begin()->first, depthImg, rgbImg, labelImg);
 
 //        cv::Mat compareMat(depthImg.rows, depthImg.cols, CV_16U);
 //        for(int y = 0; y < depthImg.rows; y += 1) {
@@ -208,7 +208,7 @@ int main(int argc, char** argv)
 
 //        // Compare depth values
 //        cv::Mat depthImg, rgbImg, labelImg;
-//        sa.readImages(ids[1], depthImg, rgbImg, labelImg);
+//        sa.readImages((++ids.begin())->first, depthImg, rgbImg, labelImg);
 
 //        cv::Mat compareMat(depthImg.rows, depthImg.cols, CV_16U);
 //        for(int y = 0; y < depthImg.rows; y += 1) {
@@ -255,20 +255,20 @@ int main(int argc, char** argv)
 //    // Test precomputation of planes
 //    //sa.precomputePlaneInfoForAllScenes(labelName, cv::Vec3f(0, 1, 0));
 
-    // Test finding scenes by plane
-    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 10, 1500, 6000);
-    std::cout << "Found " << scenes.size() << " scenes" << std::endl;
-    for(auto it = scenes.begin(); it != scenes.end(); ++it) {
-        // Test onPlane test
-        Simulator sim = sa.createSimulator(it->first, it->second);
-        DroppableObject* obj = sim.createObject(meshName);
-        //obj->setInitialVelocity(0, 0, -100);
-        obj->setInitialTorque(20, 0, 0);
-        sim.setShowPreviewWindow(preview);
-        sim.setShowPhysicsAnimation(animate);
-        sim.setDebugMarkInlierSet(true);
-        sim.execute();
-    }
+//    // Test finding scenes by plane
+//    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 10, 1500, 6000);
+//    std::cout << "Found " << scenes.size() << " scenes" << std::endl;
+//    for(auto it = scenes.begin(); it != scenes.end(); ++it) {
+//        // Test onPlane test
+//        Simulator sim = sa.createSimulator(it->first, it->second);
+//        DroppableObject* obj = sim.createObject(meshName);
+//        //obj->setInitialVelocity(0, 0, -100);
+//        obj->setInitialTorque(20, 0, 0);
+//        sim.setShowPreviewWindow(preview);
+//        sim.setShowPhysicsAnimation(animate);
+//        sim.setDebugMarkInlierSet(true);
+//        sim.execute();
+//    }
 
 //    // Test object coordinate calculation
 //    std::map<unsigned int, GroundPlane> scenes = sa.findScenesByPlane(labelName, cv::Vec3f(0, 1, 0), 15);
@@ -276,7 +276,7 @@ int main(int argc, char** argv)
 //        Simulator sim = sa.createSimulator(it->first, it->second);
 //        DroppableObject* obj = sim.createObject(meshName);
 //        obj->setMustBeUpright(true);
-//        obj->setInitialAzimuth(M_PI);
+//        obj->setInitialAzimuth(180);
 //        sim.setShowPreviewWindow(preview);
 //        sim.setShowPhysicsAnimation(animate);
 //        Simulator::DropResult res = sim.execute();
@@ -365,6 +365,78 @@ int main(int argc, char** argv)
 //        }
 //        break;
 //    }
+
+    // Test CVLD wrapper
+    CVLDWrapper wrapper("../resources/scenes", camManager, labelMap, 10);
+    wrapper.labelsToUse().push_back(labelName);
+    wrapper.setActiveObject(3);
+    wrapper.setShowPreviewWindow(preview);
+    wrapper.setShowPhysicsAnimation(animate);
+    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result = wrapper.getTrainingImage(0.5, 0.9);
+    if(result.second == Simulator::DropStatus::SUCCESS) {
+        cv::namedWindow("Depth");
+        cv::namedWindow("RGB");
+        cv::namedWindow("Object");
+        cv::imshow("Depth", result.first.depth);
+        cv::imshow("RGB", result.first.bgr);
+        cv::Mat obj = result.first.obj.clone();
+        for(cv::Mat_<cv::Vec3s>::iterator it = obj.begin<cv::Vec3s>(); it != obj.end<cv::Vec3s>(); ++it) {
+            if(*it != cv::Vec3s(0, 0, 0)) *it = cv::Vec3s(std::numeric_limits<short>::max(), std::numeric_limits<short>::max(), std::numeric_limits<short>::max());
+        }
+        cv::imshow("Object", obj);
+
+        std::cout << "Result:" << std::endl
+                  << "    Image ID: " << result.first.imageID << std::endl
+                  << "    Occlusion: " << result.first.occlusion << std::endl
+                  << "    Translation: " << result.first.translation << std::endl
+                  << "    Rotation: " << result.first.rotation << std::endl;
+
+        cv::waitKey();
+    }
+
+    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result2 = wrapper.getTrainingImage(result.first.rotation, cv::Point3d(200, 0, 200));
+    if(result2.second == Simulator::DropStatus::SUCCESS) {
+        cv::namedWindow("Depth");
+        cv::namedWindow("RGB");
+        cv::namedWindow("Object");
+        cv::imshow("Depth", result2.first.depth);
+        cv::imshow("RGB", result2.first.bgr);
+        cv::Mat obj = result2.first.obj.clone();
+        for(cv::Mat_<cv::Vec3s>::iterator it = obj.begin<cv::Vec3s>(); it != obj.end<cv::Vec3s>(); ++it) {
+            if(*it != cv::Vec3s(0, 0, 0)) *it = cv::Vec3s(std::numeric_limits<short>::max(), std::numeric_limits<short>::max(), std::numeric_limits<short>::max());
+        }
+        cv::imshow("Object", obj);
+
+        std::cout << "Result:" << std::endl
+                  << "    Image ID: " << result2.first.imageID << std::endl
+                  << "    Occlusion: " << result2.first.occlusion << std::endl
+                  << "    Translation: " << result2.first.translation << std::endl
+                  << "    Rotation: " << result2.first.rotation << std::endl;
+
+        cv::waitKey();
+    }
+
+    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result3 = wrapper.getTrainingImage(result2.first.rotation, 45, 1000, 2500);
+    if(result3.second == Simulator::DropStatus::SUCCESS) {
+        cv::namedWindow("Depth");
+        cv::namedWindow("RGB");
+        cv::namedWindow("Object");
+        cv::imshow("Depth", result3.first.depth);
+        cv::imshow("RGB", result3.first.bgr);
+        cv::Mat obj = result3.first.obj.clone();
+        for(cv::Mat_<cv::Vec3s>::iterator it = obj.begin<cv::Vec3s>(); it != obj.end<cv::Vec3s>(); ++it) {
+            if(*it != cv::Vec3s(0, 0, 0)) *it = cv::Vec3s(std::numeric_limits<short>::max(), std::numeric_limits<short>::max(), std::numeric_limits<short>::max());
+        }
+        cv::imshow("Object", obj);
+
+        std::cout << "Result:" << std::endl
+                  << "    Image ID: " << result3.first.imageID << std::endl
+                  << "    Occlusion: " << result3.first.occlusion << std::endl
+                  << "    Translation: " << result3.first.translation << std::endl
+                  << "    Rotation: " << result3.first.rotation << std::endl;
+
+        cv::waitKey();
+    }
 
     return 0;
 }

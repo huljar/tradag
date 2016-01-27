@@ -92,7 +92,7 @@ namespace TraDaG {
         const std::pair<unsigned short, unsigned short> ObjectDesiredDistance(0, std::numeric_limits<unsigned short>::max());
         const Auto<cv::Vec3f> ObjectInitialPosition(true);
         const Auto<cv::Matx33f> ObjectInitialRotation(true);
-        const float ObjectInitialAzimuth = 0.0;
+        const float ObjectInitialAzimuth = 0.0; // in degrees
         const cv::Vec3f ObjectInitialVelocity(0, 0, 0);
         const cv::Vec3f ObjectInitialTorque(0, 0, 0);
         const bool ObjectMustBeUpright = false;

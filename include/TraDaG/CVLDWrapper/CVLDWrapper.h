@@ -58,6 +58,9 @@ public:
     const std::vector<std::string>& labelsToUse() const;
     void setLabelsToUse(const std::vector<std::string>& labelsToUse);
 
+    bool getComputePlaneIfNoFile() const;
+    void setComputePlaneIfNoFile(bool computePlaneIfNoFile);
+
     unsigned int getActiveObject() const;
     void setActiveObject(unsigned int objectID);
 
@@ -102,6 +105,8 @@ private:
     SceneAnalyzer mSceneAnalyzer;
 
     std::vector<std::string> mLabelsToUse;
+
+    bool mComputePlaneIfNoFile;
 
     unsigned int mActiveObject;
 

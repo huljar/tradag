@@ -37,8 +37,6 @@ public:
         cv::Mat rgbImage;
     };
 
-    // TODO: check depth/label image for single channel, check rgb image for color image
-    // TODO: azimuth in degrees
     // Constructors
     Simulator(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams);
 
@@ -93,7 +91,7 @@ private:
     void init(const cv::Mat& depthImage, const cv::Mat& rgbImage, const CameraManager& cameraParams);
 
     Ogre::Vector3 computePosition(const std::vector<Ogre::Vector3>& inliers, const Ogre::Vector3& gravity);
-    Ogre::Matrix3 computeRotation(const float azimuth, const Ogre::Vector3& gravity) const;
+    Ogre::Matrix3 computeRotation(float azimuth, const Ogre::Vector3& gravity) const;
 
     float distanceToIntervalSquared(float value, float min, float max) const;
 

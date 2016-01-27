@@ -34,6 +34,7 @@ const std::vector<std::string> CVLDWrapper::msObjects({
 CVLDWrapper::CVLDWrapper(const std::string& datasetPath, const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxLoadImages)
     : mSceneAnalyzer((fs::path(datasetPath) / fs::path("depth")).string(), (fs::path(datasetPath) / fs::path("rgb")).string(),
                      (fs::path(datasetPath) / fs::path("label")).string(), cameraParams, labelMap, maxLoadImages)
+    , mComputePlaneIfNoFile(true)
     , mActiveObject(0)
     , mObjectScale(Defaults::ObjectScale[0])
     , mObjectMass(Defaults::ObjectMass)
@@ -48,16 +49,24 @@ CVLDWrapper::CVLDWrapper(const std::string& datasetPath, const CameraManager& ca
     , mRandomEngine(std::chrono::system_clock::now().time_since_epoch().count())
 {
     fs::path planePath = fs::path(datasetPath) / fs::path("plane");
-    if(fs::exists(planePath) && fs::is_directory(planePath))
+    if(fs::exists(planePath) && fs::is_directory(planePath)) {
+        DEBUG_OUT("Found plane path in the specified directory");
         mSceneAnalyzer.setPlanePath(planePath.string());
+    }
 }
 
 std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTrainingImage(double occlusionMin, double occlusionMax) {
     DEBUG_OUT("Getting training image for occlusion = [" << occlusionMin << ", " << occlusionMax << "]");
 
+    // Check if any labels are defined
+    if(mLabelsToUse.empty()) {
+        DEBUG_OUT("No labels were defined, aborting");
+        return std::make_pair(TrainingImage(), Simulator::DropStatus::PLANE_UNDEFINED);
+    }
+
     // Get all scenes with labels that should be used
     std::map<unsigned int, GroundPlane> scenes = mSceneAnalyzer.findScenesByPlane(mLabelsToUse, cv::Vec3f(0, 0, 0), 180.0,
-                                                                                  0, std::numeric_limits<unsigned short>::max(), true);
+                                                                                  0, std::numeric_limits<unsigned short>::max(), mComputePlaneIfNoFile);
 
     // Get scene IDs
     std::vector<unsigned int> allIDs;
@@ -113,9 +122,15 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
     DEBUG_OUT("Getting training image for occlusion = [" << occlusionMin << ", " << occlusionMax << "] with specific initial rotation and throwing direction");
 
+    // Check if any labels are defined
+    if(mLabelsToUse.empty()) {
+        DEBUG_OUT("No labels were defined, aborting");
+        return std::make_pair(TrainingImage(), Simulator::DropStatus::PLANE_UNDEFINED);
+    }
+
     // Get all scenes with labels that should be used
     std::map<unsigned int, GroundPlane> scenes = mSceneAnalyzer.findScenesByPlane(mLabelsToUse, cv::Vec3f(0, 0, 0), 180.0,
-                                                                                  0, std::numeric_limits<unsigned short>::max(), true);
+                                                                                  0, std::numeric_limits<unsigned short>::max(), mComputePlaneIfNoFile);
 
     // Get scene IDs
     std::vector<unsigned int> allIDs;
@@ -177,11 +192,17 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
     DEBUG_OUT("Getting training image for occlusion = [" << occlusionMin << ", " << occlusionMax << "] with specific final rotation and tolerance");
 
+    // Check if any labels are defined
+    if(mLabelsToUse.empty()) {
+        DEBUG_OUT("No labels were defined, aborting");
+        return std::make_pair(TrainingImage(), Simulator::DropStatus::PLANE_UNDEFINED);
+    }
+
     // Get all scenes with labels that should be used and suitable normal
     // Plane normal is the 2nd column of the rotation matrix (y-axis)
     cv::Vec3f normal(rotation(0, 1), rotation(1, 1), rotation(2, 1));
     std::map<unsigned int, GroundPlane> scenes = mSceneAnalyzer.findScenesByPlane(mLabelsToUse, normal, rotationTolerance,
-                                                                                  distanceMin, distanceMax, true);
+                                                                                  distanceMin, distanceMax, mComputePlaneIfNoFile);
 
     // Get scene IDs
     std::vector<unsigned int> allIDs;
@@ -315,6 +336,14 @@ const std::vector<std::string>& CVLDWrapper::labelsToUse() const {
 
 void CVLDWrapper::setLabelsToUse(const std::vector<std::string>& labelsToUse) {
     mLabelsToUse = labelsToUse;
+}
+
+bool CVLDWrapper::getComputePlaneIfNoFile() const {
+    return mComputePlaneIfNoFile;
+}
+
+void CVLDWrapper::setComputePlaneIfNoFile(bool computePlaneIfNoFile) {
+    mComputePlaneIfNoFile = computePlaneIfNoFile;
 }
 
 unsigned int CVLDWrapper::getActiveObject() const {

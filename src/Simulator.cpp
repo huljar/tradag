@@ -2,6 +2,8 @@
 #include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
 
+#include <OGRE/OgreMath.h>
+
 #include <opencv2/highgui/highgui.hpp>
 
 #include <boost/lexical_cast.hpp>
@@ -389,7 +391,7 @@ Ogre::Vector3 Simulator::computePosition(const std::vector<Ogre::Vector3>& inlie
     return point - Constants::ObjectDropDistance * gravity.normalisedCopy();
 }
 
-Ogre::Matrix3 Simulator::computeRotation(const float azimuth, const Ogre::Vector3& gravity) const {
+Ogre::Matrix3 Simulator::computeRotation(float azimuth, const Ogre::Vector3& gravity) const {
     // Find rotation matrix so the object starts upright
     // (see https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d)
     Ogre::Vector3 a = Ogre::Vector3::UNIT_Y;
@@ -413,8 +415,9 @@ Ogre::Matrix3 Simulator::computeRotation(const float azimuth, const Ogre::Vector
     }
 
     // Incorporate specified azimuth
-    float a_cos = std::cos(azimuth);
-    float a_sin = std::sin(azimuth);
+    float azimuthRadians = Ogre::Degree(azimuth).valueRadians();
+    float a_cos = std::cos(azimuthRadians);
+    float a_sin = std::sin(azimuthRadians);
     rotation = rotation * Ogre::Matrix3(a_cos,  0,  a_sin,
                                         0,      1,      0,
                                         -a_sin, 0,  a_cos);
