@@ -79,13 +79,13 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
     std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
     // Simulate until good scene found
-    // TODO: if max attempts reached, try again for another scene?
+    // TODO: save best per scene
     for(std::vector<unsigned int>::iterator it = allIDs.begin(); it != allIDs.end(); ++it) {
         DEBUG_OUT("Trying simulation for ID " << *it);
 
         // Get Simulator and create object
         Simulator simulator = mSceneAnalyzer.createSimulator(*it, scenes[*it]);
-        simulator.setMaxAttempts(mMaxAttempts);
+        simulator.setMaxAttempts(static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size()))));
         simulator.setShowPreviewWindow(mShowPreviewWindow);
         simulator.setShowPhysicsAnimation(mShowPhysicsAnimation);
         simulator.setGravity(mGravity);
@@ -143,13 +143,13 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
     std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
     // Simulate until good scene found
-    // TODO: if max attempts reached, try again for another scene?
+    // TODO: save best per scene
     for(std::vector<unsigned int>::iterator it = allIDs.begin(); it != allIDs.end(); ++it) {
         DEBUG_OUT("Trying simulation for ID " << *it);
 
         // Get Simulator and create object
         Simulator simulator = mSceneAnalyzer.createSimulator(*it, scenes[*it]);
-        simulator.setMaxAttempts(mMaxAttempts);
+        simulator.setMaxAttempts(static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size()))));
         simulator.setShowPreviewWindow(mShowPreviewWindow);
         simulator.setShowPhysicsAnimation(mShowPhysicsAnimation);
         simulator.setGravity(mGravity);
@@ -215,13 +215,13 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
     std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
     // Simulate until good scene found
-    // TODO: if max attempts reached, try again for another scene?
+    // TODO: save best per scene
     for(std::vector<unsigned int>::iterator it = allIDs.begin(); it != allIDs.end(); ++it) {
         DEBUG_OUT("Trying simulation for ID " << *it);
 
         // Get Simulator and create object
         Simulator simulator = mSceneAnalyzer.createSimulator(*it, scenes[*it]);
-        simulator.setMaxAttempts(mMaxAttempts);
+        simulator.setMaxAttempts(static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size()))));
         simulator.setShowPreviewWindow(mShowPreviewWindow);
         simulator.setShowPhysicsAnimation(mShowPhysicsAnimation);
         simulator.setGravity(mGravity);
@@ -275,7 +275,6 @@ CVLDWrapper::TrainingImage CVLDWrapper::constructTrainingImage(const cv::Mat& bg
     cv::Mat_<ushort> retDepth(depth.clone());
 
     // Build object coordinate matrix
-    // TODO: (0, 0, 0) can be a valid object coordinate?
     cv::Mat_<cv::Vec3s> retObj(depth.rows, depth.cols, cv::Vec3s(0, 0, 0));
     for(DroppableObject::PixelInfoMap::const_iterator it = pixelInfo.cbegin(); it != pixelInfo.cend(); ++it) {
         if(it->second.second) retObj(it->first) = it->second.first;

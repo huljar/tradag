@@ -129,7 +129,8 @@ GroundPlane PlaneInfo::createGroundPlane(unsigned short minDistance, unsigned sh
             );
 
             // Check if enough vertices are left
-            if(std::distance(tmpRegion.begin(), tmpEnd) >= Constants::MinRegionPixelsToBeValid) {
+            // Cast the result of std::distance because in some stdlibs it returns a signed integral type and the compiler issues a warning
+            if(static_cast<unsigned int>(std::distance(tmpRegion.begin(), tmpEnd)) >= Constants::MinRegionPixelsToBeValid) {
                 DEBUG_OUT("Adding remaining " << std::distance(tmpRegion.begin(), tmpEnd) << " vertices as region");
 
                 // Insert remaining vertices as a valid region
