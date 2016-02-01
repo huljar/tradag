@@ -55,6 +55,25 @@ CVLDWrapper::CVLDWrapper(const std::string& datasetPath, const CameraManager& ca
     }
 }
 
+bool CVLDWrapper::precomputePlaneInfo(const std::vector<std::string>& labels, const cv::Vec3f& normal, float tolerance) {
+    if(mSceneAnalyzer.getPlanePath().empty())
+        throw std::logic_error("No plane path exists in the specified directory");
+
+    bool ret = true;
+    for(std::vector<std::string>::const_iterator it = labels.cbegin(); it != labels.cend(); ++it) {
+        if(!precomputePlaneInfo(*it, normal, tolerance))
+            ret = false;
+    }
+    return ret;
+}
+
+bool CVLDWrapper::precomputePlaneInfo(const std::string& label, const cv::Vec3f& normal, float tolerance) {
+    if(mSceneAnalyzer.getPlanePath().empty())
+        throw std::logic_error("No plane path exists in the specified directory");
+
+    return mSceneAnalyzer.precomputePlaneInfoForAllScenes(label, normal, tolerance);
+}
+
 std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTrainingImage(double occlusionMin, double occlusionMax) {
     DEBUG_OUT("Getting training image for occlusion = [" << occlusionMin << ", " << occlusionMax << "]");
 
@@ -75,6 +94,8 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
         allIDs.push_back(it->first);
     }
 
+    unsigned int maxAttempts = static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size())));
+
     // Shuffle scene IDs
     std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
@@ -85,7 +106,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
         // Get Simulator and create object
         Simulator simulator = mSceneAnalyzer.createSimulator(*it, scenes[*it]);
-        simulator.setMaxAttempts(static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size()))));
+        simulator.setMaxAttempts(maxAttempts);
         simulator.setShowPreviewWindow(mShowPreviewWindow);
         simulator.setShowPhysicsAnimation(mShowPhysicsAnimation);
         simulator.setGravity(mGravity);
@@ -139,6 +160,8 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
         allIDs.push_back(it->first);
     }
 
+    unsigned int maxAttempts = static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size())));
+
     // Shuffle scene IDs
     std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
@@ -149,7 +172,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
         // Get Simulator and create object
         Simulator simulator = mSceneAnalyzer.createSimulator(*it, scenes[*it]);
-        simulator.setMaxAttempts(static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size()))));
+        simulator.setMaxAttempts(maxAttempts);
         simulator.setShowPreviewWindow(mShowPreviewWindow);
         simulator.setShowPhysicsAnimation(mShowPhysicsAnimation);
         simulator.setGravity(mGravity);
@@ -211,6 +234,8 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
         allIDs.push_back(it->first);
     }
 
+    unsigned int maxAttempts = static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size())));
+
     // Shuffle scene IDs
     std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
@@ -221,7 +246,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
         // Get Simulator and create object
         Simulator simulator = mSceneAnalyzer.createSimulator(*it, scenes[*it]);
-        simulator.setMaxAttempts(static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size()))));
+        simulator.setMaxAttempts(maxAttempts);
         simulator.setShowPreviewWindow(mShowPreviewWindow);
         simulator.setShowPhysicsAnimation(mShowPhysicsAnimation);
         simulator.setGravity(mGravity);

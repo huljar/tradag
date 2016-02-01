@@ -41,8 +41,10 @@ public:
         unsigned int imageID;
     };
 
-    // TODO: interface for plane pre-computation?
     CVLDWrapper(const std::string& datasetPath, const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxLoadImages = 0);
+
+    bool precomputePlaneInfo(const std::vector<std::string>& labels, const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0);
+    bool precomputePlaneInfo(const std::string& label, const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0);
 
     std::pair<TrainingImage, Simulator::DropStatus> getTrainingImage(double occlusionMin = 0.0, double occlusionMax = 1.0);
 
