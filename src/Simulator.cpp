@@ -230,7 +230,7 @@ Simulator::DropResult Simulator::execute() {
         if(mShowPreviewWindow && mShowPhysicsAnimation && ogreWindow.hidden())
             ogreWindow.show();
 
-        float bestAttemptScore = std::numeric_limits<float>::infinity(); // TODO: weighting object for score influence?
+        float bestAttemptScore = std::numeric_limits<float>::infinity();
 
         optimalSolution = false;
         unsigned int attempt = 0;
@@ -288,11 +288,15 @@ Simulator::DropResult Simulator::execute() {
 
                 // Add score value for occlusion
                 std::pair<float, float> desiredOcclusion = (*it)->getDesiredOcclusion();
-                score += Constants::ScoreOcclusionWeight * distanceToIntervalSquared(occlusion, desiredOcclusion.first, desiredOcclusion.second);
+                score += Constants::ScoreOcclusionWeight *
+                         (*it)->getScoreWeight() *
+                         distanceToIntervalSquared(occlusion, desiredOcclusion.first, desiredOcclusion.second);
 
                 // Add score value for distance
                 std::pair<unsigned short, unsigned short> desiredDistance = (*it)->getDesiredDistance();
-                score += Constants::ScoreDistanceWeight * distanceToIntervalSquared(distance, desiredDistance.first, desiredDistance.second);
+                score += Constants::ScoreDistanceWeight *
+                         (*it)->getScoreWeight() *
+                         distanceToIntervalSquared(distance, desiredDistance.first, desiredDistance.second);
 
                 // Store parameters of this object
                 objectInfos[std::distance(beginObjects(), it)] = std::make_pair(occlusion, std::move(pixelInfo));

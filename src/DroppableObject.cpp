@@ -22,6 +22,7 @@ DroppableObject::DroppableObject(const std::string& meshName, Ogre::SceneManager
     , mRestitution(Defaults::ObjectRestitution)
     , mFriction(Defaults::ObjectFriction)
     , mMass(Defaults::ObjectMass)
+    , mScoreWeight(Defaults::ObjectScoreWeight)
 {
     mEntity = sceneManager->createEntity(meshName);
     mEntity->setCastShadows(mCastShadows);
@@ -233,4 +234,12 @@ bool DroppableObject::checkDistanceValid(unsigned short min, unsigned short max)
         return false;
 
     return true;
+}
+
+float DroppableObject::getScoreWeight() const {
+    return mScoreWeight;
+}
+
+void DroppableObject::setScoreWeight(float scoreWeight) {
+    mScoreWeight = scoreWeight;
 }

@@ -87,6 +87,9 @@ public:
     float getMass() const;
     void setMass(float mass);
 
+    float getScoreWeight() const;
+    void setScoreWeight(float scoreWeight);
+
 protected:
     bool checkOcclusionValid(float min, float max) const;
     bool checkDistanceValid(unsigned short min, unsigned short max) const;
@@ -120,6 +123,8 @@ protected:
     float mRestitution;
     float mFriction;
     float mMass;
+
+    float mScoreWeight;
 };
 
 #endif // DROPPABLEOBJECT_H

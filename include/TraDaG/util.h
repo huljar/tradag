@@ -101,6 +101,7 @@ namespace TraDaG {
         const float ObjectFriction = 0.7;
         const float ObjectMass = 1.0;
         const cv::Vec3f ObjectScale(1000, 1000, 1000);
+        const float ObjectScoreWeight = 1.0;
 
         const float PlaneRestitution = 0.1;
         const float PlaneFriction = 0.9;
