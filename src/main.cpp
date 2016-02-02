@@ -394,7 +394,7 @@ int main(int argc, char** argv)
         cv::waitKey();
     }
 
-    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result2 = wrapper.getTrainingImage(result.first.rotation, cv::Point3d(200, 0, 200));
+    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result2 = wrapper.getTrainingImage(result.first.rotation, cv::Point3d(200, 2000, 200));
     if(result2.second == Simulator::DropStatus::SUCCESS) {
         cv::namedWindow("Depth");
         cv::namedWindow("RGB");

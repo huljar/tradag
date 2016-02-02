@@ -379,6 +379,10 @@ Simulator::DropResult Simulator::execute() {
             return DropResult(DropStatus::SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
         }
     }
+    else if(action == UA_DISCARD) {
+        DEBUG_OUT("Simulation result was discarded by the user");
+        return DropResult(DropStatus::USER_DISCARDED, cv::Mat(), cv::Mat());
+    }
     else if(action == UA_ABORT) {
         DEBUG_OUT("Simulation was canceled by the user");
         return DropResult(DropStatus::USER_ABORTED, cv::Mat(), cv::Mat());

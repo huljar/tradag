@@ -24,7 +24,8 @@ namespace TraDaG {
 class TraDaG::Simulator
 {
 public:
-    enum class DropStatus { SUCCESS, PLANE_TOO_STEEP, MAX_ATTEMPTS_REACHED, NO_OBJECTS, PLANE_UNDEFINED, USER_ABORTED, UNKNOWN_ERROR };
+    enum class DropStatus { SUCCESS, PLANE_TOO_STEEP, MAX_ATTEMPTS_REACHED, NO_OBJECTS, PLANE_UNDEFINED,
+                            USER_DISCARDED, USER_ABORTED, UNKNOWN_ERROR };
 
     struct DropResult {
         DropResult(DropStatus status, const cv::Mat& depthImage, const cv::Mat& rgbImage)

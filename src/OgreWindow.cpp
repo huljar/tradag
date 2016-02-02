@@ -447,7 +447,7 @@ SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, RGBDScene
 
 UserAction OgreWindow::promptUserAction() {
     mStatus = AWAITING_USER_INPUT;
-    mActionChosen = UA_KEEP;
+    mActionChosen = UA_NO_CHOICE;
 
     // Create overlay
     Ogre::OverlayManager& overlayMgr = Ogre::OverlayManager::getSingleton();
@@ -477,12 +477,12 @@ UserAction OgreWindow::promptUserAction() {
     panel->setBottomRightBorderUV(0.6, 0.6, 1.0, 1.0);
 
     panel->setPosition(10, 10);
-    panel->setDimensions(230, 125);
+    panel->setDimensions(285, 145);
 
     // Set properties of text area
     textArea->setMetricsMode(Ogre::GMM_PIXELS);
     textArea->setPosition(15, 15);
-    textArea->setDimensions(200, 95);
+    textArea->setDimensions(255, 115);
     textArea->setFontName(Strings::UserInputPromptFontName);
     textArea->setCharHeight(19);
     textArea->setSpaceWidth(6);
@@ -835,6 +835,10 @@ bool OgreWindow::keyPressed(const OIS::KeyEvent& e) {
     if(mStatus == AWAITING_USER_INPUT) {
         if(e.key == OIS::KC_RETURN) {
             mActionChosen = UA_KEEP;
+            mHaltRendering = true;
+        }
+        else if(e.key == OIS::KC_BACK) {
+            mActionChosen = UA_DISCARD;
             mHaltRendering = true;
         }
         else if(e.key == OIS::KC_ESCAPE) {

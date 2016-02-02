@@ -38,6 +38,7 @@ namespace TraDaG {
     typedef enum {
         UA_NO_CHOICE,
         UA_KEEP,
+        UA_DISCARD,
         UA_RESTART,
         UA_ABORT
     } UserAction;
@@ -79,7 +80,7 @@ namespace TraDaG {
         const std::string UserInputPromptTextAreaName = "InputPromptTextArea";
         const std::string UserInputPromptFontName = "TraDaG/Inputs";
 
-        const std::string UserInputPromptText = "Select an action:\n\nEnter - Accept this result\nr - Restart\nEsc - Abort";
+        const std::string UserInputPromptText = "Select an action:\n\nEnter - Accept this result\nBackspace - Discard this result\nr - Restart with same parameters\nEsc - Abort";
 
         const std::string FileNamePatternPlaneInfo = "%s-%n";
         const std::string FileExtensionPlaneInfo = ".planeinfo";
