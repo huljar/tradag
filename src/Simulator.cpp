@@ -220,6 +220,7 @@ Simulator::DropResult Simulator::execute() {
     // Matrices to store the best result
     cv::Mat bestAttemptDepthImage;
     cv::Mat bestAttemptRGBImage;
+    float bestAttemptScore;
 
     bool optimalSolution;
 
@@ -230,7 +231,7 @@ Simulator::DropResult Simulator::execute() {
         if(mShowPreviewWindow && mShowPhysicsAnimation && ogreWindow.hidden())
             ogreWindow.show();
 
-        float bestAttemptScore = std::numeric_limits<float>::infinity();
+        bestAttemptScore = std::numeric_limits<float>::infinity();
 
         optimalSolution = false;
         unsigned int attempt = 0;
@@ -366,17 +367,17 @@ Simulator::DropResult Simulator::execute() {
         // No choice was made (because no preview window was requested)
         if(optimalSolution) {
             DEBUG_OUT("Simulation was successful");
-            return DropResult(DropStatus::SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
+            return DropResult(DropStatus::SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage, bestAttemptScore);
         }
 
         DEBUG_OUT("Simulation was unsuccessful, performed " << mMaxAttempts << " attempts without optimal solution");
-        return DropResult(DropStatus::MAX_ATTEMPTS_REACHED, bestAttemptDepthImage, bestAttemptRGBImage);
+        return DropResult(DropStatus::MAX_ATTEMPTS_REACHED, bestAttemptDepthImage, bestAttemptRGBImage, bestAttemptScore);
     }
     else if(action == UA_KEEP) {
         // Check rendered images
         if(bestAttemptDepthImage.data && bestAttemptRGBImage.data) {
             DEBUG_OUT("Simulation was successful");
-            return DropResult(DropStatus::SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage);
+            return DropResult(DropStatus::SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage, bestAttemptScore);
         }
     }
     else if(action == UA_DISCARD) {

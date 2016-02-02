@@ -143,6 +143,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
     DEBUG_OUT("Getting training image for occlusion = [" << occlusionMin << ", " << occlusionMax << "] with specific initial rotation and throwing direction");
 
+    // TODO: check rotation dimensions
     // Check if any labels are defined
     if(mLabelsToUse.empty()) {
         DEBUG_OUT("No labels were defined, aborting");

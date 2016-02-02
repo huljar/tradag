@@ -28,14 +28,15 @@ public:
                             USER_DISCARDED, USER_ABORTED, UNKNOWN_ERROR };
 
     struct DropResult {
-        DropResult(DropStatus status, const cv::Mat& depthImage, const cv::Mat& rgbImage)
-            : status(status), depthImage(depthImage), rgbImage(rgbImage)
+        DropResult(DropStatus status, const cv::Mat& depthImage, const cv::Mat& rgbImage, float score = -1.0)
+            : status(status), depthImage(depthImage), rgbImage(rgbImage), score(score)
         {
         }
 
         DropStatus status;
         cv::Mat depthImage;
         cv::Mat rgbImage;
+        float score;
     };
 
     // Constructors
