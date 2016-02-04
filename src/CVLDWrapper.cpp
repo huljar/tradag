@@ -103,8 +103,10 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
     // Shuffle scene IDs
     std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
-    // Simulate until good scene found
-    // TODO: save best per scene
+    // Simulate until good scene found or max attempts are reached
+    TrainingImage currentBest;
+    float currentBestScore = std::numeric_limits<float>::infinity();
+
     for(std::vector<unsigned int>::iterator it = allIDs.begin(); it != allIDs.end(); ++it) {
         DEBUG_OUT("Trying simulation for ID " << *it);
 
@@ -137,8 +139,22 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
             return std::make_pair(TrainingImage(), result.status);
         }
+        else if(result.status == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+            // Save this result if it is better than current best scene
+            if(result.score < currentBestScore) {
+                currentBest = constructTrainingImage(result.rgbImage, result.depthImage, obj->getFinalObjectCoords(), obj->getFinalOcclusion(),
+                                                     obj->getFinalPosition(), obj->getFinalRotation(), *it);
+                currentBestScore = result.score;
+            }
+        }
     }
 
+    if(currentBestScore < std::numeric_limits<float>::infinity()) {
+        DEBUG_OUT("Simulation completed, didn't find an optimal solution, returning best one found");
+        return std::make_pair(currentBest, Simulator::DropStatus::MAX_ATTEMPTS_REACHED);
+    }
+
+    DEBUG_OUT("Simulation unsuccessful, no valid training images were generated");
     return std::make_pair(TrainingImage(), Simulator::DropStatus::UNKNOWN_ERROR);
 }
 
@@ -177,8 +193,10 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
     // Shuffle scene IDs
     std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
-    // Simulate until good scene found
-    // TODO: save best per scene
+    // Simulate until good scene found or max attempts are reached
+    TrainingImage currentBest;
+    float currentBestScore = std::numeric_limits<float>::infinity();
+
     for(std::vector<unsigned int>::iterator it = allIDs.begin(); it != allIDs.end(); ++it) {
         DEBUG_OUT("Trying simulation for ID " << *it);
 
@@ -216,8 +234,22 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
             return std::make_pair(TrainingImage(), result.status);
         }
+        else if(result.status == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+            // Save this result if it is better than current best scene
+            if(result.score < currentBestScore) {
+                currentBest = constructTrainingImage(result.rgbImage, result.depthImage, obj->getFinalObjectCoords(), obj->getFinalOcclusion(),
+                                                     obj->getFinalPosition(), obj->getFinalRotation(), *it);
+                currentBestScore = result.score;
+            }
+        }
     }
 
+    if(currentBestScore < std::numeric_limits<float>::infinity()) {
+        DEBUG_OUT("Simulation completed, didn't find an optimal solution, returning best one found");
+        return std::make_pair(currentBest, Simulator::DropStatus::MAX_ATTEMPTS_REACHED);
+    }
+
+    DEBUG_OUT("Simulation unsuccessful, no valid training images were generated");
     return std::make_pair(TrainingImage(), Simulator::DropStatus::UNKNOWN_ERROR);
 }
 
@@ -259,8 +291,10 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
     // Shuffle scene IDs
     std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
-    // Simulate until good scene found
-    // TODO: save best per scene
+    // Simulate until good scene found or max attempts are reached
+    TrainingImage currentBest;
+    float currentBestScore = std::numeric_limits<float>::infinity();
+
     for(std::vector<unsigned int>::iterator it = allIDs.begin(); it != allIDs.end(); ++it) {
         DEBUG_OUT("Trying simulation for ID " << *it);
 
@@ -302,8 +336,22 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
             return std::make_pair(TrainingImage(), result.status);
         }
+        else if(result.status == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+            // Save this result if it is better than current best scene
+            if(result.score < currentBestScore) {
+                currentBest = constructTrainingImage(result.rgbImage, result.depthImage, obj->getFinalObjectCoords(), obj->getFinalOcclusion(),
+                                                     obj->getFinalPosition(), obj->getFinalRotation(), *it);
+                currentBestScore = result.score;
+            }
+        }
     }
 
+    if(currentBestScore < std::numeric_limits<float>::infinity()) {
+        DEBUG_OUT("Simulation completed, didn't find an optimal solution, returning best one found");
+        return std::make_pair(currentBest, Simulator::DropStatus::MAX_ATTEMPTS_REACHED);
+    }
+
+    DEBUG_OUT("Simulation unsuccessful, no valid training images were generated");
     return std::make_pair(TrainingImage(), Simulator::DropStatus::UNKNOWN_ERROR);
 }
 

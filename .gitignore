@@ -1,4 +1,5 @@
 *.pro.user
 *.autosave
-build/
+build-debug/
+build-release/
 resources/scenes/plane/

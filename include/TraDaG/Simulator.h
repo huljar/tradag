@@ -13,6 +13,7 @@
 
 #include <opencv2/core/core.hpp>
 
+#include <limits>
 #include <random>
 #include <string>
 #include <vector>
@@ -28,7 +29,12 @@ public:
                             USER_DISCARDED, USER_ABORTED, UNKNOWN_ERROR };
 
     struct DropResult {
-        DropResult(DropStatus status, const cv::Mat& depthImage, const cv::Mat& rgbImage, float score = -1.0)
+        DropResult()
+            : status(DropStatus::UNKNOWN_ERROR), score(std::numeric_limits<float>::infinity())
+        {
+        }
+
+        DropResult(DropStatus status, const cv::Mat& depthImage, const cv::Mat& rgbImage, float score = std::numeric_limits<float>::infinity())
             : status(status), depthImage(depthImage), rgbImage(rgbImage), score(score)
         {
         }

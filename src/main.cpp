@@ -377,8 +377,8 @@ int main(int argc, char** argv)
     wrapper.setActiveObject(1);
     wrapper.setShowPreviewWindow(preview);
     wrapper.setShowPhysicsAnimation(animate);
-    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result = wrapper.getTrainingImage(0.5, 0.9);
-    if(result.second == Simulator::DropStatus::SUCCESS) {
+    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result = wrapper.getTrainingImage(0.2, 0.6);
+    if(result.second == Simulator::DropStatus::SUCCESS || result.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
         cv::namedWindow("Depth");
         cv::namedWindow("RGB");
         cv::namedWindow("Object");
@@ -399,8 +399,8 @@ int main(int argc, char** argv)
         cv::waitKey();
     }
 
-    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result2 = wrapper.getTrainingImage(result.first.rotation, cv::Point3d(200, 2000, 200));
-    if(result2.second == Simulator::DropStatus::SUCCESS) {
+    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result2 = wrapper.getTrainingImage(result.first.rotation, cv::Point3d(200, 0, 200));
+    if(result2.second == Simulator::DropStatus::SUCCESS || result.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
         cv::namedWindow("Depth");
         cv::namedWindow("RGB");
         cv::namedWindow("Object");
@@ -422,7 +422,7 @@ int main(int argc, char** argv)
     }
 
     std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result3 = wrapper.getTrainingImage(result2.first.rotation, 45, 1000, 2500);
-    if(result3.second == Simulator::DropStatus::SUCCESS) {
+    if(result3.second == Simulator::DropStatus::SUCCESS || result.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
         cv::namedWindow("Depth");
         cv::namedWindow("RGB");
         cv::namedWindow("Object");
