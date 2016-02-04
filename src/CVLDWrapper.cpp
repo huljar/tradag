@@ -15,7 +15,7 @@
 using namespace TraDaG;
 namespace fs = boost::filesystem;
 
-const std::vector<std::string> CVLDWrapper::msObjects({
+std::vector<std::string> CVLDWrapper::msObjects({
     "001.mesh",
     "002.mesh",
     "003.mesh",
@@ -76,6 +76,10 @@ bool CVLDWrapper::precomputePlaneInfo(const std::string& label, const cv::Vec3f&
 
 std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTrainingImage(double occlusionMin, double occlusionMax) {
     DEBUG_OUT("Getting training image for occlusion = [" << occlusionMin << ", " << occlusionMax << "]");
+
+    // Check if object ID is still valid
+    if(!checkObjectID())
+        throw std::logic_error("Current object ID is invalid (was the available objects vector modified after setting the current ID?)");
 
     // Check if any labels are defined
     if(mLabelsToUse.empty()) {
@@ -143,7 +147,14 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
     DEBUG_OUT("Getting training image for occlusion = [" << occlusionMin << ", " << occlusionMax << "] with specific initial rotation and throwing direction");
 
-    // TODO: check rotation dimensions
+    // Check if object ID is still valid
+    if(!checkObjectID())
+        throw std::logic_error("Current object ID is invalid (was the available objects vector modified after setting the current ID?)");
+
+    // Check rotation dimensions
+    if(rotation.rows != 3 || rotation.cols != 3)
+        throw std::invalid_argument("Rotation matrix is not a 3x3 matrix");
+
     // Check if any labels are defined
     if(mLabelsToUse.empty()) {
         DEBUG_OUT("No labels were defined, aborting");
@@ -215,6 +226,14 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
                                                                                            double occlusionMin, double occlusionMax) {
 
     DEBUG_OUT("Getting training image for occlusion = [" << occlusionMin << ", " << occlusionMax << "] with specific final rotation and tolerance");
+
+    // Check if object ID is still valid
+    if(!checkObjectID())
+        throw std::logic_error("Current object ID is invalid (was the available objects vector modified after setting the current ID?)");
+
+    // Check rotation dimensions
+    if(rotation.rows != 3 || rotation.cols != 3)
+        throw std::invalid_argument("Rotation matrix is not a 3x3 matrix");
 
     // Check if any labels are defined
     if(mLabelsToUse.empty()) {
@@ -347,6 +366,14 @@ cv::Mat_<double> CVLDWrapper::computeAlignRotation(const cv::Vec3f& a, const cv:
     return rotation;
 }
 
+bool CVLDWrapper::checkObjectID() const {
+    return mActiveObject < msObjects.size();
+}
+
+bool CVLDWrapper::checkObjectID(unsigned int objectID) const {
+    return objectID > 0 && objectID <= msObjects.size();
+}
+
 std::vector<std::string> CVLDWrapper::getLabelsToUse() const {
     return mLabelsToUse;
 }
@@ -376,7 +403,7 @@ unsigned int CVLDWrapper::getActiveObject() const {
 }
 
 void CVLDWrapper::setActiveObject(unsigned int objectID) {
-    if(objectID > 0 && objectID <= msObjects.size())
+    if(checkObjectID(objectID))
         mActiveObject = objectID - 1;
     else
         throw std::invalid_argument("Non-existant object ID given");
@@ -464,4 +491,8 @@ Auto<cv::Vec3f> CVLDWrapper::getGravity() const {
 
 void CVLDWrapper::setGravity(const Auto<cv::Vec3f>& gravity) {
     mGravity = gravity;
+}
+
+std::vector<std::string>& CVLDWrapper::availableObjects() {
+    return msObjects;
 }

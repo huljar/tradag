@@ -98,11 +98,16 @@ public:
     Auto<cv::Vec3f> getGravity() const;
     void setGravity(const Auto<cv::Vec3f>& gravity);
 
+    static std::vector<std::string>& availableObjects();
+
 private:
     TrainingImage constructTrainingImage(const cv::Mat& bgr, const cv::Mat& depth, const DroppableObject::PixelInfoMap& pixelInfo, float occlusion,
                                          const cv::Vec3f& translation, const cv::Matx33f& rotation, unsigned int imageID) const;
 
     cv::Mat_<double> computeAlignRotation(const cv::Vec3f& a, const cv::Vec3f& b);
+
+    bool checkObjectID() const;
+    bool checkObjectID(unsigned int objectID) const;
 
     SceneAnalyzer mSceneAnalyzer;
 
@@ -130,7 +135,7 @@ private:
 
     std::default_random_engine mRandomEngine;
 
-    static const std::vector<std::string> msObjects;
+    static std::vector<std::string> msObjects;
 
 };
 

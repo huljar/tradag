@@ -367,9 +367,14 @@ int main(int argc, char** argv)
 //    }
 
     // Test CVLD wrapper
+    std::vector<std::string>& objects = CVLDWrapper::availableObjects();
+    objects.clear();
+    objects.push_back("003.mesh");
+    objects.push_back("007.mesh");
+
     CVLDWrapper wrapper("../resources/scenes", camManager, labelMap, 10);
     wrapper.labelsToUse().push_back(labelName);
-    wrapper.setActiveObject(3);
+    wrapper.setActiveObject(1);
     wrapper.setShowPreviewWindow(preview);
     wrapper.setShowPhysicsAnimation(animate);
     std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result = wrapper.getTrainingImage(0.5, 0.9);
