@@ -35,7 +35,7 @@ public:
     void setOgrePlane(const Ogre::Plane& plane);
 
     std::vector<Ogre::Vector3> getVertices() const;
-    const std::vector<Ogre::Vector3>& vertices();
+    const std::vector<Ogre::Vector3>& vertices() const;
     void setVertices(const std::vector<Ogre::Vector3>& vertices);
 
     std::string getLabel() const;

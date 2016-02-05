@@ -150,7 +150,7 @@ std::vector<Ogre::Vector3> GroundPlane::getVertices() const {
     return mVertices;
 }
 
-const std::vector<Ogre::Vector3>& GroundPlane::vertices() {
+const std::vector<Ogre::Vector3>& GroundPlane::vertices() const {
     return mVertices;
 }
 

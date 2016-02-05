@@ -2,8 +2,6 @@
 #include <TraDaG/debug.h>
 #include <TraDaG/interop.h>
 
-#include <OGRE/OgreMath.h>
-
 #include <opencv2/highgui/highgui.hpp>
 
 #include <boost/algorithm/string/predicate.hpp>
@@ -195,9 +193,9 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
         std::shuffle(planes.begin(), planes.end(), mRandomEngine);
 
         // Iterate over files
-        for(std::vector<std::string>::iterator it = planes.begin(); it != planes.end(); ++it) {
+        for(std::vector<std::string>::iterator jt = planes.begin(); jt != planes.end(); ++jt) {
             // Get path to file
-            std::string filePath = (mPlanePath / fs::path(*it)).string();
+            std::string filePath = (mPlanePath / fs::path(*jt)).string();
 
             // Read plane info headers
             PlaneInfo::Headers headers = PlaneInfo::readHeadersFromFile(filePath);
@@ -242,8 +240,13 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
 
         // If we didn't find a good plane yet, try to fit one now (if requested)
         if(!sceneIsGood && computePlaneIfNoPlaneInfoFile) {
+            // Get images
+            cv::Mat depthImg, rgbImg, labelImg;
+            if(!readImages(it->first, depthImg, rgbImg, labelImg))
+                continue;
+
             // Create image labeling for this scene
-            ImageLabeling labeling = createImageLabeling(it->first);
+            ImageLabeling labeling(depthImg, labelImg, mLabelMap, mCameraManager);
 
             // Iterate over given labels
             for(std::vector<std::string>::const_iterator jt = labels.cbegin(); jt != labels.cend(); ++jt) {
@@ -278,6 +281,40 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
                                                                      bool computePlaneIfNoPlaneInfoFile) {
 
     return findScenesByPlane(std::vector<std::string>({label}), normal, tolerance, minDistance, maxDistance, computePlaneIfNoPlaneInfoFile);
+}
+
+SceneAnalyzer::LabelIterator SceneAnalyzer::beginByLabel(const std::vector<std::string>& labels, bool randomizeOrder) {
+    return LabelIterator(mScenes.cbegin(), mScenes.cend(), this, labels, randomizeOrder);
+}
+
+SceneAnalyzer::LabelIterator SceneAnalyzer::beginByLabel(const std::string& label, bool randomizeOrder) {
+    return beginByLabel(std::vector<std::string>({label}), randomizeOrder);
+}
+
+SceneAnalyzer::LabelIterator SceneAnalyzer::endByLabel() {
+    return LabelIterator(mScenes.cend(), this);
+}
+
+SceneAnalyzer::PlaneIterator SceneAnalyzer::beginByPlane(const std::vector<std::string>& labels,
+                                                         const cv::Vec3f& normal, float tolerance,
+                                                         unsigned short minDistance, unsigned short maxDistance,
+                                                         bool computePlaneIfNoPlaneInfoFile, bool randomizeOrder) {
+
+    return PlaneIterator(mScenes.cbegin(), mScenes.cend(), this, labels, normal, tolerance,
+                         minDistance, maxDistance, computePlaneIfNoPlaneInfoFile, randomizeOrder);
+}
+
+SceneAnalyzer::PlaneIterator SceneAnalyzer::beginByPlane(const std::string& label,
+                                                         const cv::Vec3f& normal, float tolerance,
+                                                         unsigned short minDistance, unsigned short maxDistance,
+                                                         bool computePlaneIfNoPlaneInfoFile, bool randomizeOrder) {
+
+    return beginByPlane(std::vector<std::string>({label}), normal, tolerance,
+                        minDistance, maxDistance, computePlaneIfNoPlaneInfoFile, randomizeOrder);
+}
+
+SceneAnalyzer::PlaneIterator SceneAnalyzer::endByPlane() {
+    return PlaneIterator(mScenes.end(), this);
 }
 
 bool SceneAnalyzer::precomputePlaneInfoForScene(unsigned int sceneID, const std::string& label, const cv::Vec3f& normal, float tolerance) {
@@ -453,11 +490,19 @@ std::vector<std::string> SceneAnalyzer::getPlaneInfoFileNames(unsigned int scene
     return ret;
 }
 
+SceneAnalyzer::FileMap::const_iterator SceneAnalyzer::getSceneIterator(unsigned int sceneID) const {
+    return mScenes.find(sceneID);
+}
+
 std::string SceneAnalyzer::getFileName(unsigned int sceneID) const {
     FileMap::const_iterator fileIter = mScenes.find(sceneID);
     if(fileIter != mScenes.cend())
         return fileIter->second;
     return std::string();
+}
+
+size_t SceneAnalyzer::getNumScenes() const {
+    return mScenes.size();
 }
 
 std::string SceneAnalyzer::getDepthPath() const {
@@ -489,8 +534,20 @@ CameraManager SceneAnalyzer::getCameraManager() const {
     return mCameraManager;
 }
 
+const CameraManager& SceneAnalyzer::cameraManager() const {
+    return mCameraManager;
+}
+
 LabelMap SceneAnalyzer::getLabelMap() const {
     return mLabelMap;
+}
+
+const LabelMap& SceneAnalyzer::labelMap() const {
+    return mLabelMap;
+}
+
+std::default_random_engine& SceneAnalyzer::randomEngine() {
+    return mRandomEngine;
 }
 
 template<typename T>
@@ -509,4 +566,260 @@ typename T::iterator& SceneAnalyzer::tripleMin(typename T::iterator& first,
         else
             return third;
     }
+}
+
+SceneAnalyzer::LabelIterator::LabelIterator(FileMap::const_iterator begin, FileMap::const_iterator end, TraDaG::SceneAnalyzer* parent,
+                                            const std::vector<std::string>& labels, bool randomize)
+    : mFileIter(begin), mFileEnd(end), mParent(parent), mLabels(labels), mRandomize(randomize)
+{
+    if(randomize) {
+        mAllIDs.reserve(std::distance(begin, end));
+        for(FileMap::const_iterator it = begin; it != end; ++it) {
+            mAllIDs.push_back(it->first);
+        }
+        std::shuffle(mAllIDs.begin(), mAllIDs.end(), mParent->randomEngine());
+
+        if(mAllIDs.size() > 0)
+            mFileIter = mParent->getSceneIterator(mAllIDs.front());
+    }
+
+    mIDIter = mAllIDs.cbegin();
+    mIDEnd = mAllIDs.cend();
+
+    if(mFileIter != mFileEnd && !updateCurrent())
+        step();
+}
+
+SceneAnalyzer::LabelIterator::LabelIterator(FileMap::const_iterator end, TraDaG::SceneAnalyzer* parent)
+    : mFileIter(end), mFileEnd(end), mParent(parent), mRandomize(false)
+{
+    mIDIter = mAllIDs.cbegin();
+    mIDEnd = mAllIDs.cend();
+}
+
+SceneAnalyzer::LabelIterator::LabelIterator(const LabelIterator& other)
+    : mFileIter(other.mFileIter), mFileEnd(other.mFileEnd), mParent(other.mParent), mLabels(other.mLabels),
+      mRandomize(other.mRandomize), mAllIDs(other.mAllIDs), mIDIter(other.mIDIter), mIDEnd(other.mIDEnd), mCurrentElem(other.mCurrentElem)
+{
+}
+
+SceneAnalyzer::LabelIterator& SceneAnalyzer::LabelIterator::operator=(const LabelIterator& other) {
+    mFileIter = other.mFileIter;
+    mFileEnd = other.mFileEnd;
+    mParent = other.mParent;
+    mLabels = other.mLabels;
+    mRandomize = other.mRandomize;
+    mAllIDs = other.mAllIDs;
+    mIDIter = other.mIDIter;
+    mIDEnd = other.mIDEnd;
+    mCurrentElem = other.mCurrentElem;
+    return *this;
+}
+
+void SceneAnalyzer::LabelIterator::step() {
+    if(mRandomize) {
+        while(++mIDIter != mIDEnd) {
+            mFileIter = mParent->getSceneIterator(*mIDIter);
+            if(updateCurrent()) return;
+        }
+        mFileIter = mFileEnd;
+    }
+    else {
+        while(++mFileIter != mFileEnd) {
+            if(updateCurrent()) return;
+        }
+    }
+}
+
+bool SceneAnalyzer::LabelIterator::updateCurrent() {
+    // Get images
+    cv::Mat depthImg, rgbImg, labelImg;
+    if(!mParent->readImages(mFileIter->first, depthImg, rgbImg, labelImg))
+        return false;
+
+    // Create image labeling for this scene
+    ImageLabeling labeling(depthImg, labelImg, mParent->labelMap(), mParent->cameraManager());
+
+    bool success = false;
+
+    // Iterate over given labels
+    for(std::vector<std::string>::iterator it = mLabels.begin(); it != mLabels.end(); ++it) {
+        // Check if it contains the label
+        if(labeling.containsLabel(*it)) {
+            DEBUG_OUT("Scene ID " << mFileIter->first << " (" << mFileIter->second << ") contains label \"" << *it << "\"");
+
+            mCurrentElem = std::make_pair(mFileIter->first, *it);
+            success = true;
+            break;
+        }
+    }
+
+    return success;
+}
+
+SceneAnalyzer::PlaneIterator::PlaneIterator(FileMap::const_iterator begin, FileMap::const_iterator end, TraDaG::SceneAnalyzer* parent,
+                                            const std::vector<std::string>& labels, const cv::Vec3f& normal, float tolerance,
+                                            unsigned short minDistance, unsigned short maxDistance,
+                                            bool computeNoFile, bool randomize)
+    : mFileIter(begin), mFileEnd(end), mParent(parent), mLabels(labels), mNormal(cvToOgre(normal)), mTolerance(tolerance),
+      mMinDistance(minDistance), mMaxDistance(maxDistance), mComputeNoFile(computeNoFile), mRandomize(randomize)
+{
+    if(randomize) {
+        mAllIDs.reserve(std::distance(begin, end));
+        for(FileMap::const_iterator it = begin; it != end; ++it) {
+            mAllIDs.push_back(it->first);
+        }
+        std::shuffle(mAllIDs.begin(), mAllIDs.end(), mParent->randomEngine());
+
+        if(mAllIDs.size() > 0)
+            mFileIter = mParent->getSceneIterator(mAllIDs.front());
+    }
+
+    mIDIter = mAllIDs.cbegin();
+    mIDEnd = mAllIDs.cend();
+
+    if(mFileIter != mFileEnd && !updateCurrent())
+        step();
+}
+
+SceneAnalyzer::PlaneIterator::PlaneIterator(FileMap::const_iterator end, TraDaG::SceneAnalyzer* parent)
+    : mFileIter(end), mFileEnd(end), mParent(parent), mNormal(Ogre::Vector3::ZERO), mTolerance(180.0),
+      mMinDistance(0), mMaxDistance(std::numeric_limits<unsigned short>::max()), mComputeNoFile(false), mRandomize(false)
+{
+    mIDIter = mAllIDs.cbegin();
+    mIDEnd = mAllIDs.cend();
+}
+
+SceneAnalyzer::PlaneIterator::PlaneIterator(const PlaneIterator& other)
+    : mFileIter(other.mFileIter), mFileEnd(other.mFileEnd), mParent(other.mParent), mLabels(other.mLabels),
+      mNormal(other.mNormal), mTolerance(other.mTolerance), mMinDistance(other.mMinDistance), mMaxDistance(other.mMaxDistance), mComputeNoFile(other.mComputeNoFile),
+      mRandomize(other.mRandomize), mAllIDs(other.mAllIDs), mIDIter(other.mIDIter), mIDEnd(other.mIDEnd), mCurrentElem(other.mCurrentElem)
+{
+}
+
+SceneAnalyzer::PlaneIterator& SceneAnalyzer::PlaneIterator::operator=(const PlaneIterator& other) {
+    mFileIter = other.mFileIter;
+    mFileEnd = other.mFileEnd;
+    mParent = other.mParent;
+    mLabels = other.mLabels;
+    mNormal = other.mNormal;
+    mTolerance = other.mTolerance;
+    mMinDistance = other.mMinDistance;
+    mMaxDistance = other.mMaxDistance;
+    mComputeNoFile = other.mComputeNoFile;
+    mRandomize = other.mRandomize;
+    mAllIDs = other.mAllIDs;
+    mIDIter = other.mIDIter;
+    mIDEnd = other.mIDEnd;
+    mCurrentElem = other.mCurrentElem;
+    return *this;
+}
+
+void SceneAnalyzer::PlaneIterator::step() {
+    if(mRandomize) {
+        while(++mIDIter != mIDEnd) {
+            mFileIter = mParent->getSceneIterator(*mIDIter);
+            if(updateCurrent()) return;
+        }
+        mFileIter = mFileEnd;
+    }
+    else {
+        while(++mFileIter != mFileEnd) {
+            if(updateCurrent()) return;
+        }
+    }
+}
+
+bool SceneAnalyzer::PlaneIterator::updateCurrent() {
+    // Temporary result storage variables
+    bool success = false;
+    GroundPlane plane;
+
+    // Find available .planeinfo files for this scene
+    std::vector<std::string> planes = mParent->getPlaneInfoFileNames(mFileIter->first);
+
+    // Shuffle file names
+    std::shuffle(planes.begin(), planes.end(), mParent->randomEngine());
+
+    // Iterate over files
+    for(std::vector<std::string>::iterator it = planes.begin(); it != planes.end(); ++it) {
+        // Get path to file
+        std::string filePath = (fs::path(mParent->getPlanePath()) / fs::path(*it)).string();
+
+        // Read plane info headers
+        PlaneInfo::Headers headers = PlaneInfo::readHeadersFromFile(filePath);
+
+        // Check parsed headers
+        Ogre::Vector3& fileNormal = std::get<1>(headers);
+        if(fileNormal.isZeroLength())
+            continue;
+
+        // Check if the label is one of the specified ones
+        if(std::find(mLabels.begin(), mLabels.end(), std::get<0>(headers)) == mLabels.end()) {
+            DEBUG_OUT("Label \"" << std::get<0>(headers) << "\" does not match any of the given labels");
+            continue;
+        }
+
+        // Check if normal is within tolerance
+        if(!mNormal.isZeroLength() && fileNormal.angleBetween(mNormal) > mTolerance
+                && (-fileNormal).angleBetween(mNormal) > mTolerance) {
+            DEBUG_OUT("Plane normal " << fileNormal << " is not within " << mTolerance << "° of " << mNormal <<
+                      " (" << std::min(fileNormal.angleBetween(mNormal).valueDegrees(),
+                                       (-fileNormal).angleBetween(mNormal).valueDegrees()) << "°)");
+            continue;
+        }
+
+        // Plane is good, read whole file and check distance to camera
+        DEBUG_OUT("Label and normal OK, parsing the rest of the file");
+        PlaneInfo filePlaneInfo = PlaneInfo::readFromFile(filePath);
+
+        // Check parsed file
+        if(!filePlaneInfo.isPlaneDefined())
+            continue;
+
+        // Try to create a GroundPlane with the given distance
+        plane = filePlaneInfo.createGroundPlane(mMinDistance, mMaxDistance);
+
+        // Check if a plane was successfully created
+        if(plane.isPlaneDefined()) {
+            success = true;
+            break;
+        }
+    }
+
+    // If we didn't find a good plane yet, try to fit one now (if requested)
+    if(!success && mComputeNoFile) {
+        // Get images
+        cv::Mat depthImg, rgbImg, labelImg;
+        if(!mParent->readImages(mFileIter->first, depthImg, rgbImg, labelImg))
+            return false;
+
+        // Create image labeling for this scene
+        ImageLabeling labeling(depthImg, labelImg, mParent->labelMap(), mParent->cameraManager());
+
+        // Iterate over given labels
+        for(std::vector<std::string>::const_iterator it = mLabels.cbegin(); it != mLabels.cend(); ++it) {
+            // Try to get a plane for this label
+            PlaneFitStatus result = labeling.findPlaneForLabel(*it, plane, ogreToCv(mNormal), mTolerance.valueDegrees(),
+                                                               mMinDistance, mMaxDistance);
+
+            if(result == PF_SUCCESS) {
+                success = true;
+                break;
+            }
+        }
+    }
+
+    if(success) {
+        DEBUG_OUT("Found plane for scene ID " << mFileIter->first << " (" << mFileIter->second << ") and label \"" << plane.getLabel() << "\"");
+        DEBUG_OUT("    Plane normal: " << plane.ogrePlane().normal);
+        DEBUG_OUT("    Plane vertices: " << plane.vertices().size());
+
+        mCurrentElem = std::make_pair(mFileIter->first, plane);
+    }
+    else {
+        DEBUG_OUT("Didn't find any good planes for scene ID " << mFileIter->first << " (" << mFileIter->second << ")");
+    }
+
+    return success;
 }
