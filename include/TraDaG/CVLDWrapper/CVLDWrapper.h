@@ -25,6 +25,7 @@ public:
         {
         }
 
+        // TODO: implement iterator in wrapper, better return value for precompute, move enums from util.h
         TrainingImage(const cv::Mat_<cv::Vec3b>& bgr, const cv::Mat_<ushort>& depth, const cv::Mat_<cv::Vec3s>& obj, double occlusion,
                       const cv::Point3d& translation, const cv::Mat_<double>& rotation, unsigned int imageID)
             : bgr(bgr), depth(depth), obj(obj), occlusion(occlusion), translation(translation), rotation(rotation), imageID(imageID)

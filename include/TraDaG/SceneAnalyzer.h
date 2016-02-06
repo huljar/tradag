@@ -18,6 +18,7 @@
 #include <iterator>
 #include <limits>
 #include <map>
+#include <queue>
 #include <random>
 #include <string>
 #include <vector>
@@ -31,6 +32,7 @@ class TraDaG::SceneAnalyzer
 public:
     typedef std::map<unsigned int, std::string> FileMap;
     typedef std::map<unsigned int, std::array<cv::Mat, 3>> MatMap;
+    typedef std::queue<unsigned int> MatQueue;
 
     // Iterators
     class LabelIterator {
@@ -188,6 +190,9 @@ public:
     LabelMap getLabelMap() const;
     const LabelMap& labelMap() const;
 
+    size_t getCacheSize() const;
+    void setCacheSize(size_t cacheSize);
+
     std::default_random_engine& randomEngine();
 
 protected:
@@ -207,6 +212,8 @@ protected:
 
     FileMap mScenes;
     MatMap mMats;
+    MatQueue mMatQueue;
+    size_t mCacheSize;
 
     std::default_random_engine mRandomEngine;
 };

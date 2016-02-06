@@ -113,6 +113,8 @@ namespace TraDaG {
         const bool MarkInlierSet = false;
         const bool DrawBulletShapes = false;
         const Auto<cv::Vec3f> Gravity(true, cv::Vec3f(0, -9810, 0));
+
+        const size_t MaxCacheScenes = 100;
     }
 
     namespace Constants {

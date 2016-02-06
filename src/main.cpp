@@ -7,6 +7,7 @@
 
 #include <boost/program_options.hpp>
 
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -134,12 +135,42 @@ int main(int argc, char** argv)
                              cv::Vec2f(3.2442516903961865e+02, 2.3584766381177013e+02),
                              cv::Vec2f(5.7616540758591043e+02, 5.7375619782082447e+02));
 
-    SceneAnalyzer sa("../resources/scenes/depth", "../resources/scenes/rgb", "../resources/scenes/label", camManager, labelMap);
-    for(SceneAnalyzer::PlaneIterator it = sa.beginByPlane("floor", cv::Vec3f(0, 1, 0), 10.0, 0, 60000, true, true);
+    std::string basePath("/home/julian/Forschungsprojekt/datasets/NYU-Labeled-V1/");
+    SceneAnalyzer sa(basePath + "depth", basePath + "rgb", basePath + "label",
+                     basePath + "plane", camManager, labelMap);
+
+    // Precompute planes
+    //bool precompResult = sa.precomputePlaneInfoForAllScenes("floor", cv::Vec3f(0, 1, 0), 20.0);
+    //std::cout << std::boolalpha << "Precompute result (floor): " << precompResult << std::endl;
+    //bool precompResult2 = sa.precomputePlaneInfoForAllScenes("table", cv::Vec3f(0, 1, 0), 20.0);
+    //std::cout << "Precompute result (table): " << precompResult2 << std::noboolalpha << std::endl;
+
+    std::vector<std::string> objects({"003.mesh", "007.mesh", "005.mesh", "010.mesh", "013.mesh"});
+
+    for(SceneAnalyzer::PlaneIterator it = sa.beginByPlane(std::vector<std::string>({"floor", "table"}), cv::Vec3f(0, 1, 0), 15.0, 0, 60000, false, false);
             it != sa.endByPlane(); ++it) {
-        const std::pair<unsigned int, GroundPlane>& elem = *it;
-        std::cout << elem.first << ": " << it->second.getOgrePlane().normal << ", " << elem.second.getLabel() << ", "
-                  << elem.second.vertices().size() << std::endl;
+        Simulator sim = sa.createSimulator(it->first, it->second);
+        sim.setMaxAttempts(20);
+
+        for(size_t i = 0; i < objects.size(); ++i) {
+            DroppableObject* obj = sim.createObject(objects[i]);
+            for(float j = 0.0; j < 0.9; j += 0.2) {
+                obj->setDesiredOcclusion(j, j + 0.2);
+
+                Simulator::DropResult result = sim.execute();
+                std::ostringstream fileName;
+                fileName << sa.getFileName(it->first) << "_" << it->second.getLabel() << "_" << objects[i] << "_"
+                         << std::setprecision(3) << j << "-" << j + 0.2 << "_" << obj->getFinalOcclusion();
+                if(result.status == Simulator::DropStatus::SUCCESS || result.status == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+                    if(result.status == Simulator::DropStatus::SUCCESS)
+                        fileName << "_optimal";
+
+                    cv::imwrite(basePath + "result/" + fileName.str() + "_depth.png", result.depthImage);
+                    cv::imwrite(basePath + "result/" + fileName.str() + "_rgb.png", result.rgbImage);
+                }
+            }
+            sim.destroyAllObjects();
+        }
     }
 
     return 0;

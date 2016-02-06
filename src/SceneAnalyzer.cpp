@@ -24,6 +24,7 @@ SceneAnalyzer::SceneAnalyzer(const std::string& depthDirPath, const std::string&
     , mLabelPath(labelDirPath)
     , mCameraManager(cameraParams)
     , mLabelMap(labelMap)
+    , mCacheSize(Defaults::MaxCacheScenes)
     , mRandomEngine(std::chrono::system_clock::now().time_since_epoch().count())
 {
     DEBUG_OUT("Constructing SceneAnalyzer:");
@@ -410,6 +411,13 @@ bool SceneAnalyzer::readImages(unsigned int sceneID, cv::Mat& depthImage, cv::Ma
 
     if(depthImage.data && rgbImage.data && labelImage.data) {
         mMats.insert(std::make_pair(sceneID, std::array<cv::Mat, 3>({depthImage, rgbImage, labelImage})));
+        mMatQueue.push(sceneID);
+
+        while(mMatQueue.size() > mCacheSize) {
+            unsigned int frontID = mMatQueue.front();
+            mMatQueue.pop();
+            mMats.erase(frontID);
+        }
         return true;
     }
 
@@ -544,6 +552,20 @@ LabelMap SceneAnalyzer::getLabelMap() const {
 
 const LabelMap& SceneAnalyzer::labelMap() const {
     return mLabelMap;
+}
+
+size_t SceneAnalyzer::getCacheSize() const {
+    return mCacheSize;
+}
+
+void SceneAnalyzer::setCacheSize(size_t cacheSize) {
+    mCacheSize = cacheSize;
+
+    while(mMatQueue.size() > mCacheSize) {
+        unsigned int frontID = mMatQueue.front();
+        mMatQueue.pop();
+        mMats.erase(frontID);
+    }
 }
 
 std::default_random_engine& SceneAnalyzer::randomEngine() {
