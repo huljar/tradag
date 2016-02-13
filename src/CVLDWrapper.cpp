@@ -87,32 +87,17 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
         return std::make_pair(TrainingImage(), Simulator::DropStatus::PLANE_UNDEFINED);
     }
 
-    // Get all scenes with labels that should be used
-    std::map<unsigned int, GroundPlane> scenes = mSceneAnalyzer.findScenesByPlane(mLabelsToUse, cv::Vec3f(0, 0, 0), 180.0,
-                                                                                  0, std::numeric_limits<unsigned short>::max(), mComputePlaneIfNoFile);
-
-    // Get scene IDs
-    std::vector<unsigned int> allIDs;
-    allIDs.reserve(scenes.size());
-    for(std::map<unsigned int, GroundPlane>::iterator it = scenes.begin(); it != scenes.end(); ++it) {
-        allIDs.push_back(it->first);
-    }
-
-    unsigned int maxAttempts = static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size())));
-
-    // Shuffle scene IDs
-    std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
-
     // Simulate until good scene found or max attempts are reached
     TrainingImage currentBest;
     float currentBestScore = std::numeric_limits<float>::infinity();
 
-    for(std::vector<unsigned int>::iterator it = allIDs.begin(); it != allIDs.end(); ++it) {
-        DEBUG_OUT("Trying simulation for ID " << *it);
+    for(SceneAnalyzer::PlaneIterator it = mSceneAnalyzer.beginByPlane(mLabelsToUse, cv::Vec3f(0, 0, 0), 180.0, 0, std::numeric_limits<unsigned short>::max(),
+                                                                      mComputePlaneIfNoFile, true); it != mSceneAnalyzer.endByPlane(); ++it) {
+        DEBUG_OUT("Trying simulation for ID " << it->first);
 
         // Get Simulator and create object
-        Simulator simulator = mSceneAnalyzer.createSimulator(*it, scenes[*it]);
-        simulator.setMaxAttempts(maxAttempts);
+        Simulator simulator = mSceneAnalyzer.createSimulator(it->first, it->second);
+        simulator.setMaxAttempts(mMaxAttempts);
         simulator.setShowPreviewWindow(mShowPreviewWindow);
         simulator.setShowPhysicsAnimation(mShowPhysicsAnimation);
         simulator.setGravity(mGravity);
@@ -130,7 +115,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
             return std::make_pair(
                 constructTrainingImage(result.rgbImage, result.depthImage, obj->getFinalObjectCoords(), obj->getFinalOcclusion(),
-                                       obj->getFinalPosition(), obj->getFinalRotation(), *it),
+                                       obj->getFinalPosition(), obj->getFinalRotation(), it->first),
                 result.status
             );
         }
@@ -143,7 +128,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
             // Save this result if it is better than current best scene
             if(result.score < currentBestScore) {
                 currentBest = constructTrainingImage(result.rgbImage, result.depthImage, obj->getFinalObjectCoords(), obj->getFinalOcclusion(),
-                                                     obj->getFinalPosition(), obj->getFinalRotation(), *it);
+                                                     obj->getFinalPosition(), obj->getFinalRotation(), it->first);
                 currentBestScore = result.score;
             }
         }
@@ -177,32 +162,17 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
         return std::make_pair(TrainingImage(), Simulator::DropStatus::PLANE_UNDEFINED);
     }
 
-    // Get all scenes with labels that should be used
-    std::map<unsigned int, GroundPlane> scenes = mSceneAnalyzer.findScenesByPlane(mLabelsToUse, cv::Vec3f(0, 0, 0), 180.0,
-                                                                                  0, std::numeric_limits<unsigned short>::max(), mComputePlaneIfNoFile);
-
-    // Get scene IDs
-    std::vector<unsigned int> allIDs;
-    allIDs.reserve(scenes.size());
-    for(std::map<unsigned int, GroundPlane>::iterator it = scenes.begin(); it != scenes.end(); ++it) {
-        allIDs.push_back(it->first);
-    }
-
-    unsigned int maxAttempts = static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size())));
-
-    // Shuffle scene IDs
-    std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
-
     // Simulate until good scene found or max attempts are reached
     TrainingImage currentBest;
     float currentBestScore = std::numeric_limits<float>::infinity();
 
-    for(std::vector<unsigned int>::iterator it = allIDs.begin(); it != allIDs.end(); ++it) {
-        DEBUG_OUT("Trying simulation for ID " << *it);
+    for(SceneAnalyzer::PlaneIterator it = mSceneAnalyzer.beginByPlane(mLabelsToUse, cv::Vec3f(0, 0, 0), 180.0, 0, std::numeric_limits<unsigned short>::max(),
+                                                                      mComputePlaneIfNoFile, true); it != mSceneAnalyzer.endByPlane(); ++it) {
+        DEBUG_OUT("Trying simulation for ID " << it->first);
 
         // Get Simulator and create object
-        Simulator simulator = mSceneAnalyzer.createSimulator(*it, scenes[*it]);
-        simulator.setMaxAttempts(maxAttempts);
+        Simulator simulator = mSceneAnalyzer.createSimulator(it->first, it->second);
+        simulator.setMaxAttempts(mMaxAttempts);
         simulator.setShowPreviewWindow(mShowPreviewWindow);
         simulator.setShowPhysicsAnimation(mShowPhysicsAnimation);
         simulator.setGravity(mGravity);
@@ -225,7 +195,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
             return std::make_pair(
                 constructTrainingImage(result.rgbImage, result.depthImage, obj->getFinalObjectCoords(), obj->getFinalOcclusion(),
-                                       obj->getFinalPosition(), obj->getFinalRotation(), *it),
+                                       obj->getFinalPosition(), obj->getFinalRotation(), it->first),
                 result.status
             );
         }
@@ -238,7 +208,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
             // Save this result if it is better than current best scene
             if(result.score < currentBestScore) {
                 currentBest = constructTrainingImage(result.rgbImage, result.depthImage, obj->getFinalObjectCoords(), obj->getFinalOcclusion(),
-                                                     obj->getFinalPosition(), obj->getFinalRotation(), *it);
+                                                     obj->getFinalPosition(), obj->getFinalRotation(), it->first);
                 currentBestScore = result.score;
             }
         }
@@ -273,34 +243,20 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
         return std::make_pair(TrainingImage(), Simulator::DropStatus::PLANE_UNDEFINED);
     }
 
-    // Get all scenes with labels that should be used and suitable normal
     // Plane normal is the 2nd column of the rotation matrix (y-axis)
     cv::Vec3f normal(rotation(0, 1), rotation(1, 1), rotation(2, 1));
-    std::map<unsigned int, GroundPlane> scenes = mSceneAnalyzer.findScenesByPlane(mLabelsToUse, normal, rotationTolerance,
-                                                                                  distanceMin, distanceMax, mComputePlaneIfNoFile);
-
-    // Get scene IDs
-    std::vector<unsigned int> allIDs;
-    allIDs.reserve(scenes.size());
-    for(std::map<unsigned int, GroundPlane>::iterator it = scenes.begin(); it != scenes.end(); ++it) {
-        allIDs.push_back(it->first);
-    }
-
-    unsigned int maxAttempts = static_cast<unsigned int>(std::round(static_cast<float>(mMaxAttempts) / static_cast<float>(allIDs.size())));
-
-    // Shuffle scene IDs
-    std::shuffle(allIDs.begin(), allIDs.end(), mRandomEngine);
 
     // Simulate until good scene found or max attempts are reached
     TrainingImage currentBest;
     float currentBestScore = std::numeric_limits<float>::infinity();
 
-    for(std::vector<unsigned int>::iterator it = allIDs.begin(); it != allIDs.end(); ++it) {
-        DEBUG_OUT("Trying simulation for ID " << *it);
+    for(SceneAnalyzer::PlaneIterator it = mSceneAnalyzer.beginByPlane(mLabelsToUse, normal, rotationTolerance, distanceMin, distanceMax,
+                                                                      mComputePlaneIfNoFile, true); it != mSceneAnalyzer.endByPlane(); ++it) {
+        DEBUG_OUT("Trying simulation for ID " << it->first);
 
         // Get Simulator and create object
-        Simulator simulator = mSceneAnalyzer.createSimulator(*it, scenes[*it]);
-        simulator.setMaxAttempts(maxAttempts);
+        Simulator simulator = mSceneAnalyzer.createSimulator(it->first, it->second);
+        simulator.setMaxAttempts(mMaxAttempts);
         simulator.setShowPreviewWindow(mShowPreviewWindow);
         simulator.setShowPhysicsAnimation(mShowPhysicsAnimation);
         simulator.setGravity(mGravity);
@@ -327,7 +283,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
 
             return std::make_pair(
                 constructTrainingImage(result.rgbImage, result.depthImage, obj->getFinalObjectCoords(), obj->getFinalOcclusion(),
-                                       obj->getFinalPosition(), obj->getFinalRotation(), *it),
+                                       obj->getFinalPosition(), obj->getFinalRotation(), it->first),
                 result.status
             );
         }
@@ -340,7 +296,7 @@ std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> CVLDWrapper::getTra
             // Save this result if it is better than current best scene
             if(result.score < currentBestScore) {
                 currentBest = constructTrainingImage(result.rgbImage, result.depthImage, obj->getFinalObjectCoords(), obj->getFinalOcclusion(),
-                                                     obj->getFinalPosition(), obj->getFinalRotation(), *it);
+                                                     obj->getFinalPosition(), obj->getFinalRotation(), it->first);
                 currentBestScore = result.score;
             }
         }
