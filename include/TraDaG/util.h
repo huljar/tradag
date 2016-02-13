@@ -16,33 +16,6 @@ namespace TraDaG {
 
     class DroppableObject; // forward declaration
 
-    typedef enum {
-        MM_MAPPED_RGB_TO_DEPTH,
-        MM_MAPPED_DEPTH_TO_RGB,
-        MM_UNMAPPED_RGB_TO_DEPTH,
-        MM_UNMAPPED_DEPTH_TO_RGB
-    } MapMode;
-
-    typedef enum {
-        PF_SUCCESS,
-        PF_INVALID_LABEL,
-        PF_NO_GOOD_PLANE
-    } PlaneFitStatus;
-
-    typedef enum {
-        SR_SUCCESS,
-        SR_ABORTED,
-        SR_TIMEOUT
-    } SimulationResult;
-
-    typedef enum {
-        UA_NO_CHOICE,
-        UA_KEEP,
-        UA_DISCARD,
-        UA_RESTART,
-        UA_ABORT
-    } UserAction;
-
     typedef std::vector<DroppableObject*> ObjectVec;
     typedef std::vector<unsigned short> LabelVec;
     typedef std::map<std::string, LabelVec> LabelMap;

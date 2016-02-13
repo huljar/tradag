@@ -12,10 +12,12 @@ namespace TraDaG {
 class TraDaG::CameraManager
 {
 public:
+    enum class MapMode { MAPPED_RGB_TO_DEPTH, MAPPED_DEPTH_TO_RGB, UNMAPPED_RGB_TO_DEPTH, UNMAPPED_DEPTH_TO_RGB };
+
     CameraManager(const cv::Vec2f& depthPrincipalPoint = cv::Vec2f(320, 240), const cv::Vec2f& depthFocalLength = cv::Vec2f(500, 500),
                   const cv::Vec2f& rgbPrincipalPoint = cv::Vec2f(320, 240), const cv::Vec2f& rgbFocalLength = cv::Vec2f(500, 500),
                   const cv::Matx33f& rotation = cv::Matx33f::eye(), const cv::Vec3f translation = cv::Vec3f(0, 0, 0),
-                  MapMode mapMode = MM_MAPPED_DEPTH_TO_RGB);
+                  MapMode mapMode = MapMode::MAPPED_DEPTH_TO_RGB);
 
     cv::Vec3f getWorldForDepth(const cv::Point& uv, unsigned short d) const;
     cv::Vec3f getWorldForDepth(int u, int v, unsigned short d) const;

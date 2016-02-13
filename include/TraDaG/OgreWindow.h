@@ -45,6 +45,9 @@ namespace TraDaG {
 class TraDaG::OgreWindow : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
 {
 public:
+    enum class SimulationResult { SUCCESS, ABORTED, TIMEOUT };
+    enum class UserAction { NO_CHOICE, KEEP, DISCARD, RESTART, ABORT };
+
     static OgreWindow& getSingleton();
     static OgreWindow* getSingletonPtr();
 

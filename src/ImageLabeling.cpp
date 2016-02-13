@@ -74,7 +74,7 @@ LabelVec ImageLabeling::findValidLabelValues(const std::string& label) const {
     return actualLabels;
 }
 
-PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, GroundPlane& result,
+ImageLabeling::PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, GroundPlane& result,
                                                 const cv::Vec3f& normal, float tolerance,
                                                 unsigned short minDistance, unsigned short maxDistance,
                                                 PlaneInfo::PickMode regionMode) {
@@ -89,7 +89,7 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, Ground
     // If none of the labels is contained (with at least a certain amount pixels) in the image, abort
     if(labelValues.size() == 0) {
         DEBUG_OUT("Label \"" << label << "\" is not present in the image");
-        return PF_INVALID_LABEL;
+        return PlaneFitStatus::INVALID_LABEL;
     }
 
     // Shuffle label values
@@ -170,7 +170,7 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, Ground
     // Abort if no good plane was found
     if(!goodPlaneFound) {
         DEBUG_OUT("Did not find any suitable planes that meet the requirements");
-        return PF_NO_GOOD_PLANE;
+        return PlaneFitStatus::NO_GOOD_PLANE;
     }
 
     // Perform region growing to find the largest connected areas in the inlier set
@@ -195,7 +195,7 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, Ground
     // Check if any regions are left
     if(validRegions.size() == 0) {
         DEBUG_OUT("Unable to create a ground plane - no suitable regions exist");
-        return PF_NO_GOOD_PLANE;
+        return PlaneFitStatus::NO_GOOD_PLANE;
     }
 
     // Pick a region according to the regionMode
@@ -267,10 +267,10 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, Ground
     DEBUG_OUT("Returning plane with normal " << finalPlane.normal << " and " << planePoints.size() << " vertices");
 
     result = GroundPlane(finalPlane, planePoints, label);
-    return PF_SUCCESS;
+    return PlaneFitStatus::SUCCESS;
 }
 
-PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, PlaneInfo& result, const cv::Vec3f& normal, float tolerance) {
+ImageLabeling::PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, PlaneInfo& result, const cv::Vec3f& normal, float tolerance) {
     DEBUG_OUT("Computing plane info for label \"" << label << "\" with the following constraints:");
     DEBUG_OUT("    Plane normal: " << normal << ", tolerance: " << tolerance << "°");
 
@@ -280,7 +280,7 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, PlaneI
     // If none of the labels is contained (with at least a certain amount pixels) in the image, abort
     if(labelValues.size() == 0) {
         DEBUG_OUT("Label \"" << label << "\" is not present in the image");
-        return PF_INVALID_LABEL;
+        return PlaneFitStatus::INVALID_LABEL;
     }
 
     // Shuffle label values
@@ -348,7 +348,7 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, PlaneI
     // Abort if no good plane was found
     if(!goodPlaneFound) {
         DEBUG_OUT("Did not find any suitable planes that meet the requirements");
-        return PF_NO_GOOD_PLANE;
+        return PlaneFitStatus::NO_GOOD_PLANE;
     }
 
     // Perform region growing to find the largest connected areas in the inlier set
@@ -390,7 +390,7 @@ PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, PlaneI
 
     result = PlaneInfo(finalPlane, label);
     result.regions() = std::move(finalRegions);
-    return PF_SUCCESS;
+    return PlaneFitStatus::SUCCESS;
 }
 
 cv::Mat ImageLabeling::getDepthImage() const {

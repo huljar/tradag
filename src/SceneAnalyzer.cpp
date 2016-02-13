@@ -252,9 +252,9 @@ std::map<unsigned int, GroundPlane> SceneAnalyzer::findScenesByPlane(const std::
             // Iterate over given labels
             for(std::vector<std::string>::const_iterator jt = labels.cbegin(); jt != labels.cend(); ++jt) {
                 // Try to get a plane for this label
-                PlaneFitStatus result = labeling.findPlaneForLabel(*jt, plane, normal, tolerance, minDistance, maxDistance);
+                ImageLabeling::PlaneFitStatus result = labeling.findPlaneForLabel(*jt, plane, normal, tolerance, minDistance, maxDistance);
 
-                if(result == PF_SUCCESS) {
+                if(result == ImageLabeling::PlaneFitStatus::SUCCESS) {
                     sceneIsGood = true;
                     break;
                 }
@@ -332,7 +332,7 @@ bool SceneAnalyzer::precomputePlaneInfoForScene(unsigned int sceneID, const std:
 
     // Create plane info
     PlaneInfo planeInfo;
-    if(labeling.findPlaneForLabel(label, planeInfo, normal, tolerance) == PF_SUCCESS) {
+    if(labeling.findPlaneForLabel(label, planeInfo, normal, tolerance) == ImageLabeling::PlaneFitStatus::SUCCESS) {
         DEBUG_OUT("Found a valid plane");
 
         // Determine file name
@@ -822,10 +822,10 @@ bool SceneAnalyzer::PlaneIterator::updateCurrent() {
         // Iterate over given labels
         for(std::vector<std::string>::const_iterator it = mLabels.cbegin(); it != mLabels.cend(); ++it) {
             // Try to get a plane for this label
-            PlaneFitStatus result = labeling.findPlaneForLabel(*it, plane, ogreToCv(mNormal), mTolerance.valueDegrees(),
+            ImageLabeling::PlaneFitStatus result = labeling.findPlaneForLabel(*it, plane, ogreToCv(mNormal), mTolerance.valueDegrees(),
                                                                mMinDistance, mMaxDistance);
 
-            if(result == PF_SUCCESS) {
+            if(result == ImageLabeling::PlaneFitStatus::SUCCESS) {
                 success = true;
                 break;
             }

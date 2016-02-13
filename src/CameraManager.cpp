@@ -23,8 +23,8 @@ cv::Vec3f CameraManager::getWorldForDepth(const cv::Point& uv, unsigned short d)
 }
 
 cv::Vec3f CameraManager::getWorldForDepth(int u, int v, unsigned short d) const {
-    const cv::Vec2f& principalPoint = (mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRGBPrincipalPoint : mDepthPrincipalPoint);
-    const cv::Vec2f& focalLength = (mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRGBFocalLength : mDepthFocalLength);
+    const cv::Vec2f& principalPoint = (mMapMode == MapMode::MAPPED_DEPTH_TO_RGB ? mRGBPrincipalPoint : mDepthPrincipalPoint);
+    const cv::Vec2f& focalLength = (mMapMode == MapMode::MAPPED_DEPTH_TO_RGB ? mRGBFocalLength : mDepthFocalLength);
 
     float uf = static_cast<float>(u),
           vf = static_cast<float>(v),
@@ -42,8 +42,8 @@ cv::Vec2i CameraManager::getDepthForWorld(const cv::Vec3f& xyz) const {
 }
 
 cv::Vec2i CameraManager::getDepthForWorld(float x, float y, float z) const {
-    cv::Vec2f principalPoint = (mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRGBPrincipalPoint : mDepthPrincipalPoint);
-    cv::Vec2f focalLength = (mMapMode == MM_MAPPED_DEPTH_TO_RGB ? mRGBFocalLength : mDepthFocalLength);
+    cv::Vec2f principalPoint = (mMapMode == MapMode::MAPPED_DEPTH_TO_RGB ? mRGBPrincipalPoint : mDepthPrincipalPoint);
+    cv::Vec2f focalLength = (mMapMode == MapMode::MAPPED_DEPTH_TO_RGB ? mRGBFocalLength : mDepthFocalLength);
 
     int u = std::round(x * focalLength[0] / (-z) + principalPoint[0]);
     int v = std::round((-y) * focalLength[1] / (-z) + principalPoint[1]);
@@ -53,14 +53,14 @@ cv::Vec2i CameraManager::getDepthForWorld(float x, float y, float z) const {
 
 cv::Vec2i CameraManager::getRGBForWorld(const cv::Vec3f& xyz) const {
     cv::Vec3f xyzNew;
-    cv::Vec2f principalPoint = (mMapMode == MM_MAPPED_RGB_TO_DEPTH ? mDepthPrincipalPoint : mRGBPrincipalPoint);
-    cv::Vec2f focalLength = (mMapMode == MM_MAPPED_RGB_TO_DEPTH ? mDepthPrincipalPoint : mRGBPrincipalPoint);
+    cv::Vec2f principalPoint = (mMapMode == MapMode::MAPPED_RGB_TO_DEPTH ? mDepthPrincipalPoint : mRGBPrincipalPoint);
+    cv::Vec2f focalLength = (mMapMode == MapMode::MAPPED_RGB_TO_DEPTH ? mDepthPrincipalPoint : mRGBPrincipalPoint);
 
-    if(mMapMode == MM_MAPPED_DEPTH_TO_RGB || mMapMode == MM_MAPPED_RGB_TO_DEPTH)
+    if(mMapMode == MapMode::MAPPED_DEPTH_TO_RGB || mMapMode == MapMode::MAPPED_RGB_TO_DEPTH)
         xyzNew = xyz; // no transformation needed
-    else if(mMapMode == MM_UNMAPPED_DEPTH_TO_RGB)
+    else if(mMapMode == MapMode::UNMAPPED_DEPTH_TO_RGB)
         xyzNew = mRotation.t() * (xyz - mTranslation); // apply inverse transformation
-    else // mMapMode == MM_UNMAPPED_RGB_TO_DEPTH
+    else // mMapMode == MapMode::UNMAPPED_RGB_TO_DEPTH
         xyzNew = mRotation * xyz + mTranslation; // apply normal transformation
 
     float x = xyzNew[0],
@@ -90,7 +90,7 @@ cv::Vec2i CameraManager::getRGBForDepth(const cv::Point& uv, unsigned short d) c
 }
 
 cv::Vec2i CameraManager::getRGBForDepth(int u, int v, unsigned short d) const {
-    if(mMapMode == MM_MAPPED_DEPTH_TO_RGB || mMapMode == MM_MAPPED_RGB_TO_DEPTH)
+    if(mMapMode == MapMode::MAPPED_DEPTH_TO_RGB || mMapMode == MapMode::MAPPED_RGB_TO_DEPTH)
         return cv::Vec2i(u, v);
 
     return getRGBForWorld(getWorldForDepth(u, v, d));
@@ -129,6 +129,6 @@ cv::Vec3f CameraManager::getTranslation() const {
     return mTranslation;
 }
 
-MapMode CameraManager::getMapMode() const {
+CameraManager::MapMode CameraManager::getMapMode() const {
     return mMapMode;
 }

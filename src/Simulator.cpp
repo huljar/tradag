@@ -225,7 +225,7 @@ Simulator::DropResult Simulator::execute() {
     bool optimalSolution;
 
     // Loop to restart if the user chooses so
-    UserAction action = UA_NO_CHOICE;
+    OgreWindow::UserAction action = OgreWindow::UserAction::NO_CHOICE;
     do {
         // If animation is requested, display the window now
         if(mShowPreviewWindow && mShowPhysicsAnimation && ogreWindow.hidden())
@@ -253,14 +253,14 @@ Simulator::DropResult Simulator::execute() {
 
             // Simulate (with animation only if needed)
             // This function does not return until the simulation is completed
-            SimulationResult result = ogreWindow.startSimulation(mObjects, mRGBDScene, mGroundPlane, gravity, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation);
+            OgreWindow::SimulationResult result = ogreWindow.startSimulation(mObjects, mRGBDScene, mGroundPlane, gravity, mDrawBulletShapes, mShowPreviewWindow && mShowPhysicsAnimation);
 
-            if(result == SR_TIMEOUT) {
+            if(result == OgreWindow::SimulationResult::TIMEOUT) {
                 DEBUG_OUT("Simulation timed out");
                 continue;
             }
-            else if(result == SR_ABORTED) {
-                action = UA_ABORT;
+            else if(result == OgreWindow::SimulationResult::ABORTED) {
+                action = OgreWindow::UserAction::ABORT;
                 break;
             }
 
@@ -360,10 +360,10 @@ Simulator::DropResult Simulator::execute() {
             action = ogreWindow.promptUserAction();
             ogreWindow.hide();
         }
-    } while(action == UA_RESTART);
+    } while(action == OgreWindow::UserAction::RESTART);
 
     // Check user choice
-    if(action == UA_NO_CHOICE) {
+    if(action == OgreWindow::UserAction::NO_CHOICE) {
         // No choice was made (because no preview window was requested)
         if(optimalSolution) {
             DEBUG_OUT("Simulation was successful");
@@ -373,18 +373,18 @@ Simulator::DropResult Simulator::execute() {
         DEBUG_OUT("Simulation was unsuccessful, performed " << mMaxAttempts << " attempts without optimal solution");
         return DropResult(DropStatus::MAX_ATTEMPTS_REACHED, bestAttemptDepthImage, bestAttemptRGBImage, bestAttemptScore);
     }
-    else if(action == UA_KEEP) {
+    else if(action == OgreWindow::UserAction::KEEP) {
         // Check rendered images
         if(bestAttemptDepthImage.data && bestAttemptRGBImage.data) {
             DEBUG_OUT("Simulation was successful");
             return DropResult(DropStatus::SUCCESS, bestAttemptDepthImage, bestAttemptRGBImage, bestAttemptScore);
         }
     }
-    else if(action == UA_DISCARD) {
+    else if(action == OgreWindow::UserAction::DISCARD) {
         DEBUG_OUT("Simulation result was discarded by the user");
         return DropResult(DropStatus::USER_DISCARDED, cv::Mat(), cv::Mat());
     }
-    else if(action == UA_ABORT) {
+    else if(action == OgreWindow::UserAction::ABORT) {
         DEBUG_OUT("Simulation was canceled by the user");
         return DropResult(DropStatus::USER_ABORTED, cv::Mat(), cv::Mat());
     }

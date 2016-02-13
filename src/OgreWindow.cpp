@@ -74,7 +74,7 @@ OgreWindow::OgreWindow()
     , mTotalTime(0)
     , mHaltRendering(false)
     , mStatus(READY)
-    , mActionChosen(UA_KEEP)
+    , mActionChosen(UserAction::KEEP)
     , mRenderWindow(nullptr)
     , mRenderCamera(nullptr)
     , mRenderPixelBoxDepth(nullptr)
@@ -302,7 +302,7 @@ void OgreWindow::shutDownBullet() {
     }
 }
 
-SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, RGBDScene* scene, const GroundPlane& plane,
+OgreWindow::SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, RGBDScene* scene, const GroundPlane& plane,
                                              const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate) {
 
     // Ensure that we have a scene node for our scene
@@ -411,17 +411,17 @@ SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, RGBDScene
 
     // Run simulation
     mStatus = SIMULATION_RUNNING;
-    SimulationResult ret = SR_SUCCESS;
+    SimulationResult ret = SimulationResult::SUCCESS;
 
     if(animate && !hidden()) {
         // Enter rendering loop; the simulation steps will be performed in the rendering callbacks
         mRoot->startRendering(); // this method does not return until rendering is stopped
 
         if(mStatus == SIMULATION_TIMEOUT) {
-            ret = SR_TIMEOUT;
+            ret = SimulationResult::TIMEOUT;
         }
         else if(mStatus == WINDOW_CLOSED) {
-            ret = SR_ABORTED;
+            ret = SimulationResult::ABORTED;
         }
     }
     else {
@@ -434,7 +434,7 @@ SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, RGBDScene
             }
             else if(mTotalTime >= Constants::TimeoutTimeThreshold) {
                 mStatus = SIMULATION_TIMEOUT;
-                ret = SR_TIMEOUT;
+                ret = SimulationResult::TIMEOUT;
             }
         }
     }
@@ -445,9 +445,9 @@ SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, RGBDScene
     return ret;
 }
 
-UserAction OgreWindow::promptUserAction() {
+OgreWindow::UserAction OgreWindow::promptUserAction() {
     mStatus = AWAITING_USER_INPUT;
-    mActionChosen = UA_NO_CHOICE;
+    mActionChosen = UserAction::NO_CHOICE;
 
     // Create overlay
     Ogre::OverlayManager& overlayMgr = Ogre::OverlayManager::getSingleton();
@@ -816,7 +816,7 @@ bool OgreWindow::windowClosing(Ogre::RenderWindow* rw) {
 
         // Adjust status
         if(mStatus == AWAITING_USER_INPUT)
-            mActionChosen = UA_ABORT;
+            mActionChosen = UserAction::ABORT;
 
         mStatus = WINDOW_CLOSED;
 
@@ -834,19 +834,19 @@ bool OgreWindow::keyPressed(const OIS::KeyEvent& e) {
 
     if(mStatus == AWAITING_USER_INPUT) {
         if(e.key == OIS::KC_RETURN) {
-            mActionChosen = UA_KEEP;
+            mActionChosen = UserAction::KEEP;
             mHaltRendering = true;
         }
         else if(e.key == OIS::KC_BACK) {
-            mActionChosen = UA_DISCARD;
+            mActionChosen = UserAction::DISCARD;
             mHaltRendering = true;
         }
         else if(e.key == OIS::KC_ESCAPE) {
-            mActionChosen = UA_ABORT;
+            mActionChosen = UserAction::ABORT;
             mHaltRendering = true;
         }
         else if(e.key == OIS::KC_R) {
-            mActionChosen = UA_RESTART;
+            mActionChosen = UserAction::RESTART;
             mHaltRendering = true;
         }
     }

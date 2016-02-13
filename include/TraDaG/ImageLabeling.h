@@ -19,6 +19,8 @@ namespace TraDaG {
 class TraDaG::ImageLabeling
 {
 public:
+    enum class PlaneFitStatus { SUCCESS, INVALID_LABEL, NO_GOOD_PLANE };
+
     typedef std::map<cv::Point, std::pair<Ogre::Vector3, int>, bool(*)(const cv::Point&, const cv::Point&)> PixelWorldMap;
 
     ImageLabeling(const cv::Mat& depthImage, const cv::Mat& labelImage, const LabelMap& labelMap, const CameraManager& cameraParams);
