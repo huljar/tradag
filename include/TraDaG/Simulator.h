@@ -25,8 +25,19 @@ namespace TraDaG {
 class TraDaG::Simulator
 {
 public:
-    enum class DropStatus { SUCCESS, PLANE_TOO_STEEP, MAX_ATTEMPTS_REACHED, NO_OBJECTS, PLANE_UNDEFINED,
-                            USER_DISCARDED, USER_ABORTED, UNKNOWN_ERROR };
+    /**
+     * @brief Enumerator describing the result of a simulation.
+     */
+    enum class DropStatus {
+        SUCCESS, /**< Success, an optimal result was found. */
+        MAX_ATTEMPTS_REACHED, /**< Success, but no optimal result was found within the allowed number of attempts. */
+        PLANE_TOO_STEEP, /**< Error, the angle between the gravity vector and the plane normal is too large. */
+        NO_OBJECTS, /**< Error, no objects to drop into the scene were specified. */
+        PLANE_UNDEFINED, /**< Error, no plane was specified. */
+        USER_DISCARDED, /**< Error, the user discarded the result (can only happen when preview window is enabled). */
+        USER_ABORTED, /**< Error, the user aborted the whole simulation (can only happen when preview window is enabled). */
+        UNKNOWN_ERROR /**< All other possible errors. */
+    };
 
     struct DropResult {
         DropResult()

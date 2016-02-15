@@ -1,23 +1,3 @@
-/***************************************************************************//*!
-* @brief Ray Collision Detection
-* Usage: (Example with FPS view & cursor style (minecraft, cs, ...))
-* @code
-* //...
-* Ogre::SceneManager* sceneMgr = ...
-* //...
-* OgreRay ray(sceneMgr);
-* //...
-*
-*   Ogre::Vector3 result;
-*   Ogre::MovableObject* object;
-*   if( ray.RaycastFromPoint(m_camera->getPosition(), Ogre::Vector3 direction = m_camera->getDirection(), result, object) ){
-*	    printf("Your mouse is over the position %f,%f,%f (which is textured)\n", result.x, result.y, result.z);
-*   }else{
-*       printf("No mouse collision\n Are you looking the sky ?\n");
-*   }
-* @endcode
-*/
-
 #ifndef OGRERAY_H
 #define OGRERAY_H
 
@@ -27,6 +7,25 @@
 
 namespace OgreBites {
 
+    /***************************************************************************//*!
+    * @brief Ray Collision Detection
+    * Usage: (Example with FPS view & cursor style (minecraft, cs, ...))
+    * @code
+    * //...
+    * Ogre::SceneManager* sceneMgr = ...
+    * //...
+    * OgreRay ray(sceneMgr);
+    * //...
+    *
+    *   Ogre::Vector3 result;
+    *   Ogre::MovableObject* object;
+    *   if( ray.RaycastFromPoint(m_camera->getPosition(), Ogre::Vector3 direction = m_camera->getDirection(), result, object) ){
+    *	    printf("Your mouse is over the position %f,%f,%f (which is textured)\n", result.x, result.y, result.z);
+    *   }else{
+    *       printf("No mouse collision\n Are you looking at the sky ?\n");
+    *   }
+    * @endcode
+    */
     class OgreRay
     {
         private:

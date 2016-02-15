@@ -1,3 +1,26 @@
+/************************************************************//**
+ * @mainpage
+ *
+ * @section intro_sec Introduction
+ *
+ * This is the introduction.
+ *
+ * @section install_sec Installation
+ *
+ * @subsection ogre_sec OGRE (Object-oriented Graphics Rendering Engine)
+ *
+ * @subsection ois_sec OIS (Object-oriented Input System)
+ *
+ * @subsection bullet_sec Bullet
+ *
+ * @subsection ogrebullet_sec OgreBullet
+ *
+ * @subsection opencv_sec OpenCV
+ *
+ * @subsection boost_sec Boost
+ *
+*//*************************************************************/
+
 #include <TraDaG/Simulator.h>
 #include <TraDaG/util.h>
 #include <TraDaG/CVLDWrapper/CVLDWrapper.h>
