@@ -1,23 +1,89 @@
 /************************************************************//**
  * @mainpage
  *
+ * @tableofcontents
+ *
  * @section intro_sec Introduction
  *
- * This is the introduction.
+ * @b TraDaG (short for <em>Training Data Generator</em>) is a framework for dropping objects
+ * into scenes which are given only by an RGB image, a depth image, and a labeling of the scene contents
+ * in form of a label image. The goal is to provide a way to insert objects into these scenes in a
+ * physically plausible way (i.e. to not end up with floating objects or impossible resting poses, where
+ * the object would normally tilt over). This is achieved by using a physics engine to drop these
+ * objects on a plane extracted from the depth and label images. The resulting scene with the objects
+ * inside can then be rendered into new RGB and depth images. In addition, the framework will provide
+ * the following information for each object:
+ *  - Final object pose (rotation and translation),
+ *  - Amount of occlusion
+ *  - Object-local coordinates and visibility of every object pixel
+ *
+ * The rendered images and the additional information can then be used in whatever way the user wishes.
+ * The main purpose at the time of writing this framework is to provide physically plausible training
+ * and testing data for machine learning algorithms, which are supposed to robustly recognize objects in
+ * images and (optionally) detect the 6D pose (rotation and translation) for each object.
+ *
+ * The framework allows for fine-grained control over the whole process and can easily be used with big
+ * data sets of RGB-D scenes. It supports reading in whole directories of RGB, depth and label images
+ * and searching them for scenes suitable for specific ground planes (e.g. scenes which contain a table
+ * that is viewed by the camera from a bird's eye view). See the @ref features_sec "features section"
+ * for a more detailed list of features.
  *
  * @section install_sec Installation
  *
- * @subsection ogre_sec OGRE (Object-oriented Graphics Rendering Engine)
+ * @subsection ogre_sec OGRE
+ * @b OGRE (short for <em>Object-oriented Graphics Rendering Engine</em>) is the underlying rendering
+ * engine used to create and manage the 3D scene, the objects to be dropped into the scene and to render
+ * the result images. TraDaG was created and tested with OGRE 1.9 \"Ghadamon\".
+ *
+ * @subsubsection ogre_source_sec Compiling from source
+ * - Go to the <a href="http://www.ogre3d.org/download/sdk">OGRE downloads website</a>
+ * - Follow the instructions in the @a Source section
+ *
+ * @subsubsection ogre_prebuilt_sec Installing an official prebuilt SDK
+ * - Go to the <a href="http://www.ogre3d.org/download/sdk">OGRE downloads website</a>
+ * - Follow the instructions in the <em>Pre-built SDK</em> section
+ *
+ * @subsubsection ogre_repo_sec Installing from a repository (Debian, Ubuntu)
+ * - Install the package @a libogre-1.9-dev and its dependencies (e.g. by executing \"<tt>apt-get
+ *   install libogre-1.9-dev</tt>\" as root)
  *
  * @subsection ois_sec OIS (Object-oriented Input System)
+ * @b OIS (short for <em>Object-oriented Input System</em>) is the library used to process mouse and
+ * keyboard inputs when having a preview window open (see @ref getting_started_sec "Getting Started" for
+ * details on preview windows). TraDaG was created and tested with OIS 1.3.
+ *
+ * @subsubsection ois_source_sec Compiling from source
+ * - Go to the <a href="https://github.com/wgois/OIS">GitHub repository</a> of OIS
+ * - Grab a copy of the source code (e.g. by cloning the repository with @c git)
+ * - Follow the instructions in the @a README.md file
+ *
+ * @subsubsection ois_repo_sec Installing from a repository (Debian, Ubuntu)
+ * - Install the package @a libois-dev and its dependencies (e.g. by executing \"<tt>apt-get install
+ *   libois-dev</tt>\" as root)
  *
  * @subsection bullet_sec Bullet
+ * @b Bullet is the physics engine that is responsible for dropping objects into the scenes by
+ * calculating their trajectories, how they bounce from the ground, how they collide with other objects
+ * and so forth. TraDaG was created and tested with Bullet 2.82/2.83.
+ *
+ * @subsubsection bullet_source_sec Compiling from source
+ * - Go to the <a href="https://github.com/bulletphysics/bullet3/releases">GitHub repository</a> of Bullet
+ * - Grab a copy of the source code (e.g. by downloading the latest release)
+ * - Follow the instructions in the @a README.md file
+ *
+ * @subsubsection bullet_repo_sec Installing from a repository (Debian, Ubuntu)
+ * - Install the packages @a libbullet-dev and @a libbullet-extras-dev and their dependencies (e.g. by
+ *   executing \"<tt>apt-get install libbullet-dev libbullet-extras-dev</tt>\" as root)
  *
  * @subsection ogrebullet_sec OgreBullet
  *
  * @subsection opencv_sec OpenCV
  *
  * @subsection boost_sec Boost
+ *
+ * @section features_sec Features
+ *
+ * @section getting_started_sec Getting Started
  *
 *//*************************************************************/
 
