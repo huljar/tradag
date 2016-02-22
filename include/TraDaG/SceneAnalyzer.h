@@ -142,20 +142,62 @@ public:
                                                           unsigned short maxDistance = std::numeric_limits<unsigned short>::max(),
                                                           bool computePlaneIfNoPlaneInfoFile = false);
 
+    /**
+     * @brief beginByLabel
+     * @param labels
+     * @param randomizeOrder
+     * @return
+     */
     LabelIterator beginByLabel(const std::vector<std::string>& labels, bool randomizeOrder = false);
+    /**
+     * @brief beginByLabel
+     * @param label
+     * @param randomizeOrder
+     * @return
+     */
     LabelIterator beginByLabel(const std::string& label, bool randomizeOrder = false);
+    /**
+     * @brief endByLabel
+     * @return
+     */
     LabelIterator endByLabel();
 
+    /**
+     * @brief beginByPlane
+     * @param labels
+     * @param normal
+     * @param tolerance
+     * @param minDistance
+     * @param maxDistance
+     * @param computePlaneIfNoPlaneInfoFile
+     * @param randomizeOrder
+     * @return
+     */
     PlaneIterator beginByPlane(const std::vector<std::string>& labels,
                                const cv::Vec3f& normal, float tolerance,
                                unsigned short minDistance = 0,
                                unsigned short maxDistance = std::numeric_limits<unsigned short>::max(),
                                bool computePlaneIfNoPlaneInfoFile = false, bool randomizeOrder = false);
+    /**
+     * @brief beginByPlane
+     * @param label
+     * @param normal
+     * @param tolerance
+     * @param minDistance
+     * @param maxDistance
+     * @param computePlaneIfNoPlaneInfoFile
+     * @param randomizeOrder
+     * @return
+     */
     PlaneIterator beginByPlane(const std::string& label,
                                const cv::Vec3f& normal, float tolerance,
                                unsigned short minDistance = 0,
                                unsigned short maxDistance = std::numeric_limits<unsigned short>::max(),
                                bool computePlaneIfNoPlaneInfoFile = false, bool randomizeOrder = false);
+    /**
+     * @brief endByPlane
+     * @return
+     */
     PlaneIterator endByPlane();
 
     bool precomputePlaneInfoForScene(unsigned int sceneID, const std::string& label,
@@ -167,7 +209,27 @@ public:
     void clearCache();
 
     ImageLabeling createImageLabeling(unsigned int sceneID);
+
+    /**
+     * @brief Construct a Simulator instance for a specific scene.
+     * @param sceneID The ID of the scene, as returned by the search results of this class.
+     * @return A Simulator instance for the specified scene.
+     *
+     * This function is a shortcut for comfortable construction of a Simulator instance for a scene.
+     *
+     * @remarks Alternatively, you can always construct the Simulator yourself.
+     */
     Simulator createSimulator(unsigned int sceneID);
+    /**
+     * @brief Construct a Simulator instance for a specific scene and set its ground plane.
+     * @param sceneID The ID of the scene, as returned by the search results of this class.
+     * @param plane The plane to register with the constructed Simulator.
+     * @return A Simulator instance for the specified scene, with the ground plane already set.
+     *
+     * This function is a shortcut for comfortable construction of a Simulator instance for a scene.
+     *
+     * @remarks Alternatively, you can always construct the Simulator yourself and set the plane manually using Simulator::setGroundPlane.
+     */
     Simulator createSimulator(unsigned int sceneID, const GroundPlane& plane);
 
     std::vector<std::string> getPlaneInfoFileNames(unsigned int sceneID);

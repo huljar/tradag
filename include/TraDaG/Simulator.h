@@ -70,6 +70,11 @@ public:
     // Move assignment operator
     Simulator& operator=(Simulator&& other);
 
+    /**
+     * @brief createObject
+     * @param meshName
+     * @return
+     */
     DroppableObject* createObject(const std::string& meshName);
     void destroyObject(DroppableObject* object);
     void destroyObject(unsigned int index);
@@ -80,14 +85,30 @@ public:
     ObjectVec::iterator endObjects();
     ObjectVec::const_iterator endObjects() const;
 
+    /**
+     * @brief execute
+     * @return
+     */
     DropResult execute();
 
     RGBDScene* getRGBDScene() const;
 
     GroundPlane getGroundPlane() const;
+    /**
+     * @brief setGroundPlane
+     * @param groundPlane
+     */
     void setGroundPlane(const GroundPlane& groundPlane);
 
+    /**
+     * @brief getMaxAttempts
+     * @return
+     */
     unsigned int getMaxAttempts() const;
+    /**
+     * @brief setMaxAttempts
+     * @param maxAttempts
+     */
     void setMaxAttempts(unsigned int maxAttempts);
 
     bool showPreviewWindow() const;
@@ -103,6 +124,10 @@ public:
     void setDebugDrawBulletShapes(bool drawShapes);
 
     Auto<cv::Vec3f> getGravity() const;
+    /**
+     * @brief setGravity
+     * @param gravity
+     */
     void setGravity(const Auto<cv::Vec3f>& gravity);
 
 private:

@@ -42,7 +42,7 @@ CVLDWrapper::CVLDWrapper(const std::string& datasetPath, const CameraManager& ca
     , mObjectFriction(Defaults::ObjectFriction)
     , mPlaneRestitution(Defaults::PlaneRestitution)
     , mPlaneFriction(Defaults::PlaneFriction)
-    , mMaxAttempts(50000)
+    , mMaxAttempts(10)
     , mShowPreviewWindow(Defaults::ShowPreviewWindow)
     , mShowPhysicsAnimation(Defaults::ShowPhysicsAnimation)
     , mGravity(Defaults::Gravity)

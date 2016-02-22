@@ -82,7 +82,8 @@ public:
      * @brief Constructor.
      * @param datasetPath Absolute or relative path to the data set base directory.
      * @param cameraParams A CameraManager instance containing all the camera parameters which were used to record the data set.
-     * @param labelMap A mapping of string labels to 16 bit unsigned label values.
+     * @param labelMap A mapping of string labels to 16 bit unsigned label values. For the <em>NYU Depth V1</em> and <em>NYU Depth
+     * V2</em> data sets, sensible label maps are predefined in @c util.h which can be used here.
      * @param maxLoadImages The maximum number of scenes to load from the data set. If this number is smaller than the number of
      * scenes in the data set, some scenes will not be loaded, and the loaded scenes are selected randomly from the data set.
      * Set this to 0 to specify no limit.
@@ -96,7 +97,7 @@ public:
 
     // TODO: better return values
     /**
-     * @brief Precompute plane information.
+     * @brief Precompute plane information and store it to disk.
      * @param labels Vector of labels for which planes shall be searched.
      * @param normal Plane normal to search for. Pass all-zero vector to accept any normal.
      * @param tolerance Angular tolerance in degrees in which a plane normal will be considered matching.
@@ -106,7 +107,7 @@ public:
      */
     bool precomputePlaneInfo(const std::vector<std::string>& labels, const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0);
     /**
-     * @brief Precompute plane information.
+     * @brief Precompute plane information and store it to disk.
      * @param label Label for which planes shall be searched.
      * @param normal Plane normal to search for. Pass all-zero vector to accept any normal.
      * @param tolerance Angular tolerance in degrees in which a plane normal will be considered matching.

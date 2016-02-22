@@ -149,6 +149,7 @@
  * - Selection whether to keep/discard the result or to restart/abort the simulation when having the
  *   preview window enabled
  * - Optional animation of the physics simulation in real-time
+ * - Control over the way objects are initially dropped (speed, torque, gravity, ...)
  * - Specifying constraints for a \"good\" result on a per-object level, like desired occlusion or
  *   distance
  * - Automatic restarts of the simulation if the result is not within the specified constraints, up to a
@@ -159,19 +160,175 @@
  *   coordinates per pixel, occluded fraction and an occlusion flag for each object pixel
  *
  * This list of features is not exhaustive, but should give a good overview about the capabilities of the
- * framework. For more in-depth and detailed information, please refer to the refer to the API reference
- * of this documentation.
+ * framework. For more in-depth and detailed information, please refer to the API reference of this
+ * documentation.
  *
  * @section getting_started_sec Getting Started
  *
+ * @subsection getting_started_wrapper_sec The Wrapper Way
+ * The \ref TraDaG::CVLDWrapper "CVLDWrapper" class provides a comfortable interface for the most common
+ * use cases of the CVLD members. Simply construct an object of the class, use the various setter
+ * functions to define your parameters, and start generating scenes.
+ *
+ * To construct the wrapper object, you need to provide the absolute or relative path to your data set.
+ * This directory is expected to contain the subdirectories @a depth, @a rgb and @a label, which contain
+ * the depth, color and label images, respectively. For %TraDaG to know which depth, color and label images
+ * belong together, they need to have the same file name, e.g. the files @a depth/myscene.png,
+ * @a rgb/myscene.png and @a label/myscene.png will be interpreted to represent the same scene and will be
+ * used together. Files without an equivalent in both of the other directories will not be considered as
+ * a valid scene and will be ignored.
+ *
+ * If you want to make use of precomputing planes and storing them to disk or to read existing planes from
+ * disk, the data set directory also needs to contain a @a plane subdirectory. This is not required, though;
+ * if it does not exist, you just will not be able to make use of plane precomputation through this wrapper.
+ *
+ * In addition, the wrapper requires a \ref TraDaG::CameraManager "CameraManager" instance. This is a very
+ * simple class which holds all the camera parameters that were used to record the data set. %TraDaG needs
+ * to know these parameters to accurately reconstruct the 3D scene from the point of view of the recording
+ * cameras. To construct a \ref TraDaG::CameraManager "CameraManager" instance, you need to pass the camera
+ * parameters to its constructor. For more information, refer to its
+ * \ref TraDaG::CameraManager "API documentation".
+ *
+ * The wrapper also requires a label map. This is a \ref TraDaG::LabelMap "mapping" from strings to grey
+ * values with 16 bit depth, i.e. in the [0, 65535] interval. These grey values are the values stored in the
+ * label images to represent the different labels. For the <em>NYU Depth V1</em> and <em>NYU Depth V2</em>
+ * data sets, sensible label maps are already predefined in util.h. If you include this header, you can use
+ * the \ref TraDaG::Labels::NYUDepthV1 "NYUDepthV1" and
+ * \ref TraDaG::Labels::NYUDepthV2 "NYUDepthV2" constants, if you wish.
+ *
+ * The last parameter is to limit the amount of scenes that will be processed. It is mostly there to have
+ * some kind of an upper bound on the computation time when searching through all the scenes, and is most
+ * useful when working with huge data sets. In most cases, it should be okay to leave this at @a unlimited.
+ * For more information, see the CVLDWrapper::CVLDWrapper API documentation.
+ *
+ * When you have successfully constructed a wrapper object, you have access to various setters to define
+ * the parameters of your simulations. Most values are set to a reasonable default, but you may change them
+ * as you wish (again, refer to the CVLDWrapper API documentation for more details). To start generating
+ * training images, you must define which labels you want to use, however; you can do this using the
+ * \ref TraDaG::CVLDWrapper::labelsToUse "labelsToUse" and
+ * \ref TraDaG::CVLDWrapper::setLabelsToUse "setLabelsToUse" functions. You must define at least one label.
+ *
+ * You probably also want to set the active object, i.e. which object will be dropped into the scene. You
+ * can do this using the \ref TraDaG::CVLDWrapper::setActiveObject "setActiveObject" function, which takes
+ * a numeric object ID as a parameter (it is also possible to use multiple objects at the same time, but not
+ * through this wrapper). The object IDs are 1-based and assigned contiguously in the
+ * [1, \ref TraDaG::CVLDWrapper::getNumObjects "getNumObjects"] interval. By default, the 13 objects from
+ * the @a Hinterstoisser data set are available. If you want to add new objects or remove some, you can
+ * use the \ref TraDaG::CVLDWrapper::availableObjects "availableObjects" vector. Keep in mind that making
+ * this vector smaller also invalidates some object IDs.
+ *
+ * Now you are ready to generate some training images! There are three methods of doing so through the wrapper,
+ * which are defined through the overloads of the \ref TraDaG::CVLDWrapper::getTrainingImage "getTrainingImage"
+ * function, providing different levels of control over the object pose and the selected scenes. They all have
+ * in common that they will select a random scene (which matches your specifications), fit a plane into the
+ * scene using one of the \ref TraDaG::CVLDWrapper::labelsToUse "allowed labels" (or use a precomputed plane,
+ * if available), and drop the object onto the plane (according to the restrictions passed to the function).
+ * The simulation is preformed up the the \ref TraDaG::CVLDWrapper::getMaxAttempts "maximum attempts" per scene.
+ * If no good result is produced, it will move on to the next (randomly selected) scene. If all scenes fail to
+ * produce a good result, the overall best attempt will be returned, and a flag will indicate that the result is
+ * not optimal.
+ *
+ * The \ref TraDaG::CVLDWrapper::getTrainingImage(double, double) "simplest overload" only requires you to
+ * specify what occlusion you will accept as a \"good\" result. No restrictions on the scene (aside from the
+ * allowed labels) or on the object pose are enforced.
+ *
+ * The
+ * \ref TraDaG::CVLDWrapper::getTrainingImage(const cv::Mat_<double>&, const cv::Point3d&, double, double) "next overload"
+ * does not restrict the scene, either, but allows you to define the initial rotation of the object and an
+ * initial velocity that the object will have when it \"appears\" in the scene. The final object pose is not
+ * affected by this.
+ *
+ * The
+ * \ref TraDaG::CVLDWrapper::getTrainingImage(const cv::Mat_<double>&, double, unsigned short, unsigned short, double, double) "final overload"
+ * is the most restrictive of the three. It allows you to define the final pose of the object by specifying its
+ * final rotation (with a tolerance) and its distance to the camera, in addition to the usual occlusion. The
+ * scenes are also restricted by the final object rotation, because only scenes containing planes with a normal
+ * that matches the object's up-vector (within the given tolerance) and a distance within the specified interval
+ * will be selected.
+ *
+ * All three overloads return a \ref TraDaG::CVLDWrapper::TrainingImage "TrainingImage" containing the rendered
+ * scene with the object and additional information, such as object coordinates and occlusion. In addition, a
+ * \ref TraDaG::Simulator::DropStatus "status" is returned to indicate success and failure, amongst others.
+ *
+ * @subsubsection getting_started_wrapper_precomputing_sec Precomputing planes
+ *
+ * As mentioned a few times \ref getting_started_wrapper_sec "above", you can precompute planes for your scenes
+ * and store them to files on the hard drive. The wrapper provides this functionality in the
+ * \ref TraDaG::CVLDWrapper::precomputePlaneInfo "precomputePlaneInfo" function. You must pass one or more labels
+ * (and optionally a plane normal with a tolerance) to this function; it will then search the data set for
+ * matching scenes and try to fit a plane for each scene and each label (that is contained in the current scene).
+ * The computed planes will be stored in <tt>.planeinfo</tt> files in the @a plane subdirectory of the data set path
+ * that was specified in the \ref TraDaG::CVLDWrapper::CVLDWrapper "constructor". If this subdirectory does not
+ * exist, the computation will fail.
+ *
+ * When precomputed planes are available at the time of \ref TraDaG::CVLDWrapper::getTrainingImage "requesting" a
+ * training image, they will always be parsed first before attempting to fit a new plane (if the saved ones do
+ * not match the current requirements). If you want you simulation to only rely on the precomputed planes and
+ * discard a scene if those planes are not adequate (e.g. to save time if you know that you precomputed all the
+ * relevant planes), you can set the \ref TraDaG::CVLDWrapper::setComputePlaneIfNoFile "parameter" for this to
+ * @c false.
+ *
+ * @subsection getting_started_generic_sec The Generic Way
+ * If you decided to not use the wrapper, you have a lot more and powerful tools at your disposal; however, you will
+ * probably need to consult the API documentation a lot more, too.
+ *
+ * The most important classes here are
+ * - \ref TraDaG::SceneAnalyzer "SceneAnalyzer"
+ * - \ref TraDaG::Simulator "Simulator"
+ * - \ref TraDaG::DroppableObject "DroppableObject"
+ * - \ref TraDaG::GroundPlane "GroundPlane"
+ *
+ * @subsubsection sceneanalyzer_sec SceneAnalyzer
+ * The \ref TraDaG::SceneAnalyzer "SceneAnalyzer" class manages your data set and allows you to search for scenes
+ * by labels or by planes (see e.g. \ref TraDaG::SceneAnalyzer::beginByLabel "beginByLabel" and
+ * \ref TraDaG::SceneAnalyzer::beginByPlane "beginByPlane"). It also allows you to iterate over the search results.
+ * It has functions for precomputing planes similar to \ref getting_started_wrapper_precomputing_sec "the wrapper"
+ * and will also parse saved plane files before attempting to fit a new plane into a scene (which is obvious if you
+ * consider that the wrapper uses this class for its search operations).
+ *
+ * \ref TraDaG::SceneAnalyzer "SceneAnalyzer" assigns an ID to all the scenes it manages, in alphabetical order of
+ * the file name of the depth image belonging to the scene. When searching for planes, the result will always contain
+ * this scene ID, which can then be used with the other functions. For example, when you have found a scene that you
+ * want to use for a simulation, you can call \ref TraDaG::SceneAnalyzer::createSimulator(unsigned int) "createSimulator"
+ * with the scene ID to comfortably construct a \ref TraDaG::Simulator "Simulator" for this scene. If you have the
+ * plane available at this time, you can even pass it directly to
+ * \ref TraDaG::SceneAnalyzer::createSimulator(unsigned int, const GroundPlane&) "createSimulator" and it will be
+ * registered automatically (alternatively, you can use \ref TraDaG::Simulator::setGroundPlane "setGroundPlane" on
+ * the \ref TraDaG::Simulator "Simulator" instance to specify the plane after construction).
+ *
+ * @subsubsection simulator_sec Simulator
+ *
+ * This class manages the simulation of dropping objects for a single scene. It facilitates the creation of one or
+ * more \ref TraDaG::DroppableObject "DroppableObject"s to use for the simulation and allows setting parameters
+ * like the \ref TraDaG::Simulator::setGravity "gravity vector" or the
+ * \ref TraDaG::Simulator::setMaxAttempts "maximum attempts". Object-specific parameters like
+ * \ref TraDaG::DroppableObject::setDesiredOcclusion "desired occlusion" can be set directly
+ * on the objects returned by \ref TraDaG::Simulator::createObject "createObject". When you are ready to start the
+ * simulation, call \ref TraDaG::Simulator::execute "execute". This function will run the simulation and repeat it
+ * up to \ref TraDaG::Simulator::getMaxAttempts "max attempts" times, or until an optimal result (i.e. a result
+ * where all restrictions are met) is found. In the case that no optimal result can be computed within the
+ * \ref TraDaG::Simulator::getMaxAttempts "max attempts", the best one found will be returned. The result also
+ * contains a \ref TraDaG::Simulator::DropStatus "status" to indicate success and failure, amongst others.
+ * The parameters of the dropped objects after the simulation can be retrieved from the
+ * \ref TraDaG::DroppableObject "DroppableObject"s themselves using
+ * \ref TraDaG::DroppableObject::getFinalOcclusion "getFinalOcclusion",
+ * \ref TraDaG::DroppableObject::getFinalRotation "getFinalRotation" etc. (see the
+ * \ref TraDaG::DroppableObject "API documentation" for a complete list).
+ *
+ * @subsubsection droppableobject_sec DroppableObject
+ *
+ * @subsubsection groundplane_sec GroundPlane
+ *
  * @subsection ogre_mesh_sec OGRE .mesh files
+ *
+ * @subsubsection new_object_sec Registering a new object
  *
  * @section attribution_sec Attribution
  *
- * TraDaG was written in 2015/2016 by Julian Harttung for the <a href="http://cvlab-dresden.de/">Computer
+ * %TraDaG was written in 2015/2016 by Julian Harttung for the <a href="http://cvlab-dresden.de/">Computer
  * Vision Lab Dresden</a> (CVLD). It is part of a research project on 6D pose estimation at the
  * <a href="https://www.inf.tu-dresden.de/portal.php?node_id=1&ln=en&group=13">Faculty of Computer
- * Science</a> at the <a href="http://tu-dresden.de/en">Dresden University of Technology</a>.
+ * Science</a> of the <a href="http://tu-dresden.de/en">Dresden University of Technology</a>.
  *
 *//*************************************************************/
 

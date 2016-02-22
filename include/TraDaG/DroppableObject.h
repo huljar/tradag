@@ -30,9 +30,22 @@ public:
     void setFinalObjectCoords(const PixelInfoMap& objectCoords);
 
     std::pair<float, float> getDesiredOcclusion() const;
+    /**
+     * @brief setDesiredOcclusion
+     * @param occlusion
+     */
     void setDesiredOcclusion(const std::pair<float, float>& occlusion);
+    /**
+     * @brief setDesiredOcclusion
+     * @param minOcclusion
+     * @param maxOcclusion
+     */
     void setDesiredOcclusion(float minOcclusion, float maxOcclusion);
 
+    /**
+     * @brief getFinalOcclusion
+     * @return
+     */
     float getFinalOcclusion() const;
     void setFinalOcclusion(float finalOcclusion);
 
@@ -64,6 +77,10 @@ public:
     Auto<cv::Matx33f> getInitialRotation() const;
     void setInitialRotation(const Auto<cv::Matx33f>& initialRotation);
 
+    /**
+     * @brief getFinalRotation
+     * @return
+     */
     cv::Matx33f getFinalRotation() const;
     void setFinalRotation(const cv::Matx33f& finalRotation);
 

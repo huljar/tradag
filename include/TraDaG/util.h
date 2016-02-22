@@ -12,25 +12,48 @@
 #include <utility>
 #include <vector>
 
+/// The TraDaG namespace contains everything belonging to the framework.
 namespace TraDaG {
 
     class DroppableObject; // forward declaration
 
+    /// Vector of pointers to DroppableObject instances.
     typedef std::vector<DroppableObject*> ObjectVec;
+    /// Vector of label values as they are defined in the label images.
     typedef std::vector<unsigned short> LabelVec;
+    /// Mapping of string labels to label values.
     typedef std::map<std::string, LabelVec> LabelMap;
 
+    /**
+     * @brief Simple struct that is mostly used for parameters that can be calculated automatically.
+     *
+     * When this struct is used to set a parameter, it indicates if the value should be calculated
+     * automatically, and if not, it contains the explicit value that will be used.
+     */
     template<typename T>
     struct Auto {
+        /**
+         * @brief Simple constructor.
+         * @param automate Flag indicating whether the represented parameter should be automatically calculated.
+         * @param manualValue Explicit value of the parameter. Specify this only if @c automate is @c false.
+         */
         Auto(bool automate, const T& manualValue = T())
             : automate(automate), manualValue(manualValue)
         {
         }
 
+        /**
+         * Flag indicating whether the represented parameter should be automatically calculated.
+         */
         bool automate;
+        /**
+         * @brief Explicit value of the parameter, in the case that it is not automatically calculated, i.e.
+         * @c automate is set to @c false.
+         */
         T manualValue;
     };
 
+    /// Namespace containing string constants used throughout the framework.
     namespace Strings {
         const std::string LogfilePath = "Ogre.log";
         const std::string ResourcesCfgPath = "../config/resources.cfg";
@@ -61,6 +84,7 @@ namespace TraDaG {
 
     }
 
+    /// Namespace containing default values for many parameters.
     namespace Defaults {
         const std::pair<float, float> ObjectDesiredOcclusion(0.0, 0.95);
         const std::pair<unsigned short, unsigned short> ObjectDesiredDistance(0, std::numeric_limits<unsigned short>::max());
@@ -90,6 +114,7 @@ namespace TraDaG {
         const size_t MaxCacheScenes = 100;
     }
 
+    /// Namespace containing constants used throughout the framework.
     namespace Constants {
         const float ObjectDropDistance = 500.0;
         const Ogre::Degree MaxPlaneNormalToGravityAngle(25);
@@ -119,7 +144,12 @@ namespace TraDaG {
         const int KDTreeMinSize = 10;
     }
 
+    /// Namespace containing some predefined label map constants.
     namespace Labels {
+        /**
+         * Predefined label map for the NYU Depth V1 data set.
+         * @remarks This map is not necessarily exhaustive, but should contain the most useful labels.
+         */
         const LabelMap NYUDepthV1({
             {"floor", {
                 423,  // 'floor'
@@ -151,6 +181,10 @@ namespace TraDaG {
             }}
         });
 
+        /**
+         * Predefined label map for the NYU Depth V2 data set.
+         * @remarks This map is not necessarily exhaustive, but should contain the most useful labels.
+         */
         const LabelMap NYUDepthV2({
             {"floor", {
                 11,   // 'floor'
