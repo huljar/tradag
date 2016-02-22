@@ -32,7 +32,7 @@ class TraDaG::CVLDWrapper
 {
 public:
     /**
-     * @brief Data of a single training image.
+     * @brief Data of a single training image from the CVLDWrapper class.
      *
      * Struct holding the data of a single training image with CVLD-specific types.
      */

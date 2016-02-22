@@ -30,8 +30,13 @@
  *
  * @section install_sec Installation
  *
+ * Below is a list of dependencies which are required to be installed on the system to compile and run
+ * TraDaG or other projects working with the TraDaG framework. The instructions in the <em>Installing
+ * from a repository</em> sections below are confirmed to work with Debian and Ubuntu, but for other
+ * Linux distributions and different package management systems, similar packages might exist.
+ *
  * @subsection ogre_sec OGRE
- * @b OGRE (short for <em>Object-oriented Graphics Rendering Engine</em>) is the underlying rendering
+ * OGRE (short for <em>Object-oriented Graphics Rendering Engine</em>) is the underlying rendering
  * engine used to create and manage the 3D scene, the objects to be dropped into the scene and to render
  * the result images. TraDaG was created and tested with OGRE 1.9 \"Ghadamon\".
  *
@@ -48,7 +53,7 @@
  *   install libogre-1.9-dev</tt>\" as root)
  *
  * @subsection ois_sec OIS (Object-oriented Input System)
- * @b OIS (short for <em>Object-oriented Input System</em>) is the library used to process mouse and
+ * OIS (short for <em>Object-oriented Input System</em>) is the library used to process mouse and
  * keyboard inputs when having a preview window open (see @ref getting_started_sec "Getting Started" for
  * details on preview windows). TraDaG was created and tested with OIS 1.3.
  *
@@ -62,7 +67,7 @@
  *   libois-dev</tt>\" as root)
  *
  * @subsection bullet_sec Bullet
- * @b Bullet is the physics engine that is responsible for dropping objects into the scenes by
+ * Bullet is the physics engine that is responsible for dropping objects into the scenes by
  * calculating their trajectories, how they bounce from the ground, how they collide with other objects
  * and so forth. TraDaG was created and tested with Bullet 2.82/2.83.
  *
@@ -76,14 +81,97 @@
  *   executing \"<tt>apt-get install libbullet-dev libbullet-extras-dev</tt>\" as root)
  *
  * @subsection ogrebullet_sec OgreBullet
+ * OgreBullet is a thin wrapper library for Bullet to integrate with OGRE and make Bullet's functions
+ * callable with OGRE types.
+ *
+ * @subsubsection ogrebullet_precomp_sec Using the precompiled binaries
+ * - TraDaG provides binaries compiled for i386 in the @a libs/OgreBullet/i386 directory and for x86_64 in
+ *   @a libs/OgreBullet/x86_64.
+ * - You need to make sure that the linker is able to find @a libOgreBulletCollisions.so and
+ *   @a libOgreBulletDynamics.so, which are located in the above directories.
+ *
+ * @subsubsection ogrebullet_source_sec Compiling from source
+ * - Go to the <a href="https://bitbucket.org/alexeyknyshev/ogrebullet">BitBucket repository</a> of
+ *   OgreBullet
+ * - Grab a copy of the source code (e.g. by cloning the repository with @c git)
+ * - Follow the instructions in the @a OgreBullet_readme.txt file
+ * - It may happen that an error similar to the following occurs during compilation: <tt>error: prototype
+ *   for 'OgreBulletCollisions::StaticMeshToShapeConverter::StaticMeshToShapeConverter(const Ogre::Entity*,
+ *   const Ogre::Matrix4&)' does not match any in class
+ *   'OgreBulletCollisions::StaticMeshToShapeConverter'</tt>
+ *   - If this is the case, open the file
+ *     @a Collisions/include/Utils/OgreBulletCollisionsMeshToShapeConverter.h and go to line 100
+ *   - Change \"<tt>Ogre::Entity* entity</tt>\" to \"<tt>const Ogre::Entity* entity</tt>\"
  *
  * @subsection opencv_sec OpenCV
+ * OpenCV (short for <em>Open Computer Vision</em>) is a large, generic library that can be used for all
+ * kinds of tasks related to computer vision. In this framework, it is mainly used for image manipulation
+ * and loading/storing those images from/to files. TraDaG was created and tested with OpenCV 2.4.9.
+ *
+ * @subsubsection opencv_source_sec Compiling from source
+ * - Go to the <a href="http://opencv.org/downloads.html">OpenCV downloads page</a>
+ * - Download a version appropriate for your operating system (perferably from the 2.4.x branch)
+ * - Follow the instructions
+ *   <a href="http://docs.opencv.org/2.4/doc/tutorials/introduction/table_of_content_introduction/table_of_content_introduction.html">here</a>
+ *   to set up OpenCV
+ *
+ * @subsubsection opencv_repo_sec Installing from a repository (Debian, Ubuntu)
+ * - Install the package @a libopencv-dev and its dependencies (e.g. by executing \"<tt>apt-get install
+ *   libopencv-dev</tt>\" as root)
+ * - If you don't want to install all components of OpenCV, it should be sufficient to only install the
+ *   required modules @a libopencv-core-dev, @a libopencv-imgproc-dev and @a libopencv-highgui-dev
  *
  * @subsection boost_sec Boost
+ * Boost is one of the most popular C++ libraries providing a lot of very useful functions. TraDaG was
+ * created and tested with Boost 1.55/1.58.
+ *
+ * @subsubsection boost_source_sec Compiling from source
+ * - Download Boost from the <a href="http://www.boost.org/users/download/">official download page</a>
+ * - Follow the instructions in the @a INSTALL and @a index.html files
+ *
+ * @subsubsection boost_repo_sec Installing from a repository (Debian, Ubuntu)
+ * - Install the package @a libboost-all-dev and its dependencies (e.g. by executing \"<tt>apt-get install
+ *   libboost-all-dev</tt>\" as root)
+ * - If you don't want to install all components of Boost, it should be sufficient to only install the
+ *   required modules @a libboost-system-dev, @a libboost-filesystem-dev and @a libboost-regex-dev
  *
  * @section features_sec Features
  *
+ * - Reading in whole data sets of labeled RGB-D scenes or using just a single specified scene
+ * - Searching for scenes by ground plane label, orientation and distance
+ * - Robust finding and fitting of planes into scenes using a RANSAC-based approach
+ * - Storing planes to disk in a textual format
+ * - Automatically parsing stored planes first before trying to compute a new plane
+ * - Rendering an RGB-D scene in 3D
+ * - Creating and registering one or more objects (of the same or different types) to drop into a scene
+ * - Executing a physics simulation to plausibly drop these objects onto a plane in the scene
+ * - Optional preview of the result (after the simulation) with a controllable CameraManager
+ * - Selection whether to keep/discard the result or to restart/abort the simulation when having the
+ *   preview window enabled
+ * - Optional animation of the physics simulation in real-time
+ * - Specifying constraints for a \"good\" result on a per-object level, like desired occlusion or
+ *   distance
+ * - Automatic restarts of the simulation if the result is not within the specified constraints, up to a
+ *   user-defined limit
+ * - Optional preview of the plane vertices that were computed to be inliers by RANSAC
+ * - Optional preview of the objects' collision shapes used by the physics engine
+ * - Detailed information about the state of the objects after the simulation, including 6D pose, object
+ *   coordinates per pixel, occluded fraction and an occlusion flag for each object pixel
+ *
+ * This list of features is not exhaustive, but should give a good overview about the capabilities of the
+ * framework. For more in-depth and detailed information, please refer to the refer to the API reference
+ * of this documentation.
+ *
  * @section getting_started_sec Getting Started
+ *
+ * @subsection ogre_mesh_sec OGRE .mesh files
+ *
+ * @section attribution_sec Attribution
+ *
+ * TraDaG was written in 2015/2016 by Julian Harttung for the <a href="http://cvlab-dresden.de/">Computer
+ * Vision Lab Dresden</a> (CVLD). It is part of a research project on 6D pose estimation at the
+ * <a href="https://www.inf.tu-dresden.de/portal.php?node_id=1&ln=en&group=13">Faculty of Computer
+ * Science</a> at the <a href="http://tu-dresden.de/en">Dresden University of Technology</a>.
  *
 *//*************************************************************/
 
