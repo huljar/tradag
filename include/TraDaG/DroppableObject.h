@@ -56,7 +56,15 @@ public:
     unsigned short getFinalDistance() const;
     void setFinalDistance(unsigned short finalDistance);
 
+    /**
+     * @brief getMustBeUpright
+     * @return
+     */
     bool getMustBeUpright() const;
+    /**
+     * @brief setMustBeUpright
+     * @param mustBeUpright
+     */
     void setMustBeUpright(bool mustBeUpright);
 
     bool getCastShadows() const;

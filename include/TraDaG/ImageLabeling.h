@@ -30,12 +30,31 @@ public:
 
     LabelVec findValidLabelValues(const std::string& label) const;
 
+    /**
+     * @brief findPlaneForLabel
+     * @param label
+     * @param result
+     * @param normal
+     * @param tolerance
+     * @param minDistance
+     * @param maxDistance
+     * @param regionMode
+     * @return
+     */
     virtual PlaneFitStatus findPlaneForLabel(const std::string& label, GroundPlane& result,
                                              const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0,
                                              unsigned short minDistance = 0,
                                              unsigned short maxDistance = std::numeric_limits<unsigned short>::max(),
                                              PlaneInfo::PickMode regionMode = PlaneInfo::PickMode::WEIGHTED_RANDOM);
 
+    /**
+     * @brief findPlaneForLabel
+     * @param label
+     * @param result
+     * @param normal
+     * @param tolerance
+     * @return
+     */
     virtual PlaneFitStatus findPlaneForLabel(const std::string& label, PlaneInfo& result,
                                              const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0);
 

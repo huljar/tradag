@@ -93,6 +93,10 @@ public:
 
     RGBDScene* getRGBDScene() const;
 
+    /**
+     * @brief getGroundPlane
+     * @return
+     */
     GroundPlane getGroundPlane() const;
     /**
      * @brief setGroundPlane

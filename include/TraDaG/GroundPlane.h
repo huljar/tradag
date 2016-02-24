@@ -41,10 +41,26 @@ public:
     std::string getLabel() const;
     void setLabel(const std::string& label);
 
+    /**
+     * @brief getRestitution
+     * @return
+     */
     float getRestitution() const;
+    /**
+     * @brief setRestitution
+     * @param restitution
+     */
     void setRestitution(float restitution);
 
+    /**
+     * @brief getFriction
+     * @return
+     */
     float getFriction() const;
+    /**
+     * @brief setFriction
+     * @param friction
+     */
     void setFriction(float friction);
 
     // Create plane from file
