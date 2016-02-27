@@ -76,8 +76,19 @@ public:
      * @return
      */
     DroppableObject* createObject(const std::string& meshName);
+    /**
+     * @brief destroyObject
+     * @param object
+     */
     void destroyObject(DroppableObject* object);
+    /**
+     * @brief destroyObject
+     * @param index
+     */
     void destroyObject(unsigned int index);
+    /**
+     * @brief destroyAllObjects
+     */
     void destroyAllObjects();
 
     ObjectVec::iterator beginObjects();

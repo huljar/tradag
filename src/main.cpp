@@ -60,7 +60,9 @@
  * @section more_sec Further Reading
  * - \ref install_page "Installation instructions" - Learn about %TraDaG's dependencies and how to install
  *   them
- * - \ref getting_started_page "Getting started" - Read on here if you are ready to start using %TraDaG
+ * - \ref using_page "Using the Framework" - Information on how to get %TraDaG into your own project
+ * - \ref getting_started_page "Getting started" - Read on here if you are ready to start coding with
+ *   %TraDaG
  * - \ref TraDaG "API reference" - Detailed descriptions of all classes, functions, enumerators, constants
  *   etc.
  * - \ref ogre_mesh_page "OGRE meshes" - Learn about OGRE's mesh file format used by %TraDaG, and how to
@@ -183,11 +185,22 @@
  *   required modules @a libboost-system-dev, @a libboost-filesystem-dev and @a libboost-regex-dev
  *
  *
+ * @page using_page Using the Framework
+ *
+ * @tableofcontents
+ *
+ * This page explains how to set up your own project to start using %TraDaG with it.
+ *
+ * @section compiler_sec Compiler Flags
+ *
+ * @section linker_sec Linker Flags
+ *
+ *
  * @page getting_started_page Getting Started
  *
  * @tableofcontents
  *
- * This page provides a quick entry point to start using %TraDaG in your own project.
+ * This page provides a quick entry point to start coding with %TraDaG.
  *
  * @section getting_started_wrapper_sec The Wrapper Way
  * The \ref TraDaG::CVLDWrapper "CVLDWrapper" class provides a comfortable interface for the most common
