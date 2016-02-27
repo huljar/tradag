@@ -37,21 +37,21 @@ cv::Vec3f CameraManager::getWorldForDepth(int u, int v, unsigned short d) const 
     return cv::Vec3f(x, y, z);
 }
 
-cv::Vec2i CameraManager::getDepthForWorld(const cv::Vec3f& xyz) const {
+cv::Point CameraManager::getDepthForWorld(const cv::Vec3f& xyz) const {
     return getDepthForWorld(xyz[0], xyz[1], xyz[2]);
 }
 
-cv::Vec2i CameraManager::getDepthForWorld(float x, float y, float z) const {
+cv::Point CameraManager::getDepthForWorld(float x, float y, float z) const {
     cv::Vec2f principalPoint = (mMapMode == MapMode::MAPPED_DEPTH_TO_RGB ? mRGBPrincipalPoint : mDepthPrincipalPoint);
     cv::Vec2f focalLength = (mMapMode == MapMode::MAPPED_DEPTH_TO_RGB ? mRGBFocalLength : mDepthFocalLength);
 
     int u = std::round(x * focalLength[0] / (-z) + principalPoint[0]);
     int v = std::round((-y) * focalLength[1] / (-z) + principalPoint[1]);
 
-    return cv::Vec2i(u, v);
+    return cv::Point(u, v);
 }
 
-cv::Vec2i CameraManager::getRGBForWorld(const cv::Vec3f& xyz) const {
+cv::Point CameraManager::getRGBForWorld(const cv::Vec3f& xyz) const {
     cv::Vec3f xyzNew;
     cv::Vec2f principalPoint = (mMapMode == MapMode::MAPPED_RGB_TO_DEPTH ? mDepthPrincipalPoint : mRGBPrincipalPoint);
     cv::Vec2f focalLength = (mMapMode == MapMode::MAPPED_RGB_TO_DEPTH ? mDepthPrincipalPoint : mRGBPrincipalPoint);
@@ -70,39 +70,39 @@ cv::Vec2i CameraManager::getRGBForWorld(const cv::Vec3f& xyz) const {
     int u = std::round(x * focalLength[0] / (-z) + principalPoint[0]);
     int v = std::round((-y) * focalLength[1] / (-z) + principalPoint[1]);
 
-    return cv::Vec2i(u, v);
+    return cv::Point(u, v);
 }
 
-cv::Vec2i CameraManager::getRGBForWorld(float x, float y, float z) const {
+cv::Point CameraManager::getRGBForWorld(float x, float y, float z) const {
     return getRGBForWorld(cv::Vec3f(x, y, z));
 }
 
-cv::Vec2i CameraManager::getLabelForWorld(const cv::Vec3f& xyz) const {
+cv::Point CameraManager::getLabelForWorld(const cv::Vec3f& xyz) const {
     return getLabelForWorld(xyz[0], xyz[1], xyz[2]);
 }
 
-cv::Vec2i CameraManager::getLabelForWorld(float x, float y, float z) const {
+cv::Point CameraManager::getLabelForWorld(float x, float y, float z) const {
     return getDepthForWorld(x, y, z);
 }
 
-cv::Vec2i CameraManager::getRGBForDepth(const cv::Point& uv, unsigned short d) const {
+cv::Point CameraManager::getRGBForDepth(const cv::Point& uv, unsigned short d) const {
     return getRGBForDepth(uv.x, uv.y, d);
 }
 
-cv::Vec2i CameraManager::getRGBForDepth(int u, int v, unsigned short d) const {
+cv::Point CameraManager::getRGBForDepth(int u, int v, unsigned short d) const {
     if(mMapMode == MapMode::MAPPED_DEPTH_TO_RGB || mMapMode == MapMode::MAPPED_RGB_TO_DEPTH)
-        return cv::Vec2i(u, v);
+        return cv::Point(u, v);
 
     return getRGBForWorld(getWorldForDepth(u, v, d));
 }
 
-cv::Vec2i CameraManager::getLabelForDepth(const cv::Point& uv, unsigned short d) const {
+cv::Point CameraManager::getLabelForDepth(const cv::Point& uv, unsigned short d) const {
     return getLabelForDepth(uv.x, uv.y, d);
 }
 
-cv::Vec2i CameraManager::getLabelForDepth(int u, int v, unsigned short d) const {
+cv::Point CameraManager::getLabelForDepth(int u, int v, unsigned short d) const {
     (void)d;
-    return cv::Vec2i(u, v);
+    return cv::Point(u, v);
 }
 
 cv::Vec2f CameraManager::getDepthPrincipalPoint() const {

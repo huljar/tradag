@@ -26,7 +26,8 @@ namespace TraDaG {
  * @author Julian Harttung
  *
  * @remarks The interface provided here is tailored to specific use cases. If you need a more generic interface,
- * look into SceneAnalyzer and Simulator.
+ * look into SceneAnalyzer and Simulator (and the \ref getting_started_generic_sec "introduction" to the
+ * important classes).
  */
 class TraDaG::CVLDWrapper
 {

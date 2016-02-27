@@ -121,8 +121,8 @@ void RGBDScene::createVertices() {
             mSceneObject->position(cvToOgre(worldPoint));
 
             // Retrieve corresponding RGB pixel
-            cv::Vec2i rgbPx = mCameraManager.getRGBForDepth(u, v, mDepthImage.at<unsigned short>(v, u));
-            cv::Vec3b rgbColor = mRGBImage.at<cv::Vec3b>(rgbPx[1], rgbPx[0]);
+            cv::Point rgbPx = mCameraManager.getRGBForDepth(u, v, mDepthImage.at<unsigned short>(v, u));
+            cv::Vec3b rgbColor = mRGBImage.at<cv::Vec3b>(rgbPx);
 
             // Ogre uses RGB and OpenCV uses BGR, hence the reversed indexing
             mSceneObject->colour(static_cast<float>(rgbColor[2]) / 255.0f,
