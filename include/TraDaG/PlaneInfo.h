@@ -25,6 +25,9 @@ public:
     typedef std::vector<Region> RegionVec;
     typedef std::tuple<std::string, Ogre::Vector3, Ogre::Real> Headers;
 
+    /**
+     * @brief The PickMode enum
+     */
     enum class PickMode { LARGEST, UNIFORM_RANDOM, WEIGHTED_RANDOM };
 
     PlaneInfo();
@@ -40,6 +43,13 @@ public:
 
     bool isPlaneDefined() const;
 
+    /**
+     * @brief createGroundPlane
+     * @param minDistance
+     * @param maxDistance
+     * @param regionMode
+     * @return
+     */
     GroundPlane createGroundPlane(unsigned short minDistance = 0, unsigned short maxDistance = std::numeric_limits<unsigned short>::max(),
                                   PickMode regionMode = PickMode::WEIGHTED_RANDOM);
 

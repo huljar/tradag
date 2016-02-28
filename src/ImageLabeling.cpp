@@ -75,9 +75,9 @@ LabelVec ImageLabeling::findValidLabelValues(const std::string& label) const {
 }
 
 ImageLabeling::PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string& label, GroundPlane& result,
-                                                const cv::Vec3f& normal, float tolerance,
-                                                unsigned short minDistance, unsigned short maxDistance,
-                                                PlaneInfo::PickMode regionMode) {
+                                                               const cv::Vec3f& normal, float tolerance,
+                                                               unsigned short minDistance, unsigned short maxDistance,
+                                                               PlaneInfo::PickMode regionMode) {
 
     DEBUG_OUT("Computing plane for label \"" << label << "\" with the following constraints:");
     DEBUG_OUT("    Plane normal: " << normal << ", tolerance: " << tolerance << "°");
