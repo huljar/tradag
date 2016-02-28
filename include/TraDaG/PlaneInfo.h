@@ -30,6 +30,12 @@ public:
     PlaneInfo();
     PlaneInfo(const Ogre::Plane& plane, const std::string& label);
 
+    /**
+     * @brief saveToFile
+     * @param filePath
+     * @param overwrite
+     * @return
+     */
     bool saveToFile(const std::string& filePath, bool overwrite = false) const;
 
     bool isPlaneDefined() const;

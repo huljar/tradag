@@ -104,11 +104,11 @@ bool GroundPlane::saveToFile(const std::string& filePath, bool overwrite) const 
     return true;
 }
 
-Ogre::Vector3 GroundPlane::projectPointOntoPlane(const Ogre::Vector3& vector) const {
+Ogre::Vector3 GroundPlane::projectPointOntoPlane(const Ogre::Vector3& point) const {
     if(isPlaneDefined())
-        return mPlane.projectVector(vector) - mPlane.d * mPlane.normal;
+        return mPlane.projectVector(point) - mPlane.d * mPlane.normal;
 
-    return vector;
+    return point;
 }
 
 std::vector<Ogre::Vector3> GroundPlane::findKNearestNeighbors(const Ogre::Vector3& queryPoint, unsigned int k) {
