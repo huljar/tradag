@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief Simulator class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef SIMULATOR_H
 #define SIMULATOR_H
 

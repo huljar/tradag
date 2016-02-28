@@ -1,3 +1,12 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief Utility header defining some type conversion functions
+ * between OpenCV and OGRE types.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef INTEROP_H
 #define INTEROP_H
 

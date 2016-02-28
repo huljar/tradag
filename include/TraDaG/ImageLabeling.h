@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief ImageLabeling class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef IMAGELABELING_H
 #define IMAGELABELING_H
 
@@ -21,8 +29,6 @@ namespace TraDaG {
  *
  * This class contains the label image of a single scene and has the ability to find and fit planes
  * into the scene using RANSAC and region growing.
- *
- * @author Julian Harttung
  */
 class TraDaG::ImageLabeling
 {

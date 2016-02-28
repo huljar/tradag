@@ -1,5 +1,13 @@
-#ifndef IMAGEANALYZER_H
-#define IMAGEANALYZER_H
+/************************************************************//**
+ * @file
+ *
+ * @brief SceneAnalyzer class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
+#ifndef SCENEANALYZER_H
+#define SCENEANALYZER_H
 
 #include <TraDaG/CameraManager.h>
 #include <TraDaG/GroundPlane.h>
@@ -27,14 +35,32 @@ namespace TraDaG {
     class SceneAnalyzer;
 }
 
+/**
+ * @brief Manages a collection of scenes consisting of depth, RGB and label images.
+ *
+ * This class manages your data set consisting of depth, RGB and label images and
+ * can be used to search and iterate through the scenes with specific constraints.
+ * It also provides functions to quickly create the other necessary classes when
+ * you have found a scene that you want to use for a simulation.
+ *
+ * %SceneAnalyzer assigns numerical @a IDs to the scenes from the data set, in
+ * ascending order of the alphabetically sorted depth images. These IDs can be used
+ * with various member functions to identify a specific scene.
+ */
 class TraDaG::SceneAnalyzer
 {
 public:
+    /// Map of scene IDs to file names.
     typedef std::map<unsigned int, std::string> FileMap;
+    /// Map of scene IDs to the depth, RGB and label images of the scenes.
     typedef std::map<unsigned int, std::array<cv::Mat, 3>> MatMap;
+    /// Queue of scene IDs used to manage the image cache of this class.
     typedef std::queue<unsigned int> MatQueue;
 
-    // Iterators
+    /**
+     * @brief <a href="http://www.cplusplus.com/reference/iterator/InputIterator/">Input iterator</a>
+     * for iterating over scenes containing specific labels.
+     */
     class LabelIterator {
     public:
         typedef LabelIterator self_type;
@@ -74,6 +100,10 @@ public:
         value_type mCurrentElem;
     };
 
+    /**
+     * @brief <a href="http://www.cplusplus.com/reference/iterator/InputIterator/">Input iterator</a>
+     * for iterating over scenes containing specific planes.
+     */
     class PlaneIterator {
     public:
         typedef PlaneIterator self_type;
@@ -280,4 +310,4 @@ protected:
     std::default_random_engine mRandomEngine;
 };
 
-#endif // IMAGEANALYZER_H
+#endif // SCENEANALYZER_H

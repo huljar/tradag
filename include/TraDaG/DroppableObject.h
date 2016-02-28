@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief DroppableObject class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef DROPPABLEOBJECT_H
 #define DROPPABLEOBJECT_H
 
@@ -23,8 +31,6 @@ namespace TraDaG {
  * information about the object's mesh and has several parameters to specify object-specific
  * simulation parameters. In addition, the object-specific results of a simulation process can be
  * retrieved from here.
- *
- * @author Julian Harttung
  */
 class TraDaG::DroppableObject
 {

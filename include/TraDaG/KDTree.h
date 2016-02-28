@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief KDTree class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef KDTREE_H
 #define KDTREE_H
 
@@ -11,6 +19,9 @@ namespace TraDaG {
     class KDTree;
 }
 
+/**
+ * @brief Implementation of a KD tree used for nearest neighbor queries.
+ */
 class TraDaG::KDTree
 {
 public:

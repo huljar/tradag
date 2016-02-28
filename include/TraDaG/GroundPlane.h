@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief GroundPlane class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef GROUNDPLANE_H
 #define GROUNDPLANE_H
 
@@ -19,8 +27,6 @@ namespace TraDaG {
  * This class is used by Simulator as the ground when dropping objects. It contains a standard
  * plane definition (normal + distance along the normal) and the inliers of the plane in the
  * scene as determined by RANSAC. In addition, it provides some utility functions.
- *
- * @author Julian Harttung
  */
 class TraDaG::GroundPlane
 {
@@ -50,7 +56,7 @@ public:
     GroundPlane& operator=(const GroundPlane& other);
 
     /**
-     * @brief Store a specific plane to a <em>.plane</em> file.
+     * @brief Store this plane to a <em>.plane</em> file.
      * @param filePath Path (including file name) to save the plane to. The standard plane extension (<em>.plane</em>)
      * will be appended to the path.
      * @param overwrite Whether to overwrite the file if it already exists.
@@ -58,8 +64,10 @@ public:
      *
      * This function stores this specific plane definition to a file. The difference to PlaneInfo::saveToFile is that
      * PlaneInfo contains several @a regions of plane vertices, which will all be saved when using its save function.
-     * This class usually results from selecting one of the regions from a PlaneInfo instance, hence only the selected
+     * Instances of this class usually are created from selecting one of the regions from a PlaneInfo instance, hence only the selected
      * region will be saved when using this function.
+     *
+     * @sa PlaneInfo::createGroundPlane
      */
     bool saveToFile(const std::string& filePath, bool overwrite = false) const;
 

@@ -1,3 +1,12 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief Header containing typedefs, constants, defaults and
+ * small structs that are needed in many different places.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef UTIL_H
 #define UTIL_H
 
@@ -34,6 +43,7 @@ namespace TraDaG {
     struct Auto {
         /**
          * @brief Simple constructor.
+         * @tparam T Type of the represented parameter.
          * @param automate Flag indicating whether the represented parameter should be automatically calculated.
          * @param manualValue Explicit value of the parameter. Specify this only if @c automate is @c false.
          */

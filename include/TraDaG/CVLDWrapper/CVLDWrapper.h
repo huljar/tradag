@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief CVLDWrapper class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef CVLDWRAPPER_H
 #define CVLDWRAPPER_H
 
@@ -22,8 +30,6 @@ namespace TraDaG {
  *
  * This wrapper supports some comfort functions for easily generating training data that conforms to the
  * specification of the CVLD members.
- *
- * @author Julian Harttung
  *
  * @remarks The interface provided here is tailored to specific use cases. If you need a more generic interface,
  * look into SceneAnalyzer and Simulator (and the \ref getting_started_generic_sec "introduction" to the

@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief CameraManager class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef CAMERAMANAGER_H
 #define CAMERAMANAGER_H
 
@@ -16,8 +24,6 @@ namespace TraDaG {
  * focal lengths, in one place. In addition, it provides conversions between pixels in the depth
  * image and corresponding world points, between world points and the corresponding RGB pixels,
  * and some more.
- *
- * @author Julian Harttung
  */
 class TraDaG::CameraManager
 {

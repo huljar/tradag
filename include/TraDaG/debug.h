@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief Utility header defining some debug output macros.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef DEBUG_H
 #define DEBUG_H
 

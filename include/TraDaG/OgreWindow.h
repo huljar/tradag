@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief OgreWindow class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef OGREWINDOW_H
 #define OGREWINDOW_H
 
@@ -42,6 +50,12 @@ namespace TraDaG {
     class OgreWindow;
 }
 
+/**
+ * @brief Class that manages all the OGRE-related things and performs the actual simulation processes and renderings.
+ *
+ * This class manages all OGRE resources. It creates the rendering context, draws the objects and scenes, performs the physics
+ * simulations using Bullet, and renders the results.
+ */
 class TraDaG::OgreWindow : public Ogre::FrameListener, public Ogre::WindowEventListener, public OIS::KeyListener, public OIS::MouseListener
 {
 public:
@@ -68,6 +82,7 @@ public:
     bool queryObjectInfo(const DroppableObject* object, GroundPlane& plane, float& occlusion, unsigned short& distance,
                          DroppableObject::PixelInfoMap& pixelInfo, bool& onPlane);
 
+    // TODO: specify if rgb image is necessary
     bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = nullptr);
 
     void invalidate(const ObjectVec& objects, const RGBDScene* scene);

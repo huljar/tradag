@@ -1,3 +1,11 @@
+/************************************************************//**
+ * @file
+ *
+ * @brief RGBDScene class header file.
+ *
+ * @author Julian Harttung
+ *//************************************************************/
+
 #ifndef RGBDSCENE_H
 #define RGBDSCENE_H
 
@@ -16,6 +24,11 @@ namespace TraDaG {
     class RGBDScene;
 }
 
+/**
+ * @brief Class that represents an RGBD scene constructed from a depth and an RGB image.
+ *
+ * This class manages building the 3D mesh from a depth and an RGB image and providing it to OGRE.
+ */
 class TraDaG::RGBDScene
 {
 public:
