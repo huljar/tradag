@@ -71,9 +71,13 @@
  * @section attribution_sec Attribution
  *
  * %TraDaG was written in 2015/2016 by Julian Harttung for the <a href="http://cvlab-dresden.de/">Computer
- * Vision Lab Dresden</a> (CVLD). It is part of a research project on 6D pose estimation at the
+ * Vision Lab Dresden (CVLD)</a>. It is part of a research project on 6D pose estimation at the
  * <a href="https://www.inf.tu-dresden.de/portal.php?node_id=1&ln=en&group=13">Faculty of Computer
  * Science</a> of the <a href="http://tu-dresden.de/en">Dresden University of Technology</a>.
+ *
+ * @section license_sec License
+ *
+ * Not yet determined.
  *
  *
  * @page install_page Installation

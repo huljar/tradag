@@ -104,7 +104,7 @@ public:
 
     // TODO: better return values
     /**
-     * @brief Precompute plane information and store it to disk.
+     * @brief Precompute plane information and store it to <em>.planeinfo</em> files.
      * @param labels Vector of labels for which planes shall be searched.
      * @param normal Plane normal to search for. Pass all-zero vector to accept any normal.
      * @param tolerance Angular tolerance in degrees in which a plane normal will be considered matching.
@@ -114,7 +114,7 @@ public:
      */
     bool precomputePlaneInfo(const std::vector<std::string>& labels, const cv::Vec3f& normal = cv::Vec3f(0, 0, 0), float tolerance = 15.0);
     /**
-     * @brief Precompute plane information and store it to disk.
+     * @brief Precompute plane information and store it to <em>.planeinfo</em> files.
      * @param label Label for which planes shall be searched.
      * @param normal Plane normal to search for. Pass all-zero vector to accept any normal.
      * @param tolerance Angular tolerance in degrees in which a plane normal will be considered matching.
