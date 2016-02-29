@@ -278,8 +278,8 @@ public:
      *
      * @remarks This has no effect if no preview window will be shown.
      *
-     * @sa getShowPreviewWindow()
-     * @sa setShowPreviewWindow()
+     * @sa getShowPreviewWindow
+     * @sa setShowPreviewWindow
      */
     bool getShowPhysicsAnimation() const;
     /**
@@ -292,10 +292,10 @@ public:
      * @note Settings this to @c true will cause @e each attempt to be animated in real-time. When setting a large number of
      * maximum attempts, this can take very long. It is mostly useful for debugging purposes.
      *
-     * @sa getShowPreviewWindow()
-     * @sa setShowPreviewWindow()
-     * @sa getMaxAttempts()
-     * @sa setMaxAttempts()
+     * @sa getShowPreviewWindow
+     * @sa setShowPreviewWindow
+     * @sa getMaxAttempts
+     * @sa setMaxAttempts
      */
     void setShowPhysicsAnimation(bool showPhysicsAnimation);
 
@@ -313,9 +313,9 @@ public:
     /**
      * @brief Reference to the vector containing the available objects that can be dropped into scenes.
      * @warning When modifying this vector, make sure that the active object ID is still valid (or update it). Otherwise, getTrainingImage() will throw an exception.
-     * @sa getActiveObject()
-     * @sa setActiveObject()
-     * @sa getNumObjects()
+     * @sa getActiveObject
+     * @sa setActiveObject
+     * @sa getNumObjects
      */
     static std::vector<std::string>& availableObjects();
 
