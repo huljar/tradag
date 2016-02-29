@@ -195,9 +195,42 @@
  *
  * This page explains how to set up your own project to start using %TraDaG with it.
  *
+ * Currently, you have to compile the library together with your project, but in the future it will
+ * hopefully be possible to compile it as a standard shared library with @a cmake.
+ *
+ * The @a TraDaG.pro file is a @a qmake project file where all the required compilation parameters are
+ * specified, if these instructions are not exhaustive enough.
+ *
+ * @section files_sec Files
+ *
+ * Add the @a include directory to the include path of your project and the @a src directory to the source
+ * path (exclude the @a main.cpp). You can then include %TraDaG headers using <tt>#include \<TraDaG/...\></tt>.
+ *
  * @section compiler_sec Compiler Flags
  *
+ * - C++11 support (e.g. with <tt>-std=c++11</tt>)
+ * - Include paths of your @a OGRE, @a OIS, @a Bullet, @a Boost and @a OpenCV installations
+ * - Include path of OgreBullet (specify the <em>include/OgreBullet/Dynamics</em> and
+ *   <em>include/OgreBullet/Collisions</em> directories to use the library included in %TraDaG)
+ * - To compile with debug output enabled, define the @c _DEBUG preprocessor macro (e.g. with
+ *   <tt>-D_DEBUG</tt>)
+ * - Example: <tt>-I/usr/include -I/usr/include/OGRE -I/usr/include/ois -I/usr/include/bullet\n
+ *   -ITraDaG/include/OgreBullet/Dynamics -ITraDaG/include/OgreBullet/Collisions\n
+ *   -I/usr/include/boost -I/usr/include/opencv2 -std=c++11 -D_DEBUG</tt>
+ *   - Not all include paths of the libraries may be necessary, since the @c #include statements
+ *     start with the the library directory name (e.g. <tt>#include <opencv2/core/core.hpp></tt> etc.)
+ *
  * @section linker_sec Linker Flags
+ *
+ * - Libraries: <tt>-lOgreMain -lOgreOverlay -lOIS -lBulletDynamics -lBulletCollision -lLinearMath\n
+ *   -lOgreBulletCollisions -lOgreBulletDynamics -lboost_system -lboost_filesystem -lboost_regex\n
+ *   -lopencv_core -lopencv_imgproc -lopencv_highgui</tt>
+ * - OgreBullet library path: <tt>-Lpath/to/%TraDaG/libs/OgreBullet/x86_64</tt> (for 64 bit libs) or
+ *   <tt>-Lpath/to/%TraDaG/libs/OgreBullet/i386</tt> (for 32 bit libs) if you want to use the library
+ *   included in %TraDaG
+ * - If the linker complains about some kind of RenderSystem library not being found, you need to add
+ *   the OGRE library directory explicitly (e.g. with <tt>-L/usr/lib/x86_64-linux-gnu/OGRE-1.9.0</tt>
+ *   or <tt>-L/usr/lib/i386-linux-gnu/OGRE-1.9.0</tt>)
  *
  *
  * @page getting_started_page Getting Started
