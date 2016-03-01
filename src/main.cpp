@@ -60,13 +60,15 @@
  * @section more_sec Further Reading
  * - \ref install_page "Installation instructions" - Learn about %TraDaG's dependencies and how to install
  *   them
- * - \ref using_page "Using the Framework" - Information on how to get %TraDaG into your own project
+ * - \ref using_page "Using the framework" - Information on how to get %TraDaG into your own project
  * - \ref getting_started_page "Getting started" - Read on here if you are ready to start coding with
  *   %TraDaG
  * - \ref TraDaG "API reference" - Detailed descriptions of all classes, functions, enumerators, constants
  *   etc.
  * - \ref ogre_mesh_page "OGRE meshes" - Learn about OGRE's mesh file format used by %TraDaG, and how to
- *   import your own objects
+ *   import and convert your own objects
+ * - \ref conclusion_page "Conclusion" - A collection of things learned while coding %TraDaG and things
+ *   that can be improved in the future
  *
  * @section attribution_sec Attribution
  *
@@ -287,8 +289,8 @@
  * can do this using the \ref TraDaG::CVLDWrapper::setActiveObject "setActiveObject" function, which takes
  * a numeric object ID as a parameter (it is also possible to use multiple objects at the same time, but not
  * through this wrapper). The object IDs are 1-based and assigned contiguously in the
- * [1, \ref TraDaG::CVLDWrapper::getNumObjects "getNumObjects"] interval. By default, the 13 objects from
- * the @a Hinterstoisser data set are available. If you want to add new objects or remove some, you can
+ * [1, \ref TraDaG::CVLDWrapper::getNumObjects "getNumObjects"] interval. By default, 13 different objects
+ * are available. If you want to add new objects or remove some, you can
  * use the \ref TraDaG::CVLDWrapper::availableObjects "availableObjects" vector. Keep in mind that making
  * this vector smaller also invalidates some object IDs.
  *
@@ -484,6 +486,137 @@
  * name (without the path) of the new mesh through the \ref TraDaG::CVLDWrapper::availableObjects "availableObjects"
  * function - then you can set it as the active object using the
  * \ref TraDaG::CVLDWrapper::setActiveObject "setActiveObject" method.
+ *
+ *
+ * @page conclusion_page Conclusion
+ *
+ * @tableofcontents
+ *
+ * This page is a collection of things that I have learned while coding %TraDaG, what difficulties arose, approaches
+ * that were tried, and possible future improvements that could be done.
+ *
+ * @section problems_sec Problems and Difficulties
+ *
+ * @subsection inaccurate_data_sec Inaccurate Data Sets
+ *
+ * A major problem when working with image data in form of a depth and an RGB image, is that the depth measurements
+ * are often inaccurate or incorrectly mapped to the RGB image. For many applications, these inaccuracies don't
+ * matter much, but when trying to create realistic object occlusions with such data, even relatively small
+ * discrepancies between the recorded and the real depth can cause occlusions that look very weird. An example of this
+ * is when a wall or some kind of edge orthogonal to the ground is shifted to the left or right in the depth image
+ * compared to the RGB image, causing the object to be cut off in mid-air or covering the wall a bit and then suddenly
+ * disappearing. However, these unrealistic cuts only happen in the RGB image, so if you're working mainly with depth
+ * images, the problem is way less significant. Another example is when occlusions occur because the depth data of
+ * planes in the scenes in inaccurate, causing the generated mesh to have bumps where it should be planar. These bumps
+ * can also cause unrealistic occlusions which would not happen with accurate data.
+ *
+ * It is very difficult to detect such cases of unrealistic occlusion, since it is extremely dependent on the
+ * \"semantics\" of a scene if a scenario is realistic or not.
+ *
+ * A thing to keep in mind is that the depth inaccuracies increase with the absolute depth (at least for the
+ * <em>NYU Depth</em> data sets), so you can lessen their influence on the rendered image by limiting the maximum
+ * distance of your objects and planes to a reasonable value.
+ *
+ * @subsection futile_attempts_sec Futile Simulation Attempts
+ *
+ * When scenes have very large planes (e.g. a big table close to the camera) that the objects are dropped onto, there
+ * are often little to no opportunities for the objects to land in a (partially) occluded pose. If one has specified a
+ * large value for the maximum number of attempts - and a minimum occlusion that is not close to zero - the simulation
+ * will drop the objects many times at positions where it is pretty much impossible to reach the desired occlusion.
+ *
+ * @subsection missing_scene_collision_sec Scene Collision
+ *
+ * In the current implementation, there is no collision of the dropped objects with the scene except for the plane that
+ * is used as the ground. This can sometimes cause objects to slide through or into walls, causing unrealistic
+ * occlusions.
+ *
+ * @section approaches_sec Tried Approaches
+ *
+ * @subsection collision_approaches_sec Scene Collision
+ *
+ * One idea to implement scene collisions was to use a spherical collision shape for each scene vertex in the physics
+ * engine. This would prevent objects from falling or sliding into other things that are already part of the scene,
+ * while still allowing objects to slide @a behind things (which is necessary). However, when implementing this
+ * approach, it caused a drastic decrease in performance even before the actual simulation. The reason for this is
+ * that there are so many vertices (e.g. 307,200 for 640x480 images) that creating and registering a collision shape
+ * for each vertex already takes several minutes, which is inacceptable. Even when only adding every 10th vertex,
+ * it still took around 30 seconds on my machine. I assume that this is caused by the way Bullet internally stores
+ * collision shapes, since adding new shapes takes significantly longer when many shapes already exist (probably
+ * because a lot of memory reallocation and copying happens behind the scenes). It is possible that other physics
+ * engines are not as limited in this way (this was not evaluated).
+ *
+ * @section improvements_sec Possible Future Improvements
+ *
+ * @subsection collision_improvements_sec Scene Collision
+ *
+ * A possible way to tackle the problem of scene collision is to register the whole mesh of the scene as a collision
+ * shape. However, to still allow objects to slide behind things in the scene, it is necessary to first detect
+ * sudden depth changes (i.e. the borders between different objects at different depths) and to cut the collision shape
+ * at these locations. Detecting these depth changes reliably without cutting legitimate objects in the scene (which
+ * can happen e.g. when a large object in the scene is viewed by the camera in a very flat angle) is difficult,
+ * though. In addition, the vertices that are inliers of the ground plane should not be added again, because then
+ * one would have collisions with the \ref inaccurate_data_sec "bumps in the ground", which could cause very unrealistic
+ * resting poses of the dropped objects.
+ *
+ * In addition, the usage of collision shapes that are not simple basic shapes, like boxes and spheres, has a big
+ * performance penalty on the collision detection algorithms of the physics engine. It is possible that this approach
+ * would drastically decrease the simulation speed.
+ *
+ * @subsection flattening_sec Flattening the Ground
+ *
+ * As mentioned \ref inaccurate_data_sec "above", the ground in depth data sets is often not very planar and has bumps,
+ * which can cause unrealistic object occlusions. It might be possible to manually flatten the ground by projecting
+ * the inlier vertices of the plane onto computed plane along the plane normal and recreating the scene mesh. However,
+ * this would cause the RGB images to look different from the original images and possibly distorted.
+ *
+ * @subsection plane_borders_sec Prevent Futile Simulation Attempts
+ *
+ * It could be implemented that the initial object positions will be influenced by the desired occlusion for them, so
+ * that objects with a high desired occlusion will be dropped closer to the edge of the plane used as the ground. An
+ * edge in this case would mean pixels which belong to the inlier set of the plane, but one of the neighboring pixels
+ * does not. However, the \ref inaccurate_data_sec "bumps in the ground" could introduce problems for this approach,
+ * too (if a bump is large enough for some vertices (which should belong to the plane) to be outliers).
+ *
+ * @subsection lighting_sec Lighting and Shadows
+ *
+ * Currently, no lighting effects or shadows are implemented. This means that the colors of the dropped objects are
+ * not adjusted to the lighting conditions of the scene, and the missing shadows can sometimes cause the object to
+ * appear to be floating a bit. Detecting the lighting conditions of the scene and the best position for a light source
+ * is not easy, but would improve the quality of the rendered RGB images a lot.
+ *
+ * @section other_conclusions_sec Other Conclusions
+ *
+ * @subsection no_planes_sec Omit Plane Fitting?
+ *
+ * If one had successfully implemented \ref collision_improvements_sec "using the whole scene as a collision object"
+ * in the physics engine, would it be possible to omit the whole plane fitting part completely and just rely on the
+ * scene collision?<br>
+ * Possibly, but this would probably cause unrealistic object resting poses because of the ground usually not being
+ * planar in the depth data. One could tackle this by trying to \ref flattening_sec "flatten the ground", but this
+ * brings other problems with it (see \ref flattening_sec "above").
+ *
+ * @subsection many_objects_sec Advantages of Dropping Many Objects at Once
+ *
+ * %TraDaG allows dropping many object into a scene at once. This can have advantages on the realism of the result,
+ * since these objects all have collision shapes and thus will collide with and not slide into each other. For
+ * example, dropping many objects on an empty table often yields more realistic results than dropping a single object
+ * on a cluttered table.
+ *
+ * @subsection rendered_discrepancies_sec Discrepancies of Scene Depth After Rendering
+ *
+ * When generating a 3D mesh from a depth and an RGB image and rendering it back to a depth image, one would expect
+ * the depth values to be the same as before for each pixel. However, this is not always the case for several reasons:
+ *
+ * - Floating point rounding errors can occur during many stages of the mesh generation and rendering process.
+ * - Large discrepancies (i.e. with more than ~50 mm) almost exclusively occur at edges with large depth changes.
+ *   - This might be caused by the camera parameters (principal point and focal length) not being completely accurate,
+ *     causing the vertices of the generated mesh to be a tiny bit off their optimal positions.
+ *
+ * These deviations should not have a noteworthy influence on the quality of the produced training data. The
+ * inaccuracies of the original depth images in the data set are often orders of magnitude larger.
+ *
+ * A thing to keep in mind is that the depth deviations caused by the rendering process increase with the absolute depth
+ * of the pixels. This also means that the relative discrepancies are roughly constant.
  *
 *//*************************************************************/
 
