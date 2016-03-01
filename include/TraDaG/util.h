@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-/// The TraDaG namespace contains everything belonging to the framework.
+/// The %TraDaG namespace contains everything belonging to the framework.
 namespace TraDaG {
 
     class DroppableObject; // forward declaration

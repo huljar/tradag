@@ -530,7 +530,7 @@
  * is used as the ground. This can sometimes cause objects to slide through or into walls, causing unrealistic
  * occlusions.
  *
- * @section approaches_sec Tried Approaches
+ * @section approaches_sec Failed Approaches
  *
  * @subsection collision_approaches_sec Scene Collision
  *
