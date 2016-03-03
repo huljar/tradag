@@ -497,6 +497,14 @@ void CVLDWrapper::setGravity(const Auto<cv::Vec3f>& gravity) {
     mGravity = gravity;
 }
 
+SceneAnalyzer& CVLDWrapper::getSceneAnalyzer() {
+    return mSceneAnalyzer;
+}
+
+const SceneAnalyzer& CVLDWrapper::getSceneAnalyzer() const {
+    return mSceneAnalyzer;
+}
+
 std::vector<std::string>& CVLDWrapper::availableObjects() {
     return msObjects;
 }

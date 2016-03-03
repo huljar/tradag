@@ -24,7 +24,8 @@ SOURCES += main.cpp \
     SceneAnalyzer.cpp \
     CVLDWrapper.cpp \
     CameraManager.cpp \
-    KDTree.cpp
+    KDTree.cpp \
+    Benchmarker.cpp
 
 HEADERS += include/OgreBites/SdkCameraMan.h \
     include/OgreBites/OgreRay.h \
@@ -42,7 +43,8 @@ HEADERS += include/OgreBites/SdkCameraMan.h \
     CameraManager.h \
     debug.h \
     interop.h \
-    KDTree.h
+    KDTree.h \
+    Benchmarker.h
 
 # OGRE
 INCLUDEPATH += /usr/include/OGRE

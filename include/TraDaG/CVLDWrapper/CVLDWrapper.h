@@ -311,6 +311,22 @@ public:
     void setGravity(const Auto<cv::Vec3f>& gravity);
 
     /**
+     * @brief Retrieve the internally used SceneAnalyzer instance.
+     * @return Reference to the SceneAnalyzer.
+     *
+     * Use this if you need access to more advanced functionality, but don't want to rewrite all of your old code.
+     */
+    SceneAnalyzer& getSceneAnalyzer();
+
+    /**
+     * @brief Retrieve the internally used SceneAnalyzer instance.
+     * @return Reference to the SceneAnalyzer.
+     *
+     * Use this if you need access to more advanced functionality, but don't want to rewrite all of your old code.
+     */
+    const SceneAnalyzer& getSceneAnalyzer() const;
+
+    /**
      * @brief Reference to the vector containing the available objects that can be dropped into scenes.
      * @warning When modifying this vector, make sure that the active object ID is still valid (or update it). Otherwise, getTrainingImage() will throw an exception.
      * @sa getActiveObject

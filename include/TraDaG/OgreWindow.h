@@ -82,8 +82,7 @@ public:
     bool queryObjectInfo(const DroppableObject* object, GroundPlane& plane, float& occlusion, unsigned short& distance,
                          DroppableObject::PixelInfoMap& pixelInfo, bool& onPlane);
 
-    // TODO: specify if rgb image is necessary
-    bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = nullptr);
+    bool render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject = nullptr, bool renderRGB = true);
 
     void invalidate(const ObjectVec& objects, const RGBDScene* scene);
     void invalidate(const DroppableObject* object);

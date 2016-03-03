@@ -515,7 +515,7 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, GroundPlane& pla
     if(std::find(mObjects.begin(), mObjects.end(), entity) != mObjects.end()) {
         // Render scene (once only the object and once the whole scene)
         cv::Mat objectDepthRender, objectRGBRender, sceneDepthRender, sceneRGBRender;
-        if(render(objectDepthRender, objectRGBRender, object) && render(sceneDepthRender, sceneRGBRender)) {
+        if(render(objectDepthRender, objectRGBRender, object, false) && render(sceneDepthRender, sceneRGBRender, nullptr, false)) {
 
             // Iterate over all object pixels
             size_t occludedPixels = 0;
@@ -594,7 +594,7 @@ bool OgreWindow::queryObjectInfo(const DroppableObject* object, GroundPlane& pla
     return false;
 }
 
-bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject) {
+bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const DroppableObject* specificObject, bool renderRGB) {
     // Ensure that everything is set up correctly
     setUpRenderSettings();
 
@@ -612,11 +612,30 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
         mRGBDScene->getManualObject()->setVisible(false);
     }
 
-    // Render current frame (RGB)
-    mRenderWindow->update(); // ensure that we are up to date
+    if(renderRGB) {
+        // Render current frame (RGB)
+        mRenderWindow->update(); // ensure that we are up to date
 
-    // Get window contents (RGB)
-    mRenderWindow->copyContentsToMemory(*mRenderPixelBoxRGB);
+        // Get window contents (RGB)
+        mRenderWindow->copyContentsToMemory(*mRenderPixelBoxRGB);
+
+        // Convert and copy RGB to cv::Mat
+        cv::Mat renderImageRGB(mRenderPixelBoxRGB->getHeight(), mRenderPixelBoxRGB->getWidth(), CV_8UC3);
+        for(int y = 0; y < renderImageRGB.rows; ++y) {
+            for(int x = 0; x < renderImageRGB.cols; ++x) {
+                Ogre::ColourValue value = mRenderPixelBoxRGB->getColourAt(x, y, 0);
+                // OpenCV uses BGR color channel ordering and (row, col) pixel addresses
+                renderImageRGB.at<cv::Vec3b>(y, x) = cv::Vec3b(
+                    static_cast<unsigned char>(value.b * 255.0),
+                    static_cast<unsigned char>(value.g * 255.0),
+                    static_cast<unsigned char>(value.r * 255.0)
+                );
+            }
+        }
+
+        // Set output parameter
+        rgbResult = renderImageRGB;
+    }
 
     // Set materials for depth rendering
     for(std::vector<Ogre::Entity*>::iterator it = mObjects.begin(); it != mObjects.end(); ++it) {
@@ -646,20 +665,6 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
         mRGBDScene->getManualObject()->setVisible(true);
     }
 
-    // Convert and copy RGB to cv::Mat
-    cv::Mat renderImageRGB(mRenderPixelBoxRGB->getHeight(), mRenderPixelBoxRGB->getWidth(), CV_8UC3);
-    for(int y = 0; y < renderImageRGB.rows; ++y) {
-        for(int x = 0; x < renderImageRGB.cols; ++x) {
-            Ogre::ColourValue value = mRenderPixelBoxRGB->getColourAt(x, y, 0);
-            // OpenCV uses BGR color channel ordering and (row, col) pixel addresses
-            renderImageRGB.at<cv::Vec3b>(y, x) = cv::Vec3b(
-                static_cast<unsigned char>(value.b * 255.0),
-                static_cast<unsigned char>(value.g * 255.0),
-                static_cast<unsigned char>(value.r * 255.0)
-            );
-        }
-    }
-
     // Convert and copy Depth to cv::Mat
     cv::Mat renderImageDepth(mRenderPixelBoxDepth->getHeight(), mRenderPixelBoxDepth->getWidth(), CV_16U);
     for(int y = 0; y < renderImageDepth.rows; ++y) {
@@ -670,9 +675,8 @@ bool OgreWindow::render(cv::Mat& depthResult, cv::Mat& rgbResult, const Droppabl
         }
     }
 
-    // Set output parameters
+    // Set output parameter
     depthResult = renderImageDepth;
-    rgbResult = renderImageRGB;
 
     // Re-mark old vertex markings
     markVertices();
