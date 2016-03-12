@@ -303,7 +303,7 @@ void OgreWindow::shutDownBullet() {
 }
 
 OgreWindow::SimulationResult OgreWindow::startSimulation(const ObjectVec& objects, RGBDScene* scene, const GroundPlane& plane,
-                                             const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate) {
+                                                         const Ogre::Vector3& gravity, bool drawBulletShapes, bool animate) {
 
     // Ensure that we have a scene node for our scene
     if(!mRGBDSceneNode)

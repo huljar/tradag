@@ -5,7 +5,7 @@
  *
  * @section intro_sec Introduction
  *
- * @b %TraDaG (short for <em>Training Data Generator</em>) is a framework for dropping objects
+ * @b %TraDaG (short for <em><b>Tra</b>ining <b>Da</b>ta <b>G</b>enerator</em>) is a framework for dropping objects
  * into scenes which are given only by an RGB image, a depth image, and a labeling of the scene contents
  * in form of a label image. The goal is to provide a way to insert objects into these scenes in a
  * physically plausible way (i.e. to not end up with floating objects or impossible resting poses, where
@@ -40,7 +40,7 @@
  * - Rendering an RGB-D scene in 3D
  * - Creating and registering one or more objects (of the same or different types) to drop into a scene
  * - Executing a physics simulation to plausibly drop these objects onto a plane in the scene
- * - Optional preview of the result (after the simulation) with a controllable CameraManager
+ * - Optional preview of the result (after the simulation) with a controllable camera
  * - Selection whether to keep/discard the result or to restart/abort the simulation when having the
  *   preview window enabled
  * - Optional animation of the physics simulation in real-time
@@ -623,6 +623,7 @@
 #include <TraDaG/Simulator.h>
 #include <TraDaG/util.h>
 #include <TraDaG/CVLDWrapper/CVLDWrapper.h>
+#include <TraDaG/Benchmarker.h>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -730,6 +731,7 @@ int main(int argc, char** argv)
 //                      << "This is probably caused by some scenes not containing one of the labels." << std::endl;
 //    }
 //    else {
+    // TODO: add benchmarker to example
 //        // Get a training image
 //        std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result = wrapper.getTrainingImage(occlusion.first, occlusion.second);
 
@@ -751,13 +753,16 @@ int main(int argc, char** argv)
 //        }
 //    }
 
+
+
     LabelMap labelMap = Labels::NYUDepthV1;
     CameraManager camManager(cv::Vec2f(3.2442516903961865e+02, 2.3584766381177013e+02),
                              cv::Vec2f(5.7616540758591043e+02, 5.7375619782082447e+02),
                              cv::Vec2f(3.2442516903961865e+02, 2.3584766381177013e+02),
                              cv::Vec2f(5.7616540758591043e+02, 5.7375619782082447e+02));
 
-    std::string basePath("/home/julian/Forschungsprojekt/datasets/NYU-Labeled-V1/");
+    //std::string basePath("/home/julian/Forschungsprojekt/datasets/NYU-Labeled-V1/");
+    std::string basePath("/home/julian/Uni/Forschungsprojekt/NYU-Labeled-V1/");
     SceneAnalyzer sa(basePath + "depth", basePath + "rgb", basePath + "label",
                      basePath + "plane", camManager, labelMap);
 
@@ -767,33 +772,106 @@ int main(int argc, char** argv)
     //bool precompResult2 = sa.precomputePlaneInfoForAllScenes("table", cv::Vec3f(0, 1, 0), 20.0);
     //std::cout << "Precompute result (table): " << precompResult2 << std::noboolalpha << std::endl;
 
-    std::vector<std::string> objects({"003.mesh", "007.mesh", "005.mesh", "010.mesh", "013.mesh"});
+    std::vector<std::string> objects({"003.mesh", "007.mesh", "005.mesh", "011.mesh", "013.mesh"});
 
-    for(SceneAnalyzer::PlaneIterator it = sa.beginByPlane(std::vector<std::string>({"floor", "table"}), cv::Vec3f(0, 1, 0), 15.0, 0, 60000, false, false);
-            it != sa.endByPlane(); ++it) {
-        Simulator sim = sa.createSimulator(it->first, it->second);
-        sim.setMaxAttempts(20);
+//    for(SceneAnalyzer::PlaneIterator it = sa.beginByPlane(std::vector<std::string>({"floor", "table"}), cv::Vec3f(0, 1, 0), 15.0, 0, 60000, false, false);
+//            it != sa.endByPlane(); ++it) {
+//        Simulator sim = sa.createSimulator(it->first, it->second);
+//        sim.setMaxAttempts(20);
 
-        for(size_t i = 0; i < objects.size(); ++i) {
-            DroppableObject* obj = sim.createObject(objects[i]);
-            for(float j = 0.0; j < 0.9; j += 0.2) {
-                obj->setDesiredOcclusion(j, j + 0.2);
+//        for(size_t i = 0; i < objects.size(); ++i) {
+//            DroppableObject* obj = sim.createObject(objects[i]);
+//            for(float j = 0.0; j < 0.9; j += 0.2) {
+//                obj->setDesiredOcclusion(j, j + 0.2);
 
-                Simulator::DropResult result = sim.execute();
-                std::ostringstream fileName;
-                fileName << sa.getFileName(it->first) << "_" << it->second.getLabel() << "_" << objects[i] << "_"
-                         << std::setprecision(3) << j << "-" << j + 0.2 << "_" << obj->getFinalOcclusion();
-                if(result.status == Simulator::DropStatus::SUCCESS || result.status == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
-                    if(result.status == Simulator::DropStatus::SUCCESS)
-                        fileName << "_optimal";
+//                Simulator::DropResult result = sim.execute();
+//                std::ostringstream fileName;
+//                fileName << sa.getFileName(it->first) << "_" << it->second.getLabel() << "_" << objects[i] << "_"
+//                         << std::setprecision(3) << j << "-" << j + 0.2 << "_" << obj->getFinalOcclusion();
+//                if(result.status == Simulator::DropStatus::SUCCESS || result.status == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+//                    if(result.status == Simulator::DropStatus::SUCCESS)
+//                        fileName << "_optimal";
 
-                    cv::imwrite(basePath + "result/" + fileName.str() + "_depth.png", result.depthImage);
-                    cv::imwrite(basePath + "result/" + fileName.str() + "_rgb.png", result.rgbImage);
-                }
-            }
-            sim.destroyAllObjects();
-        }
+//                    cv::imwrite(basePath + "result/" + fileName.str() + "_depth.png", result.depthImage);
+//                    cv::imwrite(basePath + "result/" + fileName.str() + "_rgb.png", result.rgbImage);
+//                }
+//            }
+//            sim.destroyAllObjects();
+//        }
+//    }
+
+    Simulator sim = sa.createSimulator(207);
+    sim.setMaxAttempts(20);
+    sim.setShowPreviewWindow(true);
+
+    ImageLabeling il = sa.createImageLabeling(207);
+    GroundPlane plane;
+    if(il.findPlaneForLabel("table", plane, cv::Vec3f(0, 1, 0), 15.0, 0, 60000) != ImageLabeling::PlaneFitStatus::SUCCESS)
+        std::cerr << "ERROR NO PLANE FOUND" << std::endl;
+
+    sim.setGroundPlane(plane);
+
+    DroppableObject* obj = sim.createObject("003.mesh");
+    obj->setMustBeUpright(true);
+    //obj->setDesiredDistance(500, 1500);
+    obj->setDesiredOcclusion(0.3, 0.7);
+
+    //DroppableObject* obj2 = sim.createObject("007.mesh");
+    //obj2->setMustBeUpright(true);
+    //obj2->setDesiredOcclusion(0.4, 0.6);
+
+    Simulator::DropResult result = sim.execute();
+    if(result.status == Simulator::DropStatus::SUCCESS || result.status == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+        cv::imwrite(basePath + "result/test_depth_pres.png", result.depthImage);
+        cv::imwrite(basePath + "result/test_rgb_pres.png", result.rgbImage);
     }
+
+//    CVLDWrapper wrap(basePath, camManager, labelMap);
+//    wrap.precomputePlaneInfo("table", cv::Vec3f(0, 1, 0));
+//    wrap.labelsToUse().push_back("table");
+//    wrap.setComputePlaneIfNoFile(false);
+//    //wrap.setComputePlaneIfNoFile(true);
+//    wrap.setActiveObject(3);
+//    wrap.setMaxAttempts(5);
+
+//#ifdef _BENCHMARK
+//    size_t weakIdx = Benchmarker::getSingletonPtr()->checkpoint("Starting wrapper with weak constraints");
+//#endif
+//    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> res1 = wrap.getTrainingImage(0.4, 0.6);
+//#ifdef _BENCHMARK
+//    Benchmarker::getSingletonPtr()->checkpoint(weakIdx, "Finished wrapper with weak constraints");
+//#endif
+
+//#ifdef _BENCHMARK
+//    size_t initialIdx = Benchmarker::getSingletonPtr()->checkpoint("Starting wrapper with initial state");
+//#endif
+//    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> res2 = wrap.getTrainingImage(cv::Mat_<double>::eye(3, 3), cv::Point3d(20, 20, 20), 0.4, 0.6);
+//#ifdef _BENCHMARK
+//    Benchmarker::getSingletonPtr()->checkpoint(initialIdx, "Finished wrapper with initial state");
+//#endif
+
+//#ifdef _BENCHMARK
+//    size_t strongIdx = Benchmarker::getSingletonPtr()->checkpoint("Starting wrapper with strong constraints");
+//#endif
+//    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> res3 = wrap.getTrainingImage(cv::Mat_<double>::eye(3, 3), 15.0, 500, 2500, 0.4, 0.6);
+//#ifdef _BENCHMARK
+//    Benchmarker::getSingletonPtr()->checkpoint(strongIdx, "Finished wrapper with strong constraints");
+//#endif
+
+//    if(res1.second == Simulator::DropStatus::SUCCESS || res1.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+//        cv::imshow("Test preview", res1.first.bgr);
+//        cv::waitKey();
+//    }
+
+//    if(res2.second == Simulator::DropStatus::SUCCESS || res2.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+//        cv::imshow("Test preview", res2.first.bgr);
+//        cv::waitKey();
+//    }
+
+//    if(res3.second == Simulator::DropStatus::SUCCESS || res3.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+//        cv::imshow("Test preview", res3.first.bgr);
+//        cv::waitKey();
+//    }
 
     return 0;
 }

@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <string>
+#include <vector>
 
 namespace TraDaG {
     class Benchmarker;
@@ -29,15 +30,11 @@ public:
     static Benchmarker& getSingleton();
     static Benchmarker* getSingletonPtr();
 
-    virtual void checkpoint(const std::string& description, bool resetTimer = false);
-
-    bool isEnabled() const;
-    void setEnabled(bool enabled);
+    virtual size_t checkpoint(const std::string& description);
+    virtual void checkpoint(size_t idx, const std::string& description, bool resetTimer = false, bool suppressCurrentTime = false);
 
 protected:
-    TimePoint mStart;
-
-    bool mEnabled;
+    std::vector<TimePoint> mStart;
 
 private:
     static Benchmarker* msSingleton;

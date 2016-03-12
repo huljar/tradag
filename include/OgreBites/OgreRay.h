@@ -97,7 +97,7 @@ namespace OgreBites {
         // we need to test every triangle of every object.
         Ogre::Real closest_distance = -1.0f;
         Ogre::Vector3 closest_result;
-        Ogre::MovableObject* closest_object;
+        Ogre::MovableObject* closest_object = nullptr;
         Ogre::RaySceneQueryResult& query_result = m_raySceneQuery->getLastResults();
         for( size_t qr_idx=0, size=query_result.size(); qr_idx<size; ++qr_idx )
         {

@@ -7,6 +7,9 @@ CONFIG -= qt
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
 }
+else {
+    DEFINES += _BENCHMARK # enable benchmarks in release
+}
 
 VPATH += ./src \
     ./include/TraDaG \
