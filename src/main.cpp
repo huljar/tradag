@@ -634,244 +634,134 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <vector>
 
 using namespace TraDaG;
 namespace po = boost::program_options;
 
 int main(int argc, char** argv)
 {
-//    // Parse command line using Boost Program Options library
-//    po::options_description argDesc("Available options");
-//    argDesc.add_options()
-//            ("scenes-path,s", po::value<std::string>(), "Path containing the depth, rgb, label subdirectories")
-//            ("object-id,o", po::value<unsigned int>(), "Object mesh ID")
-//            ("label-names,l", po::value<std::vector<std::string>>()->multitoken(), "Label names")
-//            ("occlusion,n", po::value<std::vector<float>>()->multitoken(), "Desired object occlusion (min max) (default: 0 0.95)")
-//            ("max-attempts,m", po::value<unsigned int>(), "Maximum number of total simulations (default: 50000)")
-//            ("max-scenes", po::value<unsigned int>(), "Maximum number of scenes to load (default: 0 = load all)")
-//            ("dont-compute-planes", "Do not try to find a plane using RANSAC if no suitable planeinfo file exists (default: false)")
-//            ("precompute-only", "Only precompute planes for the given parameters, don't do any simulations (default: false)")
-//            ("object-scale", po::value<float>(), "Object scaling factor (default: 1000)")
-//            ("object-mass", po::value<float>(), "Object mass (default: 1)")
-//            ("object-restitution", po::value<float>(), "Object restitution (default: 0.4)")
-//            ("object-friction", po::value<float>(), "Object friction (default: 0.7)")
-//            ("plane-restitution", po::value<float>(), "Plane restitution (default: 0.1)")
-//            ("plane-friction", po::value<float>(), "Plane friction (default: 0.9)")
-//            ("show-preview,p", "Display a preview window (default: false)")
-//            ("animate,a", "Show the object falling into the scene (default: false)")
-//            ("help", "Display this help and exit")
-//            ("version", "Display version information and exit");
+    // Parse command line using Boost Program Options library
+    po::options_description argDesc("Available options");
+    argDesc.add_options()
+            ("scenes-path,s", po::value<std::string>(), "Path containing the depth, rgb, label subdirectories")
+            ("object-id,o", po::value<unsigned int>(), "Object mesh ID")
+            ("label-names,l", po::value<std::vector<std::string>>()->multitoken(), "Label names")
+            ("occlusion,n", po::value<std::vector<float>>()->multitoken(), "Desired object occlusion (min max) (default: 0 0.95)")
+            ("max-attempts,m", po::value<unsigned int>(), "Maximum number of simulations per scene (default: 10)")
+            ("max-scenes", po::value<unsigned int>(), "Maximum number of scenes to load (default: 0 = load all)")
+            ("dont-compute-planes", "Do not try to find a plane with RANSAC if no suitable planeinfo file exists (default: false)")
+            ("precompute-only", "Only precompute planes for the given parameters, don't do any simulations (default: false)")
+            ("object-scale", po::value<float>(), "Object scaling factor (default: 1000)")
+            ("object-mass", po::value<float>(), "Object mass (default: 1)")
+            ("object-restitution", po::value<float>(), "Object restitution (default: 0.4)")
+            ("object-friction", po::value<float>(), "Object friction (default: 0.7)")
+            ("plane-restitution", po::value<float>(), "Plane restitution (default: 0.1)")
+            ("plane-friction", po::value<float>(), "Plane friction (default: 0.9)")
+            ("show-preview,p", "Display a preview window (default: false)")
+            ("animate,a", "Show the object falling into the scene (default: false)")
+            ("help", "Display this help and exit")
+            ("version", "Display version information and exit");
 
-//    po::variables_map vm;
-//    po::store(po::parse_command_line(argc, argv, argDesc), vm);
-//    po::notify(vm);
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, argDesc), vm);
+    po::notify(vm);
 
-//    // If the version option was given, display version information and exit
-//    if(vm.count("version")) {
-//        std::cout << "Training Data Generator 0.1\nAuthor: Julian Harttung\nCreated for the Computer Vision Lab Dresden" << std::endl;
-//        return 0;
-//    }
-
-//    // If the help option was given (or no valid options), display available options and exit
-//    if(vm.size() == 0 || vm.count("help") || !vm.count("scenes-path") || !vm.count("object-id") || !vm.count("label-names")) {
-//        std::cout << argDesc << std::endl;
-//        return 0;
-//    }
-
-//    // Get file paths
-//    std::string scenesPath = vm["scenes-path"].as<std::string>();
-
-//    // Get label map
-//    LabelMap labelMap = Labels::NYUDepthV1;
-
-//    // Get camera data
-//    cv::Vec2f principalPoint(3.2442516903961865e+02, 2.3584766381177013e+02);
-//    cv::Vec2f focalLength(5.7616540758591043e+02, 5.7375619782082447e+02);
-
-//    // Get additional parameters
-//    unsigned int objectID = vm["object-id"].as<unsigned int>();
-
-//    std::vector<std::string> labelNames = vm["label-names"].as<std::vector<std::string>>();
-
-//    std::pair<float, float> occlusion(0.0, 0.95);
-//    if(vm.count("occlusion")) {
-//        std::vector<float> tmpOcclusion = vm["occlusion"].as<std::vector<float>>();
-//        if(tmpOcclusion.size() >= 1) occlusion.first = tmpOcclusion[0];
-//        if(tmpOcclusion.size() >= 2) occlusion.second = tmpOcclusion[1];
-//    }
-
-//    unsigned int maxScenes = (vm.count("max-scenes") ? vm["max-scenes"].as<unsigned int>() : 0);
-
-//    // Create camera manager
-//    CameraManager camManager(principalPoint, focalLength, principalPoint, focalLength);
-
-//    // --- BEGIN --- //
-//    CVLDWrapper wrapper(scenesPath, camManager, labelMap, maxScenes);
-//    wrapper.setLabelsToUse(labelNames);
-//    wrapper.setActiveObject(objectID);
-
-//    wrapper.setComputePlaneIfNoFile(!vm.count("dont-compute-planes"));
-//    wrapper.setShowPreviewWindow(vm.count("show-preview"));
-//    wrapper.setShowPhysicsAnimation(vm.count("animate"));
-
-//    if(vm.count("max-attempts")) wrapper.setMaxAttempts(vm["max-attempts"].as<unsigned int>());
-//    if(vm.count("object-scale")) wrapper.setObjectScale(vm["object-scale"].as<float>());
-//    if(vm.count("object-mass")) wrapper.setObjectMass(vm["object-mass"].as<float>());
-//    if(vm.count("object-restitution")) wrapper.setObjectRestitution(vm["object-restitution"].as<float>());
-//    if(vm.count("object-friction")) wrapper.setObjectFriction(vm["object-friction"].as<float>());
-//    if(vm.count("plane-restitution")) wrapper.setPlaneRestitution(vm["plane-restitution"].as<float>());
-//    if(vm.count("plane-friction")) wrapper.setPlaneFriction(vm["plane-friction"].as<float>());
-
-//    if(vm.count("precompute-only")) {
-//        // Precompute planes
-//        if(wrapper.precomputePlaneInfo(labelNames))
-//            std::cout << "Successfully computed planes for all scenes and each label" << std::endl;
-//        else
-//            std::cerr << "Plane computation finished, but somewhere an error occured.\n"
-//                      << "This is probably caused by some scenes not containing one of the labels." << std::endl;
-//    }
-//    else {
-    // TODO: add benchmarker to example
-//        // Get a training image
-//        std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result = wrapper.getTrainingImage(occlusion.first, occlusion.second);
-
-//        // Show result
-//        if(result.second == Simulator::DropStatus::SUCCESS || result.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
-//            // Display stats
-//            std::cout << "Result:\n    Image ID: " << result.first.imageID
-//                      << "\n    Optimal: " << std::boolalpha << (result.second == Simulator::DropStatus::SUCCESS) << std::noboolalpha
-//                      << "\n    Occlusion: " << result.first.occlusion
-//                      << "\n    Translation: " << result.first.translation
-//                      << "\n    Rotation: " << result.first.rotation << std::endl;
-
-//            cv::namedWindow("Depth");
-//            cv::namedWindow("RGB");
-//            cv::imshow("Depth", result.first.depth);
-//            cv::imshow("RGB", result.first.bgr);
-
-//            cv::waitKey();
-//        }
-//    }
-
-
-
-    LabelMap labelMap = Labels::NYUDepthV1;
-    CameraManager camManager(cv::Vec2f(3.2442516903961865e+02, 2.3584766381177013e+02),
-                             cv::Vec2f(5.7616540758591043e+02, 5.7375619782082447e+02),
-                             cv::Vec2f(3.2442516903961865e+02, 2.3584766381177013e+02),
-                             cv::Vec2f(5.7616540758591043e+02, 5.7375619782082447e+02));
-
-    //std::string basePath("/home/julian/Forschungsprojekt/datasets/NYU-Labeled-V1/");
-    std::string basePath("/home/julian/Uni/Forschungsprojekt/NYU-Labeled-V1/");
-    SceneAnalyzer sa(basePath + "depth", basePath + "rgb", basePath + "label",
-                     basePath + "plane", camManager, labelMap);
-
-    // Precompute planes
-    //bool precompResult = sa.precomputePlaneInfoForAllScenes("floor", cv::Vec3f(0, 1, 0), 20.0);
-    //std::cout << std::boolalpha << "Precompute result (floor): " << precompResult << std::endl;
-    //bool precompResult2 = sa.precomputePlaneInfoForAllScenes("table", cv::Vec3f(0, 1, 0), 20.0);
-    //std::cout << "Precompute result (table): " << precompResult2 << std::noboolalpha << std::endl;
-
-    std::vector<std::string> objects({"003.mesh", "007.mesh", "005.mesh", "011.mesh", "013.mesh"});
-
-//    for(SceneAnalyzer::PlaneIterator it = sa.beginByPlane(std::vector<std::string>({"floor", "table"}), cv::Vec3f(0, 1, 0), 15.0, 0, 60000, false, false);
-//            it != sa.endByPlane(); ++it) {
-//        Simulator sim = sa.createSimulator(it->first, it->second);
-//        sim.setMaxAttempts(20);
-
-//        for(size_t i = 0; i < objects.size(); ++i) {
-//            DroppableObject* obj = sim.createObject(objects[i]);
-//            for(float j = 0.0; j < 0.9; j += 0.2) {
-//                obj->setDesiredOcclusion(j, j + 0.2);
-
-//                Simulator::DropResult result = sim.execute();
-//                std::ostringstream fileName;
-//                fileName << sa.getFileName(it->first) << "_" << it->second.getLabel() << "_" << objects[i] << "_"
-//                         << std::setprecision(3) << j << "-" << j + 0.2 << "_" << obj->getFinalOcclusion();
-//                if(result.status == Simulator::DropStatus::SUCCESS || result.status == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
-//                    if(result.status == Simulator::DropStatus::SUCCESS)
-//                        fileName << "_optimal";
-
-//                    cv::imwrite(basePath + "result/" + fileName.str() + "_depth.png", result.depthImage);
-//                    cv::imwrite(basePath + "result/" + fileName.str() + "_rgb.png", result.rgbImage);
-//                }
-//            }
-//            sim.destroyAllObjects();
-//        }
-//    }
-
-    Simulator sim = sa.createSimulator(207);
-    sim.setMaxAttempts(20);
-    sim.setShowPreviewWindow(true);
-
-    ImageLabeling il = sa.createImageLabeling(207);
-    GroundPlane plane;
-    if(il.findPlaneForLabel("table", plane, cv::Vec3f(0, 1, 0), 15.0, 0, 60000) != ImageLabeling::PlaneFitStatus::SUCCESS)
-        std::cerr << "ERROR NO PLANE FOUND" << std::endl;
-
-    sim.setGroundPlane(plane);
-
-    DroppableObject* obj = sim.createObject("003.mesh");
-    obj->setMustBeUpright(true);
-    //obj->setDesiredDistance(500, 1500);
-    obj->setDesiredOcclusion(0.3, 0.7);
-
-    //DroppableObject* obj2 = sim.createObject("007.mesh");
-    //obj2->setMustBeUpright(true);
-    //obj2->setDesiredOcclusion(0.4, 0.6);
-
-    Simulator::DropResult result = sim.execute();
-    if(result.status == Simulator::DropStatus::SUCCESS || result.status == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
-        cv::imwrite(basePath + "result/test_depth_pres.png", result.depthImage);
-        cv::imwrite(basePath + "result/test_rgb_pres.png", result.rgbImage);
+    // If the version option was given, display version information and exit
+    if(vm.count("version")) {
+        std::cout << "Training Data Generator 0.1\nAuthor: Julian Harttung\nCreated for the Computer Vision Lab Dresden" << std::endl;
+        return 0;
     }
 
-//    CVLDWrapper wrap(basePath, camManager, labelMap);
-//    wrap.precomputePlaneInfo("table", cv::Vec3f(0, 1, 0));
-//    wrap.labelsToUse().push_back("table");
-//    wrap.setComputePlaneIfNoFile(false);
-//    //wrap.setComputePlaneIfNoFile(true);
-//    wrap.setActiveObject(3);
-//    wrap.setMaxAttempts(5);
+    // If the help option was given (or no valid options), display available options and exit
+    if(vm.size() == 0 || vm.count("help") || !vm.count("scenes-path") || !vm.count("object-id") || !vm.count("label-names")) {
+        std::cout << argDesc << std::endl;
+        return 0;
+    }
 
-//#ifdef _BENCHMARK
-//    size_t weakIdx = Benchmarker::getSingletonPtr()->checkpoint("Starting wrapper with weak constraints");
-//#endif
-//    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> res1 = wrap.getTrainingImage(0.4, 0.6);
-//#ifdef _BENCHMARK
-//    Benchmarker::getSingletonPtr()->checkpoint(weakIdx, "Finished wrapper with weak constraints");
-//#endif
+    // Get file paths
+    std::string scenesPath = vm["scenes-path"].as<std::string>();
 
-//#ifdef _BENCHMARK
-//    size_t initialIdx = Benchmarker::getSingletonPtr()->checkpoint("Starting wrapper with initial state");
-//#endif
-//    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> res2 = wrap.getTrainingImage(cv::Mat_<double>::eye(3, 3), cv::Point3d(20, 20, 20), 0.4, 0.6);
-//#ifdef _BENCHMARK
-//    Benchmarker::getSingletonPtr()->checkpoint(initialIdx, "Finished wrapper with initial state");
-//#endif
+    // Get label map
+    LabelMap labelMap = Labels::NYUDepthV1;
 
-//#ifdef _BENCHMARK
-//    size_t strongIdx = Benchmarker::getSingletonPtr()->checkpoint("Starting wrapper with strong constraints");
-//#endif
-//    std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> res3 = wrap.getTrainingImage(cv::Mat_<double>::eye(3, 3), 15.0, 500, 2500, 0.4, 0.6);
-//#ifdef _BENCHMARK
-//    Benchmarker::getSingletonPtr()->checkpoint(strongIdx, "Finished wrapper with strong constraints");
-//#endif
+    // Get camera data
+    cv::Vec2f principalPoint(3.2442516903961865e+02, 2.3584766381177013e+02); // NYU Depth V1
+    cv::Vec2f focalLength(5.7616540758591043e+02, 5.7375619782082447e+02); // NYU Depth V1
 
-//    if(res1.second == Simulator::DropStatus::SUCCESS || res1.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
-//        cv::imshow("Test preview", res1.first.bgr);
-//        cv::waitKey();
-//    }
+    // Get additional parameters
+    unsigned int objectID = vm["object-id"].as<unsigned int>();
 
-//    if(res2.second == Simulator::DropStatus::SUCCESS || res2.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
-//        cv::imshow("Test preview", res2.first.bgr);
-//        cv::waitKey();
-//    }
+    std::vector<std::string> labelNames = vm["label-names"].as<std::vector<std::string>>();
 
-//    if(res3.second == Simulator::DropStatus::SUCCESS || res3.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
-//        cv::imshow("Test preview", res3.first.bgr);
-//        cv::waitKey();
-//    }
+    std::pair<float, float> occlusion(0.0, 0.95);
+    if(vm.count("occlusion")) {
+        std::vector<float> tmpOcclusion = vm["occlusion"].as<std::vector<float>>();
+        if(tmpOcclusion.size() >= 1) occlusion.first = tmpOcclusion[0];
+        if(tmpOcclusion.size() >= 2) occlusion.second = tmpOcclusion[1];
+    }
+
+    unsigned int maxScenes = (vm.count("max-scenes") ? vm["max-scenes"].as<unsigned int>() : 0);
+
+    // Create camera manager
+    CameraManager camManager(principalPoint, focalLength, principalPoint, focalLength);
+
+    // --- BEGIN --- //
+    CVLDWrapper wrapper(scenesPath, camManager, labelMap, maxScenes);
+    wrapper.setLabelsToUse(labelNames);
+    wrapper.setActiveObject(objectID);
+
+    wrapper.setComputePlaneIfNoFile(!vm.count("dont-compute-planes"));
+    wrapper.setShowPreviewWindow(vm.count("show-preview"));
+    wrapper.setShowPhysicsAnimation(vm.count("animate"));
+
+    if(vm.count("max-attempts")) wrapper.setMaxAttempts(vm["max-attempts"].as<unsigned int>());
+    if(vm.count("object-scale")) wrapper.setObjectScale(vm["object-scale"].as<float>());
+    if(vm.count("object-mass")) wrapper.setObjectMass(vm["object-mass"].as<float>());
+    if(vm.count("object-restitution")) wrapper.setObjectRestitution(vm["object-restitution"].as<float>());
+    if(vm.count("object-friction")) wrapper.setObjectFriction(vm["object-friction"].as<float>());
+    if(vm.count("plane-restitution")) wrapper.setPlaneRestitution(vm["plane-restitution"].as<float>());
+    if(vm.count("plane-friction")) wrapper.setPlaneFriction(vm["plane-friction"].as<float>());
+
+    if(vm.count("precompute-only")) {
+        // Precompute planes
+        if(wrapper.precomputePlaneInfo(labelNames))
+            std::cout << "Successfully computed planes for all scenes and each label" << std::endl;
+        else
+            std::cerr << "Plane computation finished, but somewhere an error occured.\n"
+                      << "This is probably caused by some scenes not containing one of the labels." << std::endl;
+    }
+    else {
+#ifdef _BENCHMARK
+        // Benchmark if enabled
+        size_t benchmarkId = Benchmarker::getSingletonPtr()->checkpoint("Starting getTrainingImage execution");
+#endif
+
+        // Get a training image
+        std::pair<CVLDWrapper::TrainingImage, Simulator::DropStatus> result = wrapper.getTrainingImage(occlusion.first, occlusion.second);
+
+#ifdef _BENCHMARK
+        // Benchmark again if enabled
+        Benchmarker::getSingletonPtr()->checkpoint(benchmarkId, "Finished getTrainingImage execution");
+#endif
+
+        // Show result
+        if(result.second == Simulator::DropStatus::SUCCESS || result.second == Simulator::DropStatus::MAX_ATTEMPTS_REACHED) {
+            // Display stats
+            std::cout << "Result:\n    Image ID: " << result.first.imageID
+                      << "\n    Optimal: " << std::boolalpha << (result.second == Simulator::DropStatus::SUCCESS) << std::noboolalpha
+                      << "\n    Occlusion: " << result.first.occlusion
+                      << "\n    Translation: " << result.first.translation
+                      << "\n    Rotation: " << result.first.rotation << std::endl;
+
+            cv::namedWindow("Depth");
+            cv::namedWindow("RGB");
+            cv::imshow("Depth", result.first.depth);
+            cv::imshow("RGB", result.first.bgr);
+
+            cv::waitKey();
+        }
+    }
 
     return 0;
 }

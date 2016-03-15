@@ -102,7 +102,6 @@ public:
      */
     CVLDWrapper(const std::string& datasetPath, const CameraManager& cameraParams, const LabelMap& labelMap, unsigned int maxLoadImages = 0);
 
-    // TODO: better return values
     /**
      * @brief Precompute plane information and store it to <em>.planeinfo</em> files.
      * @param labels Vector of labels for which planes shall be searched.
