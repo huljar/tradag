@@ -199,7 +199,7 @@ ImageLabeling::PlaneFitStatus ImageLabeling::findPlaneForLabel(const std::string
     }
 
     // Pick a region according to the regionMode
-    int pick;
+    int pick = -1;
     if(regionMode == PlaneInfo::PickMode::LARGEST) {
         DEBUG_OUT("Picking the largest region for plane construction");
 
