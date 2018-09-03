@@ -1,6 +1,0 @@
-=== How to generate documentation ===
-
-1. Install Doxygen
-2. Run 'doxygen' in this directory
-3. The output will be written to ./docs
-4. If you want another output format instead of HTML (e.g. LaTeX), edit the Doxyfile

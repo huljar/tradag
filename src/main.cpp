@@ -200,8 +200,10 @@
  * Currently, you have to compile the library together with your project, but in the future it will
  * hopefully be possible to compile it as a standard shared library with @a cmake.
  *
- * The @a TraDaG.pro file is a @a qmake project file where all the required compilation parameters are
- * specified, if these instructions are not exhaustive enough.
+ * The @a TraDaG.pro file is a @a qmake project file where (almost) all the required compilation parameters
+ * are specified, if these instructions are not exhaustive enough. Additionally, make sure that QtCreator is
+ * configured to use a subdirectory of the project root as the build directory (e.g. <tt>build-debug</tt>
+ * and <tt>build-release</tt>).
  *
  * @section files_sec Files
  *
