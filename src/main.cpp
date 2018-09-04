@@ -79,7 +79,9 @@
  *
  * @section license_sec License
  *
- * Not yet determined.
+ * This software is licensed under the terms of the GNU General Public License version 3, except for the
+ * 3rd party elements listed in <tt>LICENSES-THIRD-PARTY.md</tt>. See <tt>LICENSE.md</tt> for further
+ * information.
  *
  *
  * @page install_page Installation
